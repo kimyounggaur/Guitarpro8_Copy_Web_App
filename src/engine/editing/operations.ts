@@ -348,6 +348,21 @@ export function changeDurationAtCursor(
   return current;
 }
 
+export function setDurationAtCursor(
+  score: Score,
+  cursor: CursorPosition,
+  duration: BeatDuration
+): CursorPosition {
+  const current = normaliseCursor(score, cursor);
+  const beat = ensureBeat(score, current);
+
+  if (beat) {
+    beat.duration = duration;
+  }
+
+  return current;
+}
+
 export function moveNoteString(score: Score, cursor: CursorPosition, direction: -1 | 1): CursorPosition {
   const current = normaliseCursor(score, cursor);
   const beat = beatForCursor(score, current);

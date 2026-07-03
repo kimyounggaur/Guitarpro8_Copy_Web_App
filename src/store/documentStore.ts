@@ -9,9 +9,18 @@ export interface EditTransaction {
   after: Score;
 }
 
+export interface DocumentTabState {
+  id: string;
+  title: string;
+  dirty: boolean;
+  locked: boolean;
+}
+
 interface DocumentStore {
   score: Score;
   dirty: boolean;
+  documents: DocumentTabState[];
+  activeId: string;
   undoStack: EditTransaction[];
   redoStack: EditTransaction[];
   loadScore: (score: Score) => void;
@@ -24,20 +33,25 @@ interface DocumentStore {
 export const useDocumentStore = create<DocumentStore>((set, get) => ({
   score: createEmptyScore(),
   dirty: false,
+  documents: [{ id: "demo", title: "Phase 3 Demo", dirty: false, locked: false }],
+  activeId: "demo",
   undoStack: [],
   redoStack: [],
   loadScore: (score) =>
     set({
       score: cloneScore(score),
       dirty: false,
+      documents: [{ id: "demo", title: score.meta.title || "Untitled", dirty: false, locked: false }],
+      activeId: "demo",
       undoStack: [],
       redoStack: []
     }),
   setScore: (score) =>
-    set({
+    set((state) => ({
       score: cloneScore(score),
-      dirty: true
-    }),
+      dirty: true,
+      documents: markActiveDirty(state.documents, state.activeId, true)
+    })),
   transact: (label, recipe) => {
     const before = cloneScore(get().score);
     const after = cloneScore(before);
@@ -46,6 +60,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     set((state) => ({
       score: after,
       dirty: true,
+      documents: markActiveDirty(state.documents, state.activeId, true),
       undoStack: [...state.undoStack, { label, before, after: cloneScore(after) }],
       redoStack: []
     }));
@@ -64,6 +79,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     set({
       score,
       dirty: state.undoStack.length > 1,
+      documents: markActiveDirty(state.documents, state.activeId, state.undoStack.length > 1),
       undoStack: state.undoStack.slice(0, -1),
       redoStack: [...state.redoStack, transaction]
     });
@@ -82,6 +98,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     set({
       score,
       dirty: true,
+      documents: markActiveDirty(state.documents, state.activeId, true),
       undoStack: [...state.undoStack, transaction],
       redoStack: state.redoStack.slice(0, -1)
     });
@@ -89,3 +106,13 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     return score;
   }
 }));
+
+function markActiveDirty(
+  documents: DocumentTabState[],
+  activeId: string,
+  dirty: boolean
+): DocumentTabState[] {
+  return documents.map((document) =>
+    document.id === activeId ? { ...document, dirty } : document
+  );
+}

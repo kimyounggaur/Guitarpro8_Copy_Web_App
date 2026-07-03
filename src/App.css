@@ -1,6 +1,6 @@
 :root {
   color: #e8edf2;
-  background: #1d1c19;
+  background: #151613;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -24,97 +24,245 @@ body {
   margin: 0;
 }
 
+button,
+input {
+  font: inherit;
+}
+
 button {
-  min-height: 36px;
-  border: 1px solid #5b6258;
+  min-height: 30px;
+  border: 1px solid #4a4f47;
   border-radius: 6px;
-  padding: 0 14px;
-  color: #f4f7fa;
-  background: #343a32;
+  color: #edf3f6;
+  background: #252923;
   cursor: pointer;
 }
 
-button:hover {
-  background: #41483e;
+button:hover:not(:disabled) {
+  border-color: #6fb99f;
+  background: #30382f;
 }
 
-.appShell {
+button:disabled {
+  color: #7f8a91;
+  cursor: default;
+  opacity: 0.72;
+}
+
+.gpShell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  min-height: 100vh;
-  background:
-    linear-gradient(180deg, #282721 0%, #181713 100%),
-    #1d1c19;
+  grid-template-rows: 32px 54px 38px minmax(0, 1fr) minmax(108px, 18vh);
+  height: 100vh;
+  min-height: 768px;
+  background: #171815;
 }
 
-.workspace {
+.menuBar,
+.toolbar,
+.tabBar,
+.palettePanel,
+.inspectorPanel,
+.globalView {
+  border-color: #383b34;
+  background: #20211d;
+}
+
+.menuBar {
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  min-width: 0;
-  padding: 30px 34px;
-  border-right: 1px solid #36342d;
+  align-items: center;
+  gap: 2px;
+  border-bottom: 1px solid #34372f;
+  padding: 0 8px;
 }
 
-.eyebrow {
-  margin: 0 0 12px;
-  color: #84d1b6;
+.menuBar button {
+  min-height: 24px;
+  border-color: transparent;
+  padding: 0 10px;
+  background: transparent;
   font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
 }
 
-h1,
-h2,
-p {
-  margin-top: 0;
-}
-
-h1 {
-  max-width: 720px;
-  margin-bottom: 18px;
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.05;
-}
-
-h2 {
-  margin-bottom: 0;
-  font-size: 18px;
-}
-
-.statusGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
-  gap: 12px;
-  max-width: 820px;
-  margin-bottom: 18px;
-}
-
-.statusGrid span {
-  display: grid;
+.toolbar {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  min-height: 82px;
-  border: 1px solid #45463e;
-  border-radius: 8px;
-  padding: 14px;
-  background: #24231f;
+  min-width: 0;
+  border-bottom: 1px solid #3c4037;
+  padding: 7px 10px;
 }
 
-.statusGrid strong {
-  color: #9eacb8;
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: max-content;
+  border-right: 1px solid #3c4037;
+  padding-right: 8px;
+}
+
+.toolbarGroup button,
+.paletteButtons button {
+  width: 32px;
+  padding: 0;
+}
+
+.utilityGroup button {
+  width: auto;
+  min-width: 42px;
+  padding: 0 8px;
+}
+
+.zoomGroup span {
+  min-width: 48px;
+  color: #cfe3dc;
+  text-align: center;
+  font-size: 13px;
+}
+
+.printGroup {
+  container-type: inline-size;
+}
+
+.lcd {
+  display: grid;
+  grid-template-columns: 10px minmax(52px, auto) auto auto 28px 28px 28px;
+  align-items: center;
+  gap: 8px;
+  min-width: 310px;
+  border: 1px solid #4b5548;
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #dbe8e4;
+  background: #151814;
+  font-size: 13px;
+}
+
+.trackColor {
+  width: 10px;
+  height: 28px;
+  border-radius: 3px;
+}
+
+.lcdWarning {
+  color: #f87171;
+}
+
+.utilityGroup {
+  overflow: hidden;
+  flex: 1;
+}
+
+.utilityGroup button:nth-last-child(-n + 3),
+.printGroup {
+  display: none;
+}
+
+.tabBar {
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  overflow: hidden;
+  border-bottom: 1px solid #383b34;
+  padding: 6px 10px 0;
+}
+
+.tabBar button {
+  min-width: 150px;
+  max-width: 260px;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  padding: 0 12px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabBar .activeTab {
+  border-color: #6fb99f;
+  border-bottom-color: #242722;
+  background: #242722;
+}
+
+.tabBar .tabAdd {
+  min-width: 34px;
+  text-align: center;
+}
+
+.gpMain {
+  display: grid;
+  grid-template-columns: 214px minmax(0, 1fr) 286px;
+  min-height: 0;
+}
+
+.gpMain.paletteHidden {
+  grid-template-columns: minmax(0, 1fr) 286px;
+}
+
+.gpMain.inspectorHidden {
+  grid-template-columns: 214px minmax(0, 1fr);
+}
+
+.gpMain.paletteHidden.inspectorHidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.palettePanel,
+.inspectorPanel {
+  overflow: auto;
+  min-width: 0;
+  border-right: 1px solid #383b34;
+}
+
+.inspectorPanel {
+  border-right: 0;
+  border-left: 1px solid #383b34;
+}
+
+.paletteGroup,
+.inspectorPanel section {
+  border-bottom: 1px solid #33372f;
+  padding: 10px;
+}
+
+.paletteGroup h2,
+.inspectorPanel h2 {
+  margin: 0 0 8px;
+  color: #9fd9c6;
   font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.paletteButtons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.paletteButtons .modeButton {
+  border-color: #5ca6ff;
+  background: #1f3d54;
+}
+
+.workspacePanel {
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  background: #11120f;
 }
 
 .scoreViewport {
   overflow: auto;
-  max-height: calc(100vh - 250px);
+  width: 100%;
+  height: 100%;
   min-height: 0;
   border: 1px solid #3b392f;
   border-radius: 8px;
   padding: 18px;
-  background: #11110f;
+  background: #0d0e0c;
   outline: none;
 }
 
@@ -138,85 +286,110 @@ h2 {
   background: #fbfaf7;
 }
 
-.debugPanel {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 24px;
-  background: #11110f;
-}
-
-.panelHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.commandMessage {
-  min-height: 40px;
-  margin: 18px 0;
-  border: 1px solid #393a32;
-  border-radius: 8px;
-  padding: 12px;
-  color: #b7c5d1;
-  background: #20201b;
-}
-
-.cursorReadout {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 18px;
-  border: 1px solid #393a32;
-  border-radius: 8px;
-  padding: 12px;
-  color: #d7e2ea;
-  background: #1b1b18;
-}
-
-.cursorReadout strong {
-  color: #84d1b6;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.cursorReadout em {
-  color: #d49a5d;
-  font-size: 12px;
-  font-style: normal;
-}
-
-.commandList {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.commandList li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 64px;
-  border: 1px solid #383a32;
-  border-radius: 8px;
-  padding: 12px;
-  background: #1b1b18;
-}
-
-.commandList span {
+.inspectorPanel label {
   display: grid;
   gap: 4px;
-}
-
-.commandList small {
-  color: #91a1ae;
-}
-
-.commandList em {
-  color: #d49a5d;
+  margin-bottom: 8px;
+  color: #aab7be;
   font-size: 12px;
-  font-style: normal;
+}
+
+.inspectorPanel input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #43483f;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #edf3f6;
+  background: #151814;
+}
+
+.notationChecks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.notationChecks label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.inspectorPanel p {
+  margin: 8px 0;
+  color: #d49a5d;
+  font-size: 13px;
+}
+
+.globalView {
+  display: grid;
+  grid-template-columns: 214px minmax(0, 1fr);
+  min-height: 108px;
+  border-top: 1px solid #383b34;
+}
+
+.globalTracks {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  overflow: auto;
+  border-right: 1px solid #383b34;
+  padding: 8px;
+}
+
+.globalTracks button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  padding: 0 10px;
+}
+
+.globalTracks .activeTrack {
+  border-color: #6fb99f;
+}
+
+.globalTracks span,
+.globalCell span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.globalGrid {
+  display: grid;
+  grid-auto-rows: 28px;
+  align-content: start;
+  gap: 4px;
+  overflow: auto;
+  padding: 8px;
+}
+
+.globalHeader {
+  color: #9fb0b9;
+  font-size: 11px;
+  text-align: center;
+}
+
+.globalCell {
+  min-height: 24px;
+  border-radius: 4px;
+  padding: 0;
+  background: #151814;
+}
+
+.globalCell.activeCell {
+  border-color: #facc15;
+  background: #2b2715;
+}
+
+@media (min-width: 1280px) {
+  .printGroup,
+  .utilityGroup button:nth-last-child(-n + 3) {
+    display: flex;
+  }
 }

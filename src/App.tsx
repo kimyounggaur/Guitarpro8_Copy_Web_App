@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ensureDemoCommandsRegistered } from "./commands/demoCommands";
 import {
   ensureEditingCommandsRegistered,
@@ -8,7 +8,7 @@ import {
   handleEditorKeyDown,
   type FretInputBuffer
 } from "./commands/editorKeymap";
-import { executeCommand, getAllCommands } from "./commands/registry";
+import { executeCommand } from "./commands/registry";
 import { cursorFromHit } from "./engine/editing/hitTest";
 import {
   changeDurationAtCursor,
@@ -28,6 +28,7 @@ import {
   normaliseCursor,
   replaceTrackBars,
   setAccidentalAtCursor,
+  setDurationAtCursor,
   setDotsAtCursor,
   shouldMutateOnMoveRight,
   tieCurrentNoteToNext,
@@ -39,16 +40,14 @@ import { withEditorOverlays } from "./engine/editing/overlays";
 import type { ClipboardPayload, CursorMove, CursorPosition } from "./engine/editing/types";
 import { layoutScore } from "./engine/layout/layoutScore";
 import { createBar } from "./model/factory";
+import type { SongInfo, Track } from "./model/types";
 import { SvgRenderer } from "./engine/render/SvgRenderer";
 import { createDemoScore } from "./model/demoScore";
 import { useDocumentStore } from "./store/documentStore";
 import { usePlaybackStore } from "./store/playbackStore";
 import { usePreferencesStore } from "./store/preferencesStore";
 import { useViewStore } from "./store/viewStore";
-
-interface DemoCommandState {
-  lastMessage: string;
-}
+import { EditorShell } from "./ui/shell/EditorShell";
 
 function App() {
   ensureDemoCommandsRegistered();
@@ -56,20 +55,22 @@ function App() {
 
   const score = useDocumentStore((state) => state.score);
   const dirty = useDocumentStore((state) => state.dirty);
+  const documents = useDocumentStore((state) => state.documents);
+  const activeId = useDocumentStore((state) => state.activeId);
   const undoCount = useDocumentStore((state) => state.undoStack.length);
   const redoCount = useDocumentStore((state) => state.redoStack.length);
   const loadScore = useDocumentStore((state) => state.loadScore);
   const transact = useDocumentStore((state) => state.transact);
   const undoDocument = useDocumentStore((state) => state.undo);
   const redoDocument = useDocumentStore((state) => state.redo);
-  const zoom = useViewStore((state) => state.zoom);
   const cursor = useViewStore((state) => state.cursor);
   const selection = useViewStore((state) => state.selection);
   const setCursor = useViewStore((state) => state.setCursor);
   const setSelection = useViewStore((state) => state.setSelection);
   const playbackStatus = usePlaybackStore((state) => state.status);
   const invertPlusMinus = usePreferencesStore((state) => state.invertPlusMinus);
-  const [lastMessage, setLastMessage] = useState("No command executed yet.");
+  const panelVisibility = usePreferencesStore((state) => state.panelVisibility);
+  const togglePanel = usePreferencesStore((state) => state.togglePanel);
   const demoScore = useMemo(() => createDemoScore(), []);
   const fretBufferRef = useRef<FretInputBuffer>({ digits: "", timer: null });
   const clipboardRef = useRef<ClipboardPayload | null>(null);
@@ -92,7 +93,26 @@ function App() {
     () => withEditorOverlays(baseScene, cursor, selection),
     [baseScene, cursor, selection]
   );
-  const commands = useMemo(() => getAllCommands<DemoCommandState>(), []);
+
+  useEffect(() => {
+    function handlePanelShortcuts(event: KeyboardEvent) {
+      const panelByKey = {
+        F2: "palette",
+        F5: "songInspector",
+        F6: "trackInspector",
+        F8: "globalView"
+      } as const;
+      const panel = panelByKey[event.key as keyof typeof panelByKey];
+
+      if (panel) {
+        event.preventDefault();
+        togglePanel(panel);
+      }
+    }
+
+    window.addEventListener("keydown", handlePanelShortcuts);
+    return () => window.removeEventListener("keydown", handlePanelShortcuts);
+  }, [togglePanel]);
 
   const editorContext = useMemo<EditorCommandContext>(
     () => ({
@@ -151,6 +171,8 @@ function App() {
           changeDurationAtCursor(draft, cursor, effective)
         );
       },
+      setDuration: (duration) =>
+        editWithCursor("Set duration", (draft) => setDurationAtCursor(draft, cursor, duration)),
       toggleRest: () => editWithCursor("Set rest", (draft) => toggleRestAtCursor(draft, cursor)),
       toggleTie: (wholeBeat) =>
         editWithCursor("Tie note", (draft) => tieCurrentNoteToNext(draft, cursor, wholeBeat)),
@@ -206,6 +228,10 @@ function App() {
       undoDocument
     ]
   );
+
+  function dispatchEditorCommand(commandId: string): void {
+    executeCommand(commandId, editorContext);
+  }
 
   function editWithCursor(
     label: string,
@@ -318,12 +344,6 @@ function App() {
     });
   }
 
-  function runAboutCommand() {
-    const commandState: DemoCommandState = { lastMessage };
-    executeCommand("app.about", commandState);
-    setLastMessage(commandState.lastMessage);
-  }
-
   function handleScoreClick(event: React.MouseEvent<HTMLElement>) {
     const target = (event.target as Element).closest("[data-hit-ref]") as SVGElement | null;
 
@@ -347,29 +367,53 @@ function App() {
     handleEditorKeyDown(event.nativeEvent, editorContext, fretBufferRef.current);
   }
 
+  function handleSongInfoChange(field: keyof SongInfo, value: string) {
+    transact("Edit song info", (draft) => {
+      draft.meta[field] = value;
+    });
+  }
+
+  function handleTrackChange(
+    trackId: string,
+    patch: Partial<Pick<Track, "name" | "shortName" | "color">>
+  ) {
+    transact("Edit track", (draft) => {
+      const track = draft.tracks.find((candidate) => candidate.id === trackId);
+      if (track) {
+        Object.assign(track, patch);
+      }
+    });
+  }
+
+  function handleGlobalJump(trackId: string, barIndex: number) {
+    setSelection(null);
+    setCursor(
+      normaliseCursor(score, {
+        ...cursor,
+        trackId,
+        barIndex,
+        beatIndex: 0
+      })
+    );
+  }
+
   return (
-    <main className="appShell">
-      <section className="workspace">
-        <p className="eyebrow">Keyboard-first editing kernel</p>
-        <h1>Guitar Pro Clone - Phase 3</h1>
-        <div className="statusGrid" aria-label="Phase 3 state summary">
-          <span>
-            <strong>Tracks</strong>
-            {score.tracks.length}
-          </span>
-          <span>
-            <strong>Bars</strong>
-            {score.masterBars.length}
-          </span>
-          <span>
-            <strong>Dirty</strong>
-            {dirty ? "yes" : "no"}
-          </span>
-          <span>
-            <strong>History</strong>
-            {undoCount}/{redoCount}
-          </span>
-        </div>
+    <EditorShell
+      score={score}
+      cursor={cursor}
+      dirty={dirty}
+      undoCount={undoCount}
+      redoCount={redoCount}
+      documents={documents}
+      activeId={activeId}
+      panelVisibility={panelVisibility}
+      playbackStatus={playbackStatus}
+      dispatchCommand={dispatchEditorCommand}
+      togglePanel={togglePanel}
+      onSongInfoChange={handleSongInfoChange}
+      onTrackChange={handleTrackChange}
+      onGlobalJump={handleGlobalJump}
+      workspace={
         <div
           className="scoreViewport"
           tabIndex={0}
@@ -380,37 +424,8 @@ function App() {
         >
           <SvgRenderer scene={scene} />
         </div>
-      </section>
-
-      <aside className="debugPanel" aria-label="Registered commands">
-        <div className="panelHeader">
-          <h2>Registered Commands</h2>
-          <button type="button" onClick={runAboutCommand}>
-            Run app.about
-          </button>
-        </div>
-        <p className="commandMessage">{lastMessage}</p>
-        <div className="cursorReadout" aria-label="Cursor">
-          <strong>Cursor</strong>
-          <span>
-            Bar {cursor.barIndex + 1}, Beat {cursor.beatIndex + 1}, Voice {cursor.voiceIndex + 1},{" "}
-            {cursor.staffKind === "tab" ? `String ${cursor.string}` : `Line ${cursor.staffLine}`}
-          </span>
-          <em>{playbackStatus}</em>
-        </div>
-        <ul className="commandList">
-          {commands.map((command) => (
-            <li key={command.id}>
-              <span>
-                <strong>{command.label}</strong>
-                <small>{command.id}</small>
-              </span>
-              <em>{command.category}</em>
-            </li>
-          ))}
-        </ul>
-      </aside>
-    </main>
+      }
+    />
   );
 }
 

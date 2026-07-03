@@ -1,5 +1,5 @@
 import type { CursorMove } from "../engine/editing/types";
-import type { Note } from "../model/types";
+import type { BeatDuration, Note } from "../model/types";
 import { getCommand, registerCommand } from "./registry";
 
 export interface EditorCommandContext {
@@ -10,6 +10,7 @@ export interface EditorCommandContext {
   inputFret: (fret: number) => void;
   inputStandardString: (stringNumber: number) => void;
   changeDuration: (direction: "longer" | "shorter") => void;
+  setDuration: (duration: BeatDuration) => void;
   toggleRest: () => void;
   toggleTie: (wholeBeat?: boolean) => void;
   setDots: (dots: 1 | 2) => void;
@@ -68,6 +69,15 @@ export function ensureEditingCommandsRegistered(): void {
     category: "Note",
     shortcut: { win: "+", mac: "+" },
     execute: (context) => context.changeDuration("shorter")
+  });
+
+  ([1, 2, 4, 8, 16, 32, 64] as BeatDuration[]).forEach((duration) => {
+    registerCommand<EditorCommandContext>({
+      id: `duration.set.${duration}`,
+      label: `${duration} note`,
+      category: "Note",
+      execute: (context) => context.setDuration(duration)
+    });
   });
 
   registerCommand<EditorCommandContext>({
