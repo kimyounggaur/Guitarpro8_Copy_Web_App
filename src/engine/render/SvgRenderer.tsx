@@ -46,6 +46,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           stroke={primitive.stroke}
           strokeWidth={primitive.strokeWidth}
           strokeLinecap={primitive.strokeLinecap}
+          pointerEvents={primitive.pointerEvents}
           {...hitProps}
         />
       );
@@ -60,6 +61,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           fontSize={primitive.fontSize}
           fontFamily={primitive.fontFamily}
           textAnchor={primitive.anchor}
+          pointerEvents={primitive.pointerEvents}
           {...hitProps}
         >
           {primitive.text}
@@ -78,6 +80,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           fill={primitive.fill}
           stroke={primitive.stroke}
           strokeWidth={primitive.strokeWidth}
+          pointerEvents={primitive.pointerEvents}
           {...hitProps}
         />
       );
@@ -93,6 +96,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           fill={primitive.fill}
           stroke={primitive.stroke}
           strokeWidth={primitive.strokeWidth}
+          pointerEvents={primitive.pointerEvents}
           {...hitProps}
         />
       );
@@ -107,6 +111,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           strokeWidth={primitive.strokeWidth}
           strokeLinecap={primitive.strokeLinecap}
           strokeLinejoin={primitive.strokeLinejoin}
+          pointerEvents={primitive.pointerEvents}
           {...hitProps}
         />
       );

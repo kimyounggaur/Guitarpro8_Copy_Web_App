@@ -115,6 +115,12 @@ h2 {
   border-radius: 8px;
   padding: 18px;
   background: #11110f;
+  outline: none;
+}
+
+.scoreViewport:focus {
+  border-color: #84d1b6;
+  box-shadow: 0 0 0 2px rgba(132, 209, 182, 0.18);
 }
 
 .scorePages {
@@ -155,6 +161,29 @@ h2 {
   padding: 12px;
   color: #b7c5d1;
   background: #20201b;
+}
+
+.cursorReadout {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
+  border: 1px solid #393a32;
+  border-radius: 8px;
+  padding: 12px;
+  color: #d7e2ea;
+  background: #1b1b18;
+}
+
+.cursorReadout strong {
+  color: #84d1b6;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.cursorReadout em {
+  color: #d49a5d;
+  font-size: 12px;
+  font-style: normal;
 }
 
 .commandList {

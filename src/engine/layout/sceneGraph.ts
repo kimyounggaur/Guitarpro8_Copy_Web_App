@@ -26,6 +26,7 @@ export interface HitMetadata {
 interface PrimitiveBase {
   id: string;
   hit?: HitMetadata;
+  pointerEvents?: "none";
 }
 
 export interface LinePrimitive extends PrimitiveBase {
