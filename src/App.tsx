@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { ensureDemoCommandsRegistered } from "./commands/demoCommands";
 import {
   ensureEditingCommandsRegistered,
@@ -8,7 +8,9 @@ import {
   handleEditorKeyDown,
   type FretInputBuffer
 } from "./commands/editorKeymap";
-import { executeCommand } from "./commands/registry";
+import { executeCommand, getAllCommands } from "./commands/registry";
+import { detectPlatform } from "./commands/keymap";
+import { findMenuAction, paletteEntryByPrefix, parsePaletteInput } from "./commands/paletteCommands";
 import { compilePlayback, type NoteEvent, type PlaybackCompilation } from "./engine/audio/compile";
 import { PlaybackScheduler } from "./engine/audio/scheduler";
 import type { EffectSlotType, TrackMixerState } from "./engine/audio/mixer";
@@ -51,9 +53,18 @@ import type { ClipboardPayload, CursorMove, CursorPosition, SelectionRange } fro
 import { layoutScore } from "./engine/layout/layoutScore";
 import { transposeScore, type TransposeOptions } from "./engine/tools/transpose";
 import { unrollScore } from "./engine/unroll/unrollScore";
-import { createBar, createBeat, createNote } from "./model/factory";
+import { exportAsciiTab, importAsciiTab } from "./io/asciiTab";
+import { defaultExportName } from "./io/exportNames";
+import { exportMidi, importMidi } from "./io/midi";
+import { exportMusicXml, importMusicXml } from "./io/musicXml";
+import { parseNativeScore, serializeNativeScore } from "./io/nativeScore";
+import { sceneToPdf } from "./io/pdfExport";
+import { sceneFirstPageSvg, sceneToSvgDocument } from "./io/vectorExport";
+import { createBar, createBeat, createEmptyScore, createMasterBar, createNote, createTrack } from "./model/factory";
+import { DRUM_MAPPINGS, instrumentById, retuneTrack, type RetuneMode } from "./model/instruments";
+import { applyStylePreset, normalizeStylesheet } from "./model/stylesheet";
 import type { ChordVoicing } from "./model/chords";
-import { TICKS_PER_QUARTER, type Automation, type AutomationScope, type AutomationType, type BeatDuration, type Score, type SongInfo, type Track } from "./model/types";
+import { TICKS_PER_QUARTER, type Automation, type AutomationScope, type AutomationType, type Beat, type BeatDuration, type DisplayMode, type Dynamic, type Score, type SongInfo, type Stylesheet, type StylesheetPresetName, type Track } from "./model/types";
 import { SvgRenderer } from "./engine/render/SvgRenderer";
 import { createDemoScore } from "./model/demoScore";
 import { useDocumentStore } from "./store/documentStore";
@@ -61,7 +72,24 @@ import { usePlaybackStore } from "./store/playbackStore";
 import { usePreferencesStore } from "./store/preferencesStore";
 import { useViewStore } from "./store/viewStore";
 import { EditorShell, type AutomationLaneId } from "./ui/shell/EditorShell";
+import type { CommandPaletteResult } from "./ui/shell/CommandPalette";
+import type { ExportFormat, ImportFormat } from "./ui/shell/FileIoPanel";
 import type { CleanupRequest, ToolPanelId } from "./ui/shell/ToolPanels";
+import type { TrackCreateOptions, TrackPanelId } from "./ui/shell/TrackSystemPanels";
+
+interface BrowserFileHandle {
+  getFile: () => Promise<File>;
+  createWritable: () => Promise<{ write: (blob: Blob) => Promise<void>; close: () => Promise<void> }>;
+}
+
+interface BrowserFilePickerWindow extends Window {
+  showOpenFilePicker?: (options?: unknown) => Promise<BrowserFileHandle[]>;
+  showSaveFilePicker?: (options?: unknown) => Promise<BrowserFileHandle>;
+}
+
+type PendingFileLoad =
+  | { kind: "native" }
+  | { kind: "import"; format: ImportFormat };
 
 function App() {
   ensureDemoCommandsRegistered();
@@ -105,9 +133,21 @@ function App() {
   const togglePanel = usePreferencesStore((state) => state.togglePanel);
   const demoScore = useMemo(() => createDemoScore(), []);
   const [activeToolPanel, setActiveToolPanel] = useState<ToolPanelId | null>(null);
+  const [activeTrackPanel, setActiveTrackPanel] = useState<TrackPanelId | null>(null);
+  const [stylesheetPanelOpen, setStylesheetPanelOpen] = useState(false);
+  const [fileIoPanelOpen, setFileIoPanelOpen] = useState(false);
+  const [fileIoStatus, setFileIoStatus] = useState("Native .gp, ASCII, MusicXML, MIDI, SVG, PNG, and PDF are ready.");
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandPaletteInitialValue, setCommandPaletteInitialValue] = useState("");
+  const [multiVoiceEdit, setMultiVoiceEdit] = useState(false);
+  const [multiTrackView, setMultiTrackView] = useState(true);
+  const platform = useMemo(() => detectPlatform(), []);
   const fretBufferRef = useRef<FretInputBuffer>({ digits: "", timer: null });
   const clipboardRef = useRef<ClipboardPayload | null>(null);
   const schedulerRef = useRef<PlaybackScheduler | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingFileLoadRef = useRef<PendingFileLoad | null>(null);
+  const nativeFileHandleRef = useRef<BrowserFileHandle | null>(null);
 
   useEffect(() => {
     if (score.tracks.length === 0) {
@@ -139,12 +179,24 @@ function App() {
     [score, speedPercent, mixer, cursor.trackId]
   );
 
+  const scoreForLayout = useMemo(() => {
+    if (multiTrackView) {
+      return score;
+    }
+
+    const activeTrack = score.tracks.find((track) => track.id === cursor.trackId);
+    return activeTrack ? { ...score, tracks: [activeTrack] } : score;
+  }, [cursor.trackId, multiTrackView, score]);
+
   const baseScene = useMemo(
     () =>
-      layoutScore(score, {
-        editingBar: { barIndex: cursor.barIndex, trackId: cursor.trackId ?? undefined }
+      layoutScore(scoreForLayout, {
+        editingBar: { barIndex: cursor.barIndex, trackId: cursor.trackId ?? undefined },
+        concertTone: score.documentSettings.concertTone,
+        activeVoiceIndex: cursor.voiceIndex,
+        multiVoiceEdit
       }),
-    [score, cursor]
+    [score.documentSettings.concertTone, scoreForLayout, cursor, multiVoiceEdit]
   );
   const scene = useMemo(
     () =>
@@ -186,16 +238,110 @@ function App() {
         target?.tagName === "SELECT" ||
         target?.tagName === "TEXTAREA" ||
         target?.isContentEditable;
+      const ctrl = event.ctrlKey || event.metaKey;
+
+      if (ctrl && event.altKey && event.key.toLowerCase() === "e") {
+        event.preventDefault();
+        openCommandPalette("@");
+        return;
+      }
+
+      if (ctrl && event.shiftKey && event.key.toLowerCase() === "e") {
+        event.preventDefault();
+        openCommandPalette(">");
+        return;
+      }
+
+      if (ctrl && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "e") {
+        event.preventDefault();
+        openCommandPalette("");
+        return;
+      }
+
+      if (ctrl && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        handleNewFile();
+        return;
+      }
+
+      if (ctrl && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "o") {
+        event.preventDefault();
+        void handleOpenNativeFile();
+        return;
+      }
+
+      if (ctrl && event.shiftKey && !event.altKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void handleSaveNativeFileAs();
+        return;
+      }
+
+      if (ctrl && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void handleSaveNativeFile();
+        return;
+      }
+
+      if (event.key === "F7") {
+        event.preventDefault();
+        setStylesheetPanelOpen((value) => !value);
+        return;
+      }
+
+      if (ctrl && !event.altKey && (event.key === "+" || event.key === "=")) {
+        event.preventDefault();
+        handleZoomChange(score.documentSettings.zoom + 10);
+        return;
+      }
+
+      if (ctrl && !event.altKey && event.key === "-") {
+        event.preventDefault();
+        handleZoomChange(score.documentSettings.zoom - 10);
+        return;
+      }
 
       if (editingText) {
         return;
       }
 
-      const ctrl = event.ctrlKey || event.metaKey;
-
-      if (event.key === "Escape" && activeToolPanel) {
+      if (event.key === "Escape" && (activeToolPanel || activeTrackPanel || stylesheetPanelOpen || fileIoPanelOpen || commandPaletteOpen)) {
         event.preventDefault();
         setActiveToolPanel(null);
+        setActiveTrackPanel(null);
+        setStylesheetPanelOpen(false);
+        setFileIoPanelOpen(false);
+        setCommandPaletteOpen(false);
+        return;
+      }
+
+      if (ctrl && event.shiftKey && event.key === "Insert") {
+        event.preventDefault();
+        setActiveTrackPanel("wizard");
+        return;
+      }
+
+      if (event.key === "F3") {
+        event.preventDefault();
+        setMultiTrackView((value) => !value);
+        return;
+      }
+
+      if (ctrl && event.key.toLowerCase() === "m") {
+        event.preventDefault();
+        setMultiVoiceEdit((value) => !value);
+        setActiveTrackPanel("voices");
+        return;
+      }
+
+      if (ctrl && /^[1-4]$/.test(event.key)) {
+        event.preventDefault();
+        handleVoiceSelect(Number(event.key) - 1);
+        return;
+      }
+
+      if (event.altKey && /^[1-4]$/.test(event.key)) {
+        event.preventDefault();
+        handleMoveNoteToVoice(Number(event.key) - 1);
         return;
       }
 
@@ -213,7 +359,12 @@ function App() {
 
       if (ctrl && event.key === "F6") {
         event.preventDefault();
-        setActiveToolPanel("instrument");
+        const activeTrack = score.tracks.find((track) => track.id === cursor.trackId);
+        if (activeTrack?.icon === "drums") {
+          setActiveTrackPanel("drums");
+        } else {
+          setActiveToolPanel("instrument");
+        }
         return;
       }
 
@@ -225,7 +376,7 @@ function App() {
 
     window.addEventListener("keydown", handleToolShortcuts, { capture: true });
     return () => window.removeEventListener("keydown", handleToolShortcuts, { capture: true });
-  }, [activeToolPanel]);
+  }, [activeToolPanel, activeTrackPanel, commandPaletteOpen, cursor.trackId, fileIoPanelOpen, score.documentSettings.zoom, score.tracks, stylesheetPanelOpen]);
 
   const editorContext = useMemo<EditorCommandContext>(
     () => ({
@@ -409,6 +560,818 @@ function App() {
 
   function dispatchEditorCommand(commandId: string): void {
     executeCommand(commandId, editorContext);
+  }
+
+  function openCommandPalette(initialValue = ""): void {
+    setCommandPaletteInitialValue(initialValue);
+    setCommandPaletteOpen(true);
+  }
+
+  function handleNewFile(): void {
+    const nextScore = createEmptyScore();
+    nextScore.tracks.push(createTrack(undefined, nextScore.masterBars.length));
+    nativeFileHandleRef.current = null;
+    loadScore(nextScore);
+    setSelection(null);
+    setCursor(defaultCursor(nextScore));
+    setFileIoStatus("Created a new untitled score.");
+    setFileIoPanelOpen(false);
+  }
+
+  async function handleOpenNativeFile(): Promise<void> {
+    const picker = (window as BrowserFilePickerWindow).showOpenFilePicker;
+
+    if (picker) {
+      try {
+        const [handle] = await picker({
+          multiple: false,
+          types: [
+            {
+              description: "GuitarPro8 Copy score",
+              accept: { "application/json": [".gp", ".gp8", ".json"] }
+            }
+          ]
+        });
+
+        if (handle) {
+          await loadFileIntoScore(await handle.getFile(), { kind: "native" }, handle);
+        }
+      } catch (error) {
+        if (!isAbortError(error)) {
+          setFileIoStatus(errorMessage(error));
+        }
+      }
+      return;
+    }
+
+    requestFileLoad({ kind: "native" });
+  }
+
+  async function handleSaveNativeFile(): Promise<void> {
+    if (!nativeFileHandleRef.current) {
+      await handleSaveNativeFileAs();
+      return;
+    }
+
+    try {
+      await writeNativeScore(nativeFileHandleRef.current);
+      setFileIoStatus(`Saved ${score.meta.title || "Untitled Score"} as native .gp.`);
+    } catch (error) {
+      setFileIoStatus(errorMessage(error));
+    }
+  }
+
+  async function handleSaveNativeFileAs(): Promise<void> {
+    const picker = (window as BrowserFilePickerWindow).showSaveFilePicker;
+
+    if (picker) {
+      try {
+        const handle = await picker({
+          suggestedName: defaultExportName(score, ".gp"),
+          types: [
+            {
+              description: "GuitarPro8 Copy score",
+              accept: { "application/json": [".gp", ".gp8", ".json"] }
+            }
+          ]
+        });
+        nativeFileHandleRef.current = handle;
+        await writeNativeScore(handle);
+        setFileIoStatus(`Saved ${score.meta.title || "Untitled Score"} as native .gp.`);
+      } catch (error) {
+        if (!isAbortError(error)) {
+          setFileIoStatus(errorMessage(error));
+        }
+      }
+      return;
+    }
+
+    downloadBlob(
+      new Blob([serializeNativeScore(score)], { type: "application/json" }),
+      defaultExportName(score, ".gp")
+    );
+    setFileIoStatus("Downloaded a native .gp score.");
+  }
+
+  function handleImportFile(format: ImportFormat): void {
+    requestFileLoad({ kind: "import", format });
+  }
+
+  async function handleExportFile(format: ExportFormat): Promise<void> {
+    try {
+      if (format === "native") {
+        await handleSaveNativeFileAs();
+        return;
+      }
+
+      if (format === "ascii") {
+        downloadBlob(
+          new Blob([exportAsciiTab(score, cursor.trackId ?? undefined)], { type: "text/plain" }),
+          defaultExportName(score, ".txt")
+        );
+        setFileIoStatus("Exported the active track as ASCII tab.");
+        return;
+      }
+
+      if (format === "musicxml") {
+        downloadBlob(
+          new Blob([exportMusicXml(score)], { type: "application/vnd.recordare.musicxml+xml" }),
+          defaultExportName(score, ".musicxml")
+        );
+        setFileIoStatus("Exported the full score as MusicXML.");
+        return;
+      }
+
+      if (format === "midi") {
+        downloadBlob(
+          new Blob([bytesToArrayBuffer(exportMidi(score))], { type: "audio/midi" }),
+          defaultExportName(score, ".mid")
+        );
+        setFileIoStatus("Exported playback data as MIDI.");
+        return;
+      }
+
+      const exportScene = layoutScore(score, {
+        concertTone: score.documentSettings.concertTone,
+        multiVoiceEdit
+      });
+
+      if (format === "svg") {
+        downloadBlob(
+          new Blob([sceneToSvgDocument(exportScene)], { type: "image/svg+xml" }),
+          defaultExportName(score, ".svg")
+        );
+        setFileIoStatus("Exported the complete score as SVG.");
+        return;
+      }
+
+      if (format === "pdf") {
+        downloadBlob(
+          new Blob([bytesToArrayBuffer(sceneToPdf(exportScene))], { type: "application/pdf" }),
+          defaultExportName(score, ".pdf")
+        );
+        setFileIoStatus("Exported the complete score as PDF.");
+        return;
+      }
+
+      const firstPage = exportScene.pages[0];
+
+      if (!firstPage) {
+        throw new Error("The score has no rendered page to export.");
+      }
+
+      const pngBlob = await svgToPngBlob(
+        sceneFirstPageSvg(exportScene),
+        firstPage.width,
+        firstPage.height
+      );
+      downloadBlob(pngBlob, defaultExportName(score, ".png"));
+      setFileIoStatus("Exported the first page as PNG.");
+    } catch (error) {
+      setFileIoStatus(errorMessage(error));
+    }
+  }
+
+  async function handleFileInputChange(event: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = event.currentTarget.files?.[0] ?? null;
+    const pending = pendingFileLoadRef.current;
+    pendingFileLoadRef.current = null;
+    event.currentTarget.value = "";
+
+    if (!file || !pending) {
+      return;
+    }
+
+    await loadFileIntoScore(file, pending);
+  }
+
+  async function handleScoreDrop(event: DragEvent<HTMLDivElement>): Promise<void> {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    const pending = pendingLoadForFileName(file.name);
+
+    if (!pending) {
+      setFileIoStatus("Drop a .gp, .txt, .tab, .musicxml, .xml, .mid, or .midi file.");
+      setFileIoPanelOpen(true);
+      return;
+    }
+
+    setFileIoPanelOpen(true);
+    await loadFileIntoScore(file, pending);
+  }
+
+  function handleScoreDragOver(event: DragEvent<HTMLDivElement>): void {
+    if (event.dataTransfer.types.includes("Files")) {
+      event.preventDefault();
+    }
+  }
+
+  function requestFileLoad(pending: PendingFileLoad): void {
+    pendingFileLoadRef.current = pending;
+    setFileIoStatus(`Choose a ${pendingFileLabel(pending)} file.`);
+
+    if (!fileInputRef.current) {
+      setFileIoStatus("The browser file input is not ready yet.");
+      return;
+    }
+
+    fileInputRef.current.accept = acceptForPending(pending);
+    fileInputRef.current.click();
+  }
+
+  async function loadFileIntoScore(
+    file: File,
+    pending: PendingFileLoad,
+    handle: BrowserFileHandle | null = null
+  ): Promise<void> {
+    try {
+      const nextScore =
+        pending.kind === "native"
+          ? parseNativeScore(await file.text())
+          : pending.format === "ascii"
+            ? importAsciiTab(await file.text())
+            : pending.format === "musicxml"
+              ? importMusicXml(await file.text())
+              : importMidi(new Uint8Array(await file.arrayBuffer()));
+
+      nativeFileHandleRef.current = pending.kind === "native" ? handle : null;
+      loadScore(nextScore);
+      setSelection(null);
+      setCursor(defaultCursor(nextScore));
+      setFileIoStatus(`Loaded ${file.name} as ${pendingFileLabel(pending)}.`);
+      setFileIoPanelOpen(false);
+    } catch (error) {
+      setFileIoStatus(errorMessage(error));
+      setFileIoPanelOpen(true);
+    }
+  }
+
+  async function writeNativeScore(handle: BrowserFileHandle): Promise<void> {
+    const writable = await handle.createWritable();
+    await writable.write(new Blob([serializeNativeScore(score)], { type: "application/json" }));
+    await writable.close();
+  }
+
+  function importFromPalette(query: string): CommandPaletteResult {
+    const format = importFormatFromText(query);
+
+    if (format === "native") {
+      void handleOpenNativeFile();
+      return { handled: true, message: "Open native score" };
+    }
+
+    if (!format) {
+      setFileIoPanelOpen(true);
+      return { handled: true, message: "Choose an import format." };
+    }
+
+    handleImportFile(format);
+    return { handled: true, message: `Import ${formatLabel(format)}` };
+  }
+
+  function exportFromPalette(query: string): CommandPaletteResult {
+    const format = exportFormatFromText(query);
+
+    if (!format) {
+      setFileIoPanelOpen(true);
+      return { handled: true, message: "Choose an export format." };
+    }
+
+    void handleExportFile(format);
+    return { handled: true, message: `Export ${formatLabel(format)}` };
+  }
+
+  function handleCommandPaletteSubmit(input: string): CommandPaletteResult {
+    const parsed = parsePaletteInput(input);
+
+    if (!input.trim() || input.trim() === "?") {
+      return { handled: false, message: "Type a prefix or choose a command.", keepOpen: true };
+    }
+
+    if (parsed.mode === "action") {
+      return runMenuAction(parsed.args);
+    }
+
+    if (parsed.mode === "expression") {
+      return runExpressionText(parsed.args);
+    }
+
+    if (parsed.mode === "section") {
+      return jumpToSection(parsed.args);
+    }
+
+    if (parsed.mode === "bar") {
+      return jumpToBar(parsed.args);
+    }
+
+    if (parsed.mode === "unset") {
+      return unsetPaletteEffect(parsed.args);
+    }
+
+    const timeSignature = /^(\d{1,2})\/(1|2|4|8|16|32|64)$/.exec(input.trim());
+
+    if (timeSignature) {
+      return setTimeSignatureFromPalette(Number(timeSignature[1]), Number(timeSignature[2]) as BeatDuration);
+    }
+
+    const entry = paletteEntryByPrefix(parsed.prefix);
+
+    if (entry?.kind === "quick") {
+      return runQuickPaletteCommand(entry.commandId ?? entry.prefix);
+    }
+
+    if (parsed.prefix === "add-bar" || parsed.prefix === "insert-bars") {
+      return addBarsFromPalette(parsed.args, parsed.prefix === "insert-bars");
+    }
+
+    if (parsed.prefix === "x") {
+      return repeatBarsFromPalette(parsed.args);
+    }
+
+    if (parsed.prefix === "pickstroke" || parsed.prefix === "brush" || parsed.prefix === "arpeggio" || parsed.prefix === "wah" || parsed.prefix === "slap-pop") {
+      return applyPatternFromPalette(parsed.prefix, parsed.args);
+    }
+
+    if (parsed.prefix === "voice") {
+      const voice = Number(parsed.args);
+
+      if (voice >= 1 && voice <= 4) {
+        handleVoiceSelect(voice - 1);
+        return { handled: true, message: `Voice ${voice}` };
+      }
+    }
+
+    if (parsed.prefix === "import") {
+      return importFromPalette(parsed.args);
+    }
+
+    if (parsed.prefix === "export") {
+      return exportFromPalette(parsed.args);
+    }
+
+    if (parsed.prefix === "view") {
+      return changeViewFromPalette(parsed.args);
+    }
+
+    if (parsed.prefix === "zoom") {
+      return zoomFromPalette(parsed.args);
+    }
+
+    const command = getAllCommands(editorContext).find(
+      (candidate) =>
+        candidate.id === input.trim() ||
+        candidate.label.toLowerCase() === input.trim().toLowerCase()
+    );
+
+    if (command) {
+      dispatchEditorCommand(command.id);
+      return { handled: true, message: command.label };
+    }
+
+    return { handled: false, message: `No command matched "${input}".`, keepOpen: true };
+  }
+
+  function runMenuAction(query: string): CommandPaletteResult {
+    const action = findMenuAction(query);
+
+    if (!action) {
+      return { handled: false, message: "Action not found.", keepOpen: true };
+    }
+
+    if (action.commandId) {
+      try {
+        dispatchEditorCommand(action.commandId);
+        return { handled: true, message: action.label };
+      } catch {
+        return { handled: false, message: `${action.label} is not available here.`, keepOpen: true };
+      }
+    }
+
+    if (action.paletteInput) {
+      return handleCommandPaletteSubmit(action.paletteInput);
+    }
+
+    return runAppAction(action.appAction ?? action.id, action.label);
+  }
+
+  function runAppAction(action: string, label = action): CommandPaletteResult {
+    switch (action) {
+      case "file.new":
+        handleNewFile();
+        return { handled: true, message: label };
+      case "file.open":
+        void handleOpenNativeFile();
+        return { handled: true, message: label };
+      case "file.save":
+        void handleSaveNativeFile();
+        return { handled: true, message: label };
+      case "file.saveAs":
+        void handleSaveNativeFileAs();
+        return { handled: true, message: label };
+      case "file.import":
+        setFileIoPanelOpen(true);
+        return { handled: true, message: "Import" };
+      case "file.import.ascii":
+        handleImportFile("ascii");
+        return { handled: true, message: "Import ASCII" };
+      case "file.import.musicxml":
+        handleImportFile("musicxml");
+        return { handled: true, message: "Import MusicXML" };
+      case "file.import.midi":
+        handleImportFile("midi");
+        return { handled: true, message: "Import MIDI" };
+      case "file.export":
+        setFileIoPanelOpen(true);
+        return { handled: true, message: "Export" };
+      case "file.export.native":
+        void handleExportFile("native");
+        return { handled: true, message: "Export native" };
+      case "file.export.ascii":
+        void handleExportFile("ascii");
+        return { handled: true, message: "Export ASCII" };
+      case "file.export.musicxml":
+        void handleExportFile("musicxml");
+        return { handled: true, message: "Export MusicXML" };
+      case "file.export.midi":
+        void handleExportFile("midi");
+        return { handled: true, message: "Export MIDI" };
+      case "file.export.svg":
+        void handleExportFile("svg");
+        return { handled: true, message: "Export SVG" };
+      case "file.export.png":
+        void handleExportFile("png");
+        return { handled: true, message: "Export PNG" };
+      case "file.export.pdf":
+        void handleExportFile("pdf");
+        return { handled: true, message: "Export PDF" };
+      case "file.print":
+        window.print();
+        return { handled: true, message: "Print" };
+      case "layout.forceBreak": {
+        const nextScore = transact("Force break line", (draft) => {
+          const masterBar = draft.masterBars[cursor.barIndex];
+          if (masterBar) {
+            masterBar.layout.forcedBreak = !masterBar.layout.forcedBreak;
+            masterBar.layout.preventBreak = false;
+          }
+        });
+        setCursor(normaliseCursor(nextScore, cursor));
+        return { handled: true, message: label };
+      }
+      case "layout.preventBreak": {
+        const nextScore = transact("Prevent break line", (draft) => {
+          const masterBar = draft.masterBars[cursor.barIndex];
+          if (masterBar) {
+            masterBar.layout.preventBreak = !masterBar.layout.preventBreak;
+            masterBar.layout.forcedBreak = false;
+          }
+        });
+        setCursor(normaliseCursor(nextScore, cursor));
+        return { handled: true, message: label };
+      }
+      case "tools.timer": {
+        const nextScore = transact("Toggle timer", (draft) => {
+          const beat = ensureBeatAtCursor(draft, cursor);
+          if (beat) {
+            beat.timer = !beat.timer;
+          }
+        });
+        setCursor(normaliseCursor(nextScore, cursor));
+        return { handled: true, message: label };
+      }
+      case "bar.symbol.doubleSimile": {
+        const nextScore = transact("Double simile", (draft) => {
+          const masterBar = draft.masterBars[cursor.barIndex];
+          if (masterBar) {
+            masterBar.simileMark = masterBar.simileMark === "double" ? "none" : "double";
+          }
+        });
+        setCursor(normaliseCursor(nextScore, cursor));
+        return { handled: true, message: label };
+      }
+      case "bar.symbol.multirest": {
+        const nextScore = transact("Multirest", (draft) => {
+          const masterBar = draft.masterBars[cursor.barIndex];
+          if (masterBar) {
+            masterBar.simileMark = masterBar.simileMark === "single" ? "none" : "single";
+          }
+        });
+        setCursor(normaliseCursor(nextScore, cursor));
+        return { handled: true, message: label };
+      }
+      case "track.add":
+        setActiveTrackPanel("wizard");
+        return { handled: true, message: label };
+      case "track.delete":
+        if (cursor.trackId) {
+          handleTrackDelete(cursor.trackId);
+          return { handled: true, message: label };
+        }
+        break;
+      case "track.tuning":
+        setActiveTrackPanel("tuning");
+        return { handled: true, message: label };
+      case "voice.toggleMulti":
+        handleToggleMultiVoice();
+        setActiveTrackPanel("voices");
+        return { handled: true, message: label };
+      case "tools.commandPalette":
+        openCommandPalette("");
+        return { handled: true, message: label, keepOpen: true };
+      case "tools.chords":
+        setActiveToolPanel("chords");
+        return { handled: true, message: label };
+      case "tools.scales":
+        setActiveToolPanel("scales");
+        return { handled: true, message: label };
+      case "tools.transpose":
+        setActiveToolPanel("transpose");
+        return { handled: true, message: label };
+      case "tools.cleanup":
+        setActiveToolPanel("cleanup");
+        return { handled: true, message: label };
+      case "tools.instrument":
+        setActiveToolPanel("instrument");
+        return { handled: true, message: label };
+      case "panels.palette":
+        togglePanel("palette");
+        return { handled: true, message: label };
+      case "panels.songInspector":
+        togglePanel("songInspector");
+        return { handled: true, message: label };
+      case "panels.trackInspector":
+        togglePanel("trackInspector");
+        return { handled: true, message: label };
+      case "panels.globalView":
+        togglePanel("globalView");
+        return { handled: true, message: label };
+      case "panels.automation":
+        togglePanel("automationView");
+        return { handled: true, message: label };
+      case "view.multitrack":
+        handleToggleMultiTrackView();
+        return { handled: true, message: label };
+      case "view.stylesheet":
+        setStylesheetPanelOpen(true);
+        return { handled: true, message: label };
+      case "view.zoomIn":
+        handleZoomChange(score.documentSettings.zoom + 10);
+        return { handled: true, message: label };
+      case "view.zoomOut":
+        handleZoomChange(score.documentSettings.zoom - 10);
+        return { handled: true, message: label };
+      default:
+        break;
+    }
+
+    return { handled: false, message: `${label} is not implemented yet.`, keepOpen: true };
+  }
+
+  function runQuickPaletteCommand(commandIdOrAction: string): CommandPaletteResult {
+    if (commandIdOrAction.includes(".")) {
+      try {
+        dispatchEditorCommand(commandIdOrAction);
+        return { handled: true, message: commandIdOrAction };
+      } catch {
+        return runAppAction(commandIdOrAction);
+      }
+    }
+
+    return runAppAction(commandIdOrAction);
+  }
+
+  function runExpressionText(expression: string): CommandPaletteResult {
+    const value = expression.trim();
+
+    if (!value) {
+      return { handled: false, message: "Expression Text needs a value.", keepOpen: true };
+    }
+
+    const dynamicIndex = ["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"].indexOf(value);
+
+    if (dynamicIndex >= 0) {
+      editWithCursor("Expression dynamic", (draft) => setDynamicAtCursor(draft, cursor, dynamicIndex as Dynamic));
+      return { handled: true, message: `Dynamic ${value}` };
+    }
+
+    if (/^[A-G](#|b)?m?(maj|min|dim|aug|sus|add)?\d*$/i.test(value)) {
+      const nextScore = transact("Expression chord", (draft) => {
+        const beat = ensureBeatAtCursor(draft, cursor);
+        const track = draft.tracks.find((candidate) => candidate.id === cursor.trackId);
+
+        if (beat && track) {
+          beat.chordId = value;
+
+          if (!track.chordLibrary.some((chord) => chord.id === value)) {
+            track.chordLibrary.push({ id: value, name: value });
+          }
+        }
+      });
+      setCursor(normaliseCursor(nextScore, cursor));
+      return { handled: true, message: `Chord ${value}` };
+    }
+
+    if (/^[A-G](#|b)?m?$/.test(value)) {
+      const nextScore = transact("Expression key signature", (draft) => {
+        const masterBar = draft.masterBars[cursor.barIndex];
+
+        if (masterBar) {
+          masterBar.keySignature = { key: value, mode: value.endsWith("m") ? "minor" : "major" };
+        }
+      });
+      setCursor(normaliseCursor(nextScore, cursor));
+      return { handled: true, message: `Key ${value}` };
+    }
+
+    return { handled: false, message: `Expression "${value}" is not available yet.`, keepOpen: true };
+  }
+
+  function jumpToSection(query: string): CommandPaletteResult {
+    const normalized = query.trim().toLowerCase();
+
+    if (!normalized) {
+      return { handled: false, message: "Type a section letter or name.", keepOpen: true };
+    }
+
+    const sectionIndex = score.masterBars.findIndex((bar) => {
+      const section = bar.section;
+      return section && (section.letter.toLowerCase() === normalized || section.name.toLowerCase().includes(normalized));
+    });
+
+    if (sectionIndex < 0) {
+      return { handled: false, message: "Section not found.", keepOpen: true };
+    }
+
+    setSelection(null);
+    setCursor(normaliseCursor(score, { ...cursor, barIndex: sectionIndex, beatIndex: 0 }));
+    return { handled: true, message: `Section ${query}` };
+  }
+
+  function jumpToBar(query: string): CommandPaletteResult {
+    const barNumber = Number(query.trim());
+
+    if (!Number.isInteger(barNumber) || barNumber < 1) {
+      return { handled: false, message: "Type a bar number.", keepOpen: true };
+    }
+
+    setSelection(null);
+    setCursor(normaliseCursor(score, { ...cursor, barIndex: barNumber - 1, beatIndex: 0 }));
+    return { handled: true, message: `Bar ${barNumber}` };
+  }
+
+  function changeViewFromPalette(query: string): CommandPaletteResult {
+    const mode = displayModeFromText(query);
+
+    if (!mode) {
+      return { handled: false, message: "Use view vertical-page, horizontal-page, grid, parchment, vertical-screen, or horizontal-screen.", keepOpen: true };
+    }
+
+    handleDisplayModeChange(mode);
+    return { handled: true, message: `View ${mode}` };
+  }
+
+  function zoomFromPalette(query: string): CommandPaletteResult {
+    const zoom = Number(query.trim().replace("%", ""));
+
+    if (!Number.isFinite(zoom)) {
+      return { handled: false, message: "Type a zoom percent from 25 to 300.", keepOpen: true };
+    }
+
+    handleZoomChange(zoom);
+    return { handled: true, message: `Zoom ${clampNumber(Math.round(zoom / 5) * 5, 25, 300)}%` };
+  }
+
+  function setTimeSignatureFromPalette(numerator: number, denominator: BeatDuration): CommandPaletteResult {
+    const nextScore = transact("Command palette time signature", (draft) => {
+      const masterBar = draft.masterBars[cursor.barIndex];
+
+      if (masterBar) {
+        masterBar.timeSignature = { numerator, denominator, beamingPreset: "default" };
+      }
+    });
+    setCursor(normaliseCursor(nextScore, cursor));
+    return { handled: true, message: `${numerator}/${denominator}` };
+  }
+
+  function addBarsFromPalette(countText: string, insertAtCursor: boolean): CommandPaletteResult {
+    const count = Math.min(128, Math.max(1, Number(countText.trim() || "1")));
+
+    if (!Number.isFinite(count)) {
+      return { handled: false, message: "Bar count must be a number.", keepOpen: true };
+    }
+
+    const nextScore = transact(insertAtCursor ? "Insert bars" : "Add bars", (draft) => {
+      const index = insertAtCursor ? cursor.barIndex : cursor.barIndex + 1;
+
+      for (let i = 0; i < count; i += 1) {
+        draft.masterBars.splice(index + i, 0, createMasterBar());
+        draft.tracks.forEach((track) => track.bars.splice(index + i, 0, createBar()));
+      }
+    });
+    setCursor(normaliseCursor(nextScore, cursor));
+    return { handled: true, message: `${insertAtCursor ? "Inserted" : "Added"} ${count} bar(s)` };
+  }
+
+  function repeatBarsFromPalette(countText: string): CommandPaletteResult {
+    const count = Math.min(32, Math.max(1, Number(countText.trim() || "1")));
+
+    if (!Number.isFinite(count)) {
+      return { handled: false, message: "Repeat count must be a number.", keepOpen: true };
+    }
+
+    const nextScore = transact("Repeat bars", (draft) => {
+      const sourceMaster = structuredClone(draft.masterBars[cursor.barIndex] ?? createMasterBar());
+      const sourceBars = draft.tracks.map((track) => structuredClone(track.bars[cursor.barIndex] ?? createBar()));
+
+      for (let i = 0; i < count; i += 1) {
+        const index = cursor.barIndex + 1 + i;
+        draft.masterBars.splice(index, 0, structuredClone(sourceMaster));
+        draft.tracks.forEach((track, trackIndex) => track.bars.splice(index, 0, structuredClone(sourceBars[trackIndex])));
+      }
+    });
+    setCursor(normaliseCursor(nextScore, cursor));
+    return { handled: true, message: `Repeated ${count} bar(s)` };
+  }
+
+  function applyPatternFromPalette(prefix: string, rawPattern: string): CommandPaletteResult {
+    const pattern = rawPattern;
+
+    if (!pattern) {
+      return { handled: false, message: "Pattern required.", keepOpen: true };
+    }
+
+    const nextScore = transact("Command palette pattern", (draft) => {
+      const track = draft.tracks.find((candidate) => candidate.id === cursor.trackId);
+      const beatRefs = collectPatternBeats(track, cursor, selectedBarRange(draft, cursor, selection));
+
+      beatRefs.forEach((beat, index) => {
+        const char = pattern[index % pattern.length].toLowerCase();
+
+        if (prefix === "pickstroke") {
+          beat.pickstroke = char === "d" ? "down" : char === "u" ? "up" : "none";
+        }
+
+        if (prefix === "brush") {
+          beat.brush = char === "d" || char === "u" ? { direction: char === "d" ? "down" : "up", speed: 1, delay: 0 } : undefined;
+        }
+
+        if (prefix === "arpeggio") {
+          beat.arpeggio = char === "d" || char === "u" ? { direction: char === "d" ? "down" : "up", speed: 1, delay: 0 } : undefined;
+        }
+
+        if (prefix === "wah") {
+          beat.notes.forEach((note) => {
+            note.wah = char === "o" ? "open" : char === "c" ? "closed" : undefined;
+          });
+        }
+
+        if (prefix === "slap-pop") {
+          beat.notes.forEach((note) => {
+            note.slap = char === "s";
+            note.pop = char === "p";
+          });
+        }
+      });
+    });
+    setCursor(normaliseCursor(nextScore, cursor));
+    return { handled: true, message: `${prefix} ${pattern}` };
+  }
+
+  function unsetPaletteEffect(effect: string): CommandPaletteResult {
+    const key = effect.trim().toLowerCase();
+
+    if (!key) {
+      return { handled: false, message: "Type an effect to unset.", keepOpen: true };
+    }
+
+    const nextScore = transact("Unset effect", (draft) => {
+      const track = draft.tracks.find((candidate) => candidate.id === cursor.trackId);
+      const { start, end } = selectedBarRange(draft, cursor, selection);
+
+      track?.bars.slice(start, end + 1).forEach((bar) => {
+        bar.voices.forEach((voice) => {
+          voice.beats.forEach((beat) => {
+            beat.notes.forEach((note) => {
+              if (key.includes("tie")) {
+                note.tieOrigin = undefined;
+                note.tieDestination = undefined;
+              }
+              if (key.includes("palm")) note.palmMute = false;
+              if (key.includes("let")) note.letRing = false;
+              if (key.includes("dead")) note.deadNote = false;
+              if (key.includes("staccato")) note.staccato = false;
+            });
+          });
+        });
+      });
+    });
+    setCursor(normaliseCursor(nextScore, cursor));
+    return { handled: true, message: `Unset ${effect}` };
   }
 
   async function startPlayback(startSec: number): Promise<void> {
@@ -607,6 +1570,250 @@ function App() {
         Object.assign(track, patch);
       }
     });
+  }
+
+  function handleCreateTrack(options: TrackCreateOptions) {
+    const preset = instrumentById(options.presetId);
+    let nextCursor: CursorPosition = cursor;
+    const nextScore = transact("Create track", (draft) => {
+      const notationTypes = options.notationTypes.length > 0 ? options.notationTypes : preset.notationTypes;
+      const track = createTrack(
+        {
+          name: options.name.trim() || preset.name,
+          shortName: options.shortName.trim() || preset.shortName,
+          color: options.color,
+          icon: options.icon,
+          strings: [...options.tuning.strings],
+          tuningLabel: options.tuning.label,
+          notationTypes: [...notationTypes],
+          staffConfig: options.staffConfig,
+          stringed: preset.stringed,
+          soundingOffset: preset.soundingOffset,
+          gmProgram: preset.gmProgram
+        },
+        draft.masterBars.length
+      );
+
+      track.tuning = structuredClone(options.tuning);
+      track.interpretation.stringed = preset.stringed;
+      track.transpositionTonality.soundingOffset = preset.soundingOffset;
+      draft.tracks.push(track);
+      nextCursor = {
+        trackId: track.id,
+        barIndex: 0,
+        voiceIndex: 0,
+        beatIndex: 0,
+        string: 1,
+        staffLine: 0,
+        staffKind: track.notationTypes.includes("tab") ? "tab" : "standard"
+      };
+    });
+
+    setSelection(null);
+    setCursor(normaliseCursor(nextScore, nextCursor));
+    setActiveTrackPanel(null);
+  }
+
+  function handleApplyTuning(trackId: string, tuning: Track["tuning"], mode: RetuneMode) {
+    const nextScore = transact("Apply tuning", (draft) => {
+      const track = draft.tracks.find((candidate) => candidate.id === trackId);
+
+      if (track) {
+        retuneTrack(track, structuredClone(tuning), mode);
+      }
+    });
+
+    setCursor(normaliseCursor(nextScore, cursor));
+  }
+
+  function handleTrackSystemPatch(
+    trackId: string,
+    patch: Partial<Pick<Track, "notationTypes" | "staffConfig">>
+  ) {
+    transact("Edit track system", (draft) => {
+      const track = draft.tracks.find((candidate) => candidate.id === trackId);
+
+      if (!track) {
+        return;
+      }
+
+      if (patch.notationTypes && patch.notationTypes.length > 0) {
+        track.notationTypes = [...patch.notationTypes];
+      }
+
+      if (patch.staffConfig) {
+        track.staffConfig = patch.staffConfig;
+      }
+    });
+  }
+
+  function handleTrackTranspositionChange(trackId: string, soundingOffset: number) {
+    transact("Edit track transposition", (draft) => {
+      const track = draft.tracks.find((candidate) => candidate.id === trackId);
+
+      if (track) {
+        track.transpositionTonality.soundingOffset = soundingOffset;
+      }
+    });
+  }
+
+  function handleConcertToneToggle() {
+    transact("Toggle concert tone", (draft) => {
+      draft.documentSettings.concertTone = !draft.documentSettings.concertTone;
+    });
+  }
+
+  function handleStylesheetChange(stylesheet: Stylesheet) {
+    transact("Edit stylesheet", (draft) => {
+      draft.stylesheet = normalizeStylesheet(stylesheet);
+    });
+  }
+
+  function handleStylesheetPreset(presetName: StylesheetPresetName) {
+    transact("Apply stylesheet preset", (draft) => {
+      draft.stylesheet = applyStylePreset(normalizeStylesheet(draft.stylesheet), presetName);
+    });
+  }
+
+  function handleDisplayModeChange(displayMode: DisplayMode) {
+    transact("Change display mode", (draft) => {
+      draft.documentSettings.displayMode = displayMode;
+    });
+  }
+
+  function handleZoomChange(zoom: number) {
+    const nextZoom = clampNumber(Math.round(zoom / 5) * 5, 25, 300);
+
+    transact("Change zoom", (draft) => {
+      draft.documentSettings.zoom = nextZoom;
+    });
+  }
+
+  function handleTrackDelete(trackId: string) {
+    const trackIndex = score.tracks.findIndex((track) => track.id === trackId);
+
+    if (trackIndex < 0 || score.tracks.length <= 1) {
+      return;
+    }
+
+    const nextTrack = score.tracks[trackIndex + 1] ?? score.tracks[trackIndex - 1] ?? null;
+    const nextScore = transact("Delete track", (draft) => {
+      draft.tracks = draft.tracks.filter((track) => track.id !== trackId);
+    });
+
+    setSelection(null);
+    setCursor(normaliseCursor(nextScore, { ...cursor, trackId: nextTrack?.id ?? null }));
+  }
+
+  function handleTrackMove(trackId: string, direction: -1 | 1) {
+    const trackIndex = score.tracks.findIndex((track) => track.id === trackId);
+    const targetIndex = Math.min(score.tracks.length - 1, Math.max(0, trackIndex + direction));
+
+    if (trackIndex < 0 || targetIndex === trackIndex) {
+      return;
+    }
+
+    const nextScore = transact("Move track", (draft) => {
+      const [track] = draft.tracks.splice(trackIndex, 1);
+      draft.tracks.splice(targetIndex, 0, track);
+    });
+
+    setCursor(normaliseCursor(nextScore, cursor));
+  }
+
+  function handleVoiceSelect(voiceIndex: number) {
+    const nextScore = score;
+    setMultiVoiceEdit(true);
+    setCursor(normaliseCursor(nextScore, { ...cursor, voiceIndex }));
+    setSelection(null);
+  }
+
+  function handleMoveNoteToVoice(voiceIndex: number) {
+    if (voiceIndex === cursor.voiceIndex) {
+      return;
+    }
+
+    let nextCursor: CursorPosition = { ...cursor, voiceIndex };
+    const nextScore = transact("Move note to voice", (draft) => {
+      const track = draft.tracks.find((candidate) => candidate.id === cursor.trackId);
+      const bar = track?.bars[cursor.barIndex];
+      const sourceVoice = bar?.voices[cursor.voiceIndex];
+      const targetVoice = bar?.voices[voiceIndex];
+      const sourceBeat = sourceVoice?.beats[cursor.beatIndex];
+
+      if (!sourceBeat || !targetVoice || sourceBeat.notes.length === 0) {
+        return;
+      }
+
+      while (targetVoice.beats.length <= cursor.beatIndex) {
+        targetVoice.beats.push(createBeat({ duration: sourceBeat.duration, dots: sourceBeat.dots, rest: true }));
+      }
+
+      const targetBeat = targetVoice.beats[cursor.beatIndex];
+      const noteIndex = Math.max(0, sourceBeat.notes.findIndex((note) => note.string === cursor.string));
+      const [note] = sourceBeat.notes.splice(noteIndex, 1);
+
+      if (!note) {
+        return;
+      }
+
+      targetBeat.rest = false;
+      targetBeat.notes.push(note);
+
+      if (sourceBeat.notes.length === 0) {
+        sourceBeat.rest = true;
+      }
+
+      nextCursor = { ...cursor, voiceIndex, string: note.string };
+    });
+
+    setMultiVoiceEdit(true);
+    setSelection(null);
+    setCursor(normaliseCursor(nextScore, nextCursor));
+  }
+
+  function handleDrumToggle(mappingId: string, articulation: string) {
+    const mapping = DRUM_MAPPINGS.find((candidate) => candidate.id === mappingId);
+    const activeTrack = score.tracks.find((track) => track.id === cursor.trackId);
+
+    if (!mapping || activeTrack?.icon !== "drums") {
+      return;
+    }
+
+    const nextScore = transact("Toggle drum hit", (draft) => {
+      const beat = ensureBeatAtCursor(draft, cursor);
+
+      if (!beat) {
+        return;
+      }
+
+      const existingIndex = beat.notes.findIndex(
+        (note) => note.midiNumber === mapping.midiNumber && note.articulation === articulation
+      );
+
+      if (existingIndex >= 0) {
+        beat.notes.splice(existingIndex, 1);
+      } else {
+        const note = createNote(1, 0);
+        note.midiNumber = mapping.midiNumber;
+        note.articulation = articulation;
+        note.ghost = articulation === "ghost";
+        note.accent = articulation === "accent" || articulation === "rimshot" ? "accent" : "none";
+        beat.notes.push(note);
+      }
+
+      beat.rest = beat.notes.length === 0;
+    });
+
+    setCursor(normaliseCursor(nextScore, cursor));
+  }
+
+  function handleToggleMultiVoice() {
+    setMultiVoiceEdit((value) => !value);
+  }
+
+  function handleToggleMultiTrackView() {
+    setMultiTrackView((value) => !value);
   }
 
   function handleGlobalJump(trackId: string, barIndex: number) {
@@ -818,7 +2025,8 @@ function App() {
   }
 
   return (
-    <EditorShell
+    <>
+      <EditorShell
       score={score}
       cursor={cursor}
       dirty={dirty}
@@ -837,10 +2045,25 @@ function App() {
       speedPercent={speedPercent}
       mixer={mixer}
       activeToolPanel={activeToolPanel}
+      activeTrackPanel={activeTrackPanel}
+      stylesheetPanelOpen={stylesheetPanelOpen}
+      fileIoPanelOpen={fileIoPanelOpen}
+      fileIoStatus={fileIoStatus}
+      commandPaletteOpen={commandPaletteOpen}
+      commandPaletteInitialValue={commandPaletteInitialValue}
+      platform={platform}
+      registeredCommands={getAllCommands(editorContext)}
+      multiVoiceEdit={multiVoiceEdit}
+      multiTrackView={multiTrackView}
       dispatchCommand={dispatchEditorCommand}
       togglePanel={togglePanel}
       onSongInfoChange={handleSongInfoChange}
       onTrackChange={handleTrackChange}
+      onTrackSystemPatch={handleTrackSystemPatch}
+      onTrackTranspositionChange={handleTrackTranspositionChange}
+      onConcertToneToggle={handleConcertToneToggle}
+      onTrackDelete={handleTrackDelete}
+      onTrackMove={handleTrackMove}
       onGlobalJump={handleGlobalJump}
       onMixerTrackChange={handleMixerTrackChange}
       onMixerEffectToggle={handleMixerEffectToggle}
@@ -850,6 +2073,32 @@ function App() {
       onAutomationTransitionToggle={handleAutomationTransitionToggle}
       onToolOpen={setActiveToolPanel}
       onToolClose={() => setActiveToolPanel(null)}
+      onTrackPanelOpen={setActiveTrackPanel}
+      onTrackPanelClose={() => setActiveTrackPanel(null)}
+      onFileIoPanelOpen={() => setFileIoPanelOpen(true)}
+      onFileIoPanelClose={() => setFileIoPanelOpen(false)}
+      onNewFile={handleNewFile}
+      onOpenNativeFile={() => void handleOpenNativeFile()}
+      onSaveNativeFile={() => void handleSaveNativeFile()}
+      onSaveNativeFileAs={() => void handleSaveNativeFileAs()}
+      onImportFile={handleImportFile}
+      onExportFile={(format) => void handleExportFile(format)}
+      onStylesheetPanelOpen={() => setStylesheetPanelOpen(true)}
+      onStylesheetPanelClose={() => setStylesheetPanelOpen(false)}
+      onStylesheetChange={handleStylesheetChange}
+      onStylesheetPreset={handleStylesheetPreset}
+      onDisplayModeChange={handleDisplayModeChange}
+      onZoomChange={handleZoomChange}
+      onCommandPaletteOpen={openCommandPalette}
+      onCommandPaletteClose={() => setCommandPaletteOpen(false)}
+      onCommandPaletteSubmit={handleCommandPaletteSubmit}
+      onCreateTrack={handleCreateTrack}
+      onApplyTuning={handleApplyTuning}
+      onVoiceSelect={handleVoiceSelect}
+      onMoveNoteToVoice={handleMoveNoteToVoice}
+      onToggleMultiVoice={handleToggleMultiVoice}
+      onToggleMultiTrackView={handleToggleMultiTrackView}
+      onDrumToggle={handleDrumToggle}
       onInsertChordVoicing={handleInsertChordVoicing}
       onFretboardNoteToggle={handleFretboardNoteToggle}
       onTransposeRequest={handleTransposeRequest}
@@ -862,12 +2111,175 @@ function App() {
           aria-label="Editable score"
           onClick={handleScoreClick}
           onKeyDown={handleScoreKeyDown}
+          onDragOver={handleScoreDragOver}
+          onDrop={(event) => void handleScoreDrop(event)}
         >
-          <SvgRenderer scene={scene} />
+          <SvgRenderer
+            scene={scene}
+            displayMode={score.documentSettings.displayMode}
+            zoom={score.documentSettings.zoom}
+          />
         </div>
       }
     />
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hiddenFileInput"
+        onChange={(event) => void handleFileInputChange(event)}
+      />
+    </>
   );
+}
+
+function acceptForPending(pending: PendingFileLoad): string {
+  if (pending.kind === "native") {
+    return ".gp,.gp8,.json,application/json";
+  }
+
+  switch (pending.format) {
+    case "ascii":
+      return ".txt,.tab,text/plain";
+    case "musicxml":
+      return ".musicxml,.xml,application/xml,text/xml";
+    case "midi":
+      return ".mid,.midi,audio/midi,audio/x-midi";
+  }
+}
+
+function pendingLoadForFileName(fileName: string): PendingFileLoad | null {
+  const extension = fileName.toLowerCase().split(".").pop() ?? "";
+
+  if (["gp", "gp8", "json"].includes(extension)) {
+    return { kind: "native" };
+  }
+
+  if (["txt", "tab"].includes(extension)) {
+    return { kind: "import", format: "ascii" };
+  }
+
+  if (["musicxml", "xml"].includes(extension)) {
+    return { kind: "import", format: "musicxml" };
+  }
+
+  if (["mid", "midi"].includes(extension)) {
+    return { kind: "import", format: "midi" };
+  }
+
+  return null;
+}
+
+function pendingFileLabel(pending: PendingFileLoad): string {
+  return pending.kind === "native" ? "native .gp" : formatLabel(pending.format);
+}
+
+function importFormatFromText(value: string): ImportFormat | "native" | null {
+  const token = normalizedFormatToken(value);
+
+  if (!token) return null;
+  if (["native", "gp", "gp8", "json", "score"].includes(token)) return "native";
+  if (["ascii", "asciitab", "tab", "txt", "text"].includes(token)) return "ascii";
+  if (["musicxml", "xml", "mxl"].includes(token)) return "musicxml";
+  if (["midi", "mid", "smf"].includes(token)) return "midi";
+  return null;
+}
+
+function exportFormatFromText(value: string): ExportFormat | null {
+  const token = normalizedFormatToken(value);
+
+  if (!token) return null;
+  if (["native", "gp", "gp8", "json", "score"].includes(token)) return "native";
+  if (["ascii", "asciitab", "tab", "txt", "text"].includes(token)) return "ascii";
+  if (["musicxml", "xml", "mxl"].includes(token)) return "musicxml";
+  if (["midi", "mid", "smf"].includes(token)) return "midi";
+  if (token === "svg") return "svg";
+  if (token === "png") return "png";
+  if (token === "pdf") return "pdf";
+  return null;
+}
+
+function normalizedFormatToken(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s._-]+/g, "");
+}
+
+function formatLabel(format: ImportFormat | ExportFormat | "native"): string {
+  switch (format) {
+    case "native":
+      return "Native .gp";
+    case "ascii":
+      return "ASCII tab";
+    case "musicxml":
+      return "MusicXML";
+    case "midi":
+      return "MIDI";
+    case "svg":
+      return "SVG";
+    case "png":
+      return "PNG";
+    case "pdf":
+      return "PDF";
+  }
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+async function svgToPngBlob(svg: string, width: number, height: number): Promise<Blob> {
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+
+  try {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("The SVG page could not be rendered as PNG."));
+      image.src = url;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.ceil(width));
+    canvas.height = Math.max(1, Math.ceil(height));
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error("The browser could not create a PNG export canvas.");
+    }
+
+    context.drawImage(image, 0, 0);
+
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error("The PNG export failed."));
+        }
+      }, "image/png");
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "The file operation failed.";
 }
 
 function playbackEvents(
@@ -1055,6 +2467,36 @@ function selectedBarRange(
   };
 }
 
+function collectPatternBeats(
+  track: Track | undefined,
+  cursor: CursorPosition,
+  range: { start: number; end: number }
+): Beat[] {
+  const beats: Beat[] = [];
+
+  if (!track) {
+    return beats;
+  }
+
+  for (let barIndex = range.start; barIndex <= range.end; barIndex += 1) {
+    const voice = track.bars[barIndex]?.voices[cursor.voiceIndex];
+
+    if (!voice) {
+      continue;
+    }
+
+    voice.beats.forEach((beat, beatIndex) => {
+      if (barIndex === cursor.barIndex && beatIndex < cursor.beatIndex && range.start === range.end) {
+        return;
+      }
+
+      beats.push(beat);
+    });
+  }
+
+  return beats.length > 0 ? beats : track.bars[cursor.barIndex]?.voices[cursor.voiceIndex]?.beats.slice(cursor.beatIndex, cursor.beatIndex + 1) ?? [];
+}
+
 function durationForTicks(ticks: number): BeatDuration {
   const candidates: Array<[BeatDuration, number]> = [
     [1, TICKS_PER_QUARTER * 4],
@@ -1068,6 +2510,34 @@ function durationForTicks(ticks: number): BeatDuration {
   return candidates.reduce((best, candidate) =>
     Math.abs(candidate[1] - ticks) < Math.abs(best[1] - ticks) ? candidate : best
   )[0];
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+
+  return Math.min(max, Math.max(min, value));
+}
+
+function displayModeFromText(value: string): DisplayMode | null {
+  const normalized = value.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  const aliases: Record<string, DisplayMode> = {
+    vp: "vertical-page",
+    page: "vertical-page",
+    "vertical-page": "vertical-page",
+    hp: "horizontal-page",
+    "horizontal-page": "horizontal-page",
+    grid: "grid",
+    parchment: "parchment",
+    scroll: "parchment",
+    vs: "vertical-screen",
+    "vertical-screen": "vertical-screen",
+    hs: "horizontal-screen",
+    "horizontal-screen": "horizontal-screen"
+  };
+
+  return aliases[normalized] ?? null;
 }
 
 export default App;

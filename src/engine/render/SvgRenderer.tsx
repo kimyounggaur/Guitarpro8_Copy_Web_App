@@ -1,12 +1,15 @@
 import type { SceneGraph, ScenePrimitive } from "../layout/sceneGraph";
+import type { DisplayMode } from "../../model/types";
 
 interface SvgRendererProps {
   scene: SceneGraph;
+  displayMode: DisplayMode;
+  zoom: number;
 }
 
-export function SvgRenderer({ scene }: SvgRendererProps) {
+export function SvgRenderer({ scene, displayMode, zoom }: SvgRendererProps) {
   return (
-    <div className="scorePages" aria-label="Rendered score">
+    <div className={`scorePages display-${displayMode}`} aria-label="Rendered score">
       {scene.pages.map((page) => (
         <svg
           key={page.id}
@@ -14,6 +17,10 @@ export function SvgRenderer({ scene }: SvgRendererProps) {
           width={page.width}
           height={page.height}
           viewBox={`0 0 ${page.width} ${page.height}`}
+          style={{
+            width: `${(page.width * zoom) / 100}px`,
+            aspectRatio: `${page.width} / ${page.height}`
+          }}
           role="img"
           aria-label={page.id}
         >

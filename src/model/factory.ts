@@ -5,10 +5,13 @@ import type {
   Dynamic,
   MasterBar,
   Note,
+  NotationType,
   Score,
+  StaffConfig,
   Track,
   Voice
 } from "./types";
+import { createDefaultStylesheet } from "./stylesheet";
 
 export function createEmptyScore(): Score {
   return {
@@ -26,7 +29,7 @@ export function createEmptyScore(): Score {
     },
     masterBars: [createMasterBar()],
     tracks: [],
-    stylesheet: { placeholder: true },
+    stylesheet: createDefaultStylesheet(),
     documentSettings: {
       zoom: 100,
       displayMode: "vertical-page",
@@ -44,6 +47,11 @@ export interface InstrumentPreset {
   icon: string;
   strings: number[];
   tuningLabel: string;
+  notationTypes?: NotationType[];
+  staffConfig?: StaffConfig;
+  stringed?: boolean;
+  soundingOffset?: number;
+  gmProgram?: number;
 }
 
 export const GUITAR_PRESET: InstrumentPreset = {
@@ -99,8 +107,8 @@ export function createTrack(
     shortName: instrumentPreset.shortName,
     color: instrumentPreset.color,
     icon: instrumentPreset.icon,
-    notationTypes: ["standard", "tab"],
-    staffConfig: "single",
+    notationTypes: instrumentPreset.notationTypes ?? ["standard", "tab"],
+    staffConfig: instrumentPreset.staffConfig ?? "single",
     tuning: {
       strings: instrumentPreset.strings,
       capo: 0,
@@ -109,9 +117,9 @@ export function createTrack(
       accidentalPreference: "sharp"
     },
     transpositionTonality: {
-      soundingOffset: 0
+      soundingOffset: instrumentPreset.soundingOffset ?? 0
     },
-    sounds: [],
+    sounds: instrumentPreset.gmProgram === undefined ? [] : [{ id: `gm-${instrumentPreset.gmProgram}`, name: `GM ${instrumentPreset.gmProgram}` }],
     engine: "RSE",
     interpretation: {
       playingStyle: "Pick",
@@ -119,7 +127,7 @@ export function createTrack(
       accentuation: false,
       autoLetRing: false,
       autoBrush: false,
-      stringed: true
+      stringed: instrumentPreset.stringed ?? true
     },
     chordLibrary: [],
     lyricsLines: [],

@@ -1,4 +1,5 @@
 import { beatDurationTicks, writtenPitch } from "../../model/derive";
+import { normalizeStylesheet } from "../../model/stylesheet";
 import type {
   Beat,
   BeatDuration,
@@ -43,7 +44,6 @@ import {
   TAB_RHYTHM_GAP,
   TAB_RHYTHM_STEM_LENGTH,
   TAB_STAFF_TOP_GAP,
-  TRACK_GAP,
   TUPLET_BRACKET_GAP
 } from "./metrics";
 import { tickToMeasureX } from "./measureContents";
@@ -53,6 +53,21 @@ import type { SystemMeasure } from "./systemBreaker";
 export interface SystemPrimitiveOptions {
   durationIssues?: BarDurationIssue[];
   editingBar?: { trackId?: string; barIndex: number };
+  concertTone?: boolean;
+  activeVoiceIndex?: number;
+  multiVoiceEdit?: boolean;
+  trackGap?: number;
+}
+
+interface TrackPrimitiveOptions {
+  concertTone: boolean;
+  activeVoiceIndex: number;
+  multiVoiceEdit: boolean;
+  trackGap: number;
+  staffLineColor: string;
+  staffLineThickness: number;
+  barlineColor: string;
+  barlineThickness: number;
 }
 
 interface NotePlacement {
@@ -111,13 +126,24 @@ export function systemPrimitives(
   const primitives: ScenePrimitive[] = [];
   const durationIssues = options.durationIssues ?? validateBarDurations(score);
   const invalidBars = invalidBarKeySet(durationIssues, options.editingBar);
+  const stylesheet = normalizeStylesheet(score.stylesheet);
+  const renderOptions: TrackPrimitiveOptions = {
+    concertTone: options.concertTone ?? score.documentSettings.concertTone,
+    activeVoiceIndex: options.activeVoiceIndex ?? 0,
+    multiVoiceEdit: options.multiVoiceEdit ?? false,
+    trackGap: options.trackGap ?? stylesheet.systems.trackGap,
+    staffLineColor: stylesheet.systems.staffLineColor,
+    staffLineThickness: stylesheet.systems.staffLineThickness,
+    barlineColor: stylesheet.systems.barlineColor,
+    barlineThickness: stylesheet.systems.barlineThickness
+  };
   let trackY = originY;
 
   score.tracks.forEach((track, trackIndex) => {
     primitives.push(
-      ...trackPrimitives(score, track, trackIndex, measures, originX, trackY, invalidBars)
+      ...trackPrimitives(score, track, trackIndex, measures, originX, trackY, invalidBars, renderOptions)
     );
-    trackY += trackHeight(track) + TRACK_GAP;
+    trackY += trackHeight(track) + renderOptions.trackGap;
   });
 
   return primitives;
@@ -130,7 +156,8 @@ function trackPrimitives(
   measures: SystemMeasure[],
   originX: number,
   originY: number,
-  invalidBars: Set<string>
+  invalidBars: Set<string>,
+  options: TrackPrimitiveOptions
 ): ScenePrimitive[] {
   const primitives: ScenePrimitive[] = [];
   const staffX = originX + SYSTEM_LABEL_WIDTH;
@@ -140,8 +167,18 @@ function trackPrimitives(
   const staffEndX = staffX + measures.reduce((max, measure) => Math.max(max, measure.x + measure.width), 0);
 
   primitives.push(trackLabel(track, trackIndex, originX, originY));
-  primitives.push(...standardStaffLines(track.id, staffX, staffEndX, originY));
-  primitives.push(...tabStaffLines(track.id, staffX, staffEndX, tabY, track.tuning.strings.length));
+  primitives.push(
+    ...standardStaffLines(track.id, staffX, staffEndX, originY, {
+      stroke: options.staffLineColor,
+      strokeWidth: options.staffLineThickness
+    })
+  );
+  primitives.push(
+    ...tabStaffLines(track.id, staffX, staffEndX, tabY, track.tuning.strings.length, {
+      stroke: options.staffLineColor,
+      strokeWidth: options.staffLineThickness
+    })
+  );
   primitives.push(clefPrimitive(track.id, staffX - 34, originY + STAFF_LINE_GAP * 3));
   primitives.push(tabLabelPrimitive(track.id, staffX - 38, tabY + TAB_LINE_GAP * 3));
 
@@ -170,7 +207,8 @@ function trackPrimitives(
         x,
         originY,
         tabY + tabHeight,
-        invalid ? "#ef4444" : undefined
+        invalid ? "#ef4444" : options.barlineColor,
+        invalid ? options.barlineThickness + 0.5 : options.barlineThickness
       )
     );
     primitives.push(barHitRect(track.id, measure.content.barIndex, x, originY, measure.width, tabY + tabHeight));
@@ -189,16 +227,24 @@ function trackPrimitives(
     }
 
     primitives.push(
-      ...beatAndRhythmPrimitives(track, measure.content.barIndex, measure, x, originY, tabY)
+      ...beatAndRhythmPrimitives(track, measure.content.barIndex, measure, x, originY, tabY, options)
     );
   });
 
-  primitives.push(...tiePrimitivesForSystem(track, measures, staffX, originY));
+  primitives.push(...tiePrimitivesForSystem(track, measures, staffX, originY, options));
 
   const finalMeasure = measures[measures.length - 1];
   if (finalMeasure) {
     primitives.push(
-      barlinePrimitive(track.id, finalMeasure.content.barIndex, staffX + finalMeasure.x + finalMeasure.width, originY, tabY + tabHeight)
+      barlinePrimitive(
+        track.id,
+        finalMeasure.content.barIndex,
+        staffX + finalMeasure.x + finalMeasure.width,
+        originY,
+        tabY + tabHeight,
+        options.barlineColor,
+        options.barlineThickness
+      )
     );
   }
 
@@ -424,7 +470,8 @@ function beatAndRhythmPrimitives(
   measure: SystemMeasure,
   measureX: number,
   staffY: number,
-  tabY: number
+  tabY: number,
+  options: TrackPrimitiveOptions
 ): ScenePrimitive[] {
   const bar = track.bars[barIndex];
 
@@ -449,7 +496,8 @@ function beatAndRhythmPrimitives(
       measure,
       measureX,
       staffY,
-      tabY
+      tabY,
+      options
     );
     const beamGroups = createBeamGroups(placements);
     const beamedIds = new Set(
@@ -479,19 +527,20 @@ function createVoicePlacements(
   measure: SystemMeasure,
   measureX: number,
   staffY: number,
-  tabY: number
+  tabY: number,
+  options: TrackPrimitiveOptions
 ): BeatRenderPlacement[] {
   let tick = 0;
   const placements: BeatRenderPlacement[] = [];
 
   beats.forEach((beat, beatIndex) => {
     const x = measureX + 16 + tickToMeasureX(measure.content, tick, measure.width - 28);
-    const color = voiceColor(voiceIndex);
+    const color = voiceColor(voiceIndex, options);
     const notePlacements = beat.notes.map((note, noteIndex) => ({
       ref: { trackId: track.id, barIndex, voiceIndex, beatIndex, noteIndex },
       note,
       x,
-      y: pitchToStaffY(writtenPitch(note, track, { concertTone: true, ottava: beat.ottava }), staffY),
+      y: pitchToStaffY(writtenPitch(note, track, { concertTone: options.concertTone, ottava: beat.ottava }), staffY),
       tabY: tabY + (note.string - 1) * TAB_LINE_GAP + 4
     }));
     const direction = resolveStemDirection(beat, voiceIndex, activeVoiceCount, notePlacements, staffY);
@@ -1240,7 +1289,8 @@ function tiePrimitivesForSystem(
   track: Track,
   measures: SystemMeasure[],
   staffX: number,
-  staffY: number
+  staffY: number,
+  options: TrackPrimitiveOptions
 ): ScenePrimitive[] {
   const anchors = new Map<string, TieAnchor>();
   const primitives: ScenePrimitive[] = [];
@@ -1272,9 +1322,9 @@ function tiePrimitivesForSystem(
           anchors.set(noteRefKey(ref), {
             ref,
             x,
-            y: pitchToStaffY(writtenPitch(note, track, { concertTone: true, ottava: beat.ottava }), staffY),
+            y: pitchToStaffY(writtenPitch(note, track, { concertTone: options.concertTone, ottava: beat.ottava }), staffY),
             voiceIndex,
-            color: voiceColor(voiceIndex)
+            color: voiceColor(voiceIndex, options)
           });
         });
 
@@ -1702,7 +1752,11 @@ function noteRefKey(ref: NoteRef): string {
   return `${ref.trackId}:${ref.barIndex}:${ref.voiceIndex}:${ref.beatIndex}:${ref.noteIndex}`;
 }
 
-function voiceColor(voiceIndex: number): string {
+function voiceColor(voiceIndex: number, options?: TrackPrimitiveOptions): string {
+  if (options?.multiVoiceEdit && voiceIndex !== options.activeVoiceIndex) {
+    return INACTIVE_VOICE;
+  }
+
   if (voiceIndex >= 2) {
     return INACTIVE_VOICE;
   }

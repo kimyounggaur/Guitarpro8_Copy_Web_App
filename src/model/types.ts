@@ -11,6 +11,15 @@ export type DisplayMode =
   | "vertical-screen"
   | "horizontal-screen";
 export type PlaybackEngine = "RSE" | "MIDI";
+export type StylesheetPresetName = "Classic" | "Jazz" | "Rock";
+export type PageOrientation = "portrait" | "landscape";
+export type TrackNameMode = "none" | "firstSystem" | "everySystem";
+export type HeaderFooterVisibility = "never" | "firstPage" | "everyPage";
+export type BarNumberFrequency = "none" | "everySystem" | "everyBar";
+export type SymbolStyle = "Classic" | "Jazz";
+export type LyricsPosition = "above" | "below";
+export type TabRhythmPosition = "above" | "below" | "hidden";
+export type FingeringsPosition = "left" | "right" | "above" | "below";
 export type NotationType = "standard" | "tab" | "slash" | "numbered";
 export type StaffConfig = "single" | "grand";
 export type AccidentalPreference = "sharp" | "flat";
@@ -90,7 +99,130 @@ export interface DocumentSettings {
 }
 
 export interface Stylesheet {
-  readonly placeholder: true;
+  presetName: StylesheetPresetName;
+  page: {
+    paper: string;
+    orientation: PageOrientation;
+    width: number;
+    height: number;
+    marginLeft: number;
+    marginRight: number;
+    marginTop: number;
+    marginBottom: number;
+    pageFill: string;
+    pageStroke: string;
+    pageStrokeWidth: number;
+    showPageShadow: boolean;
+    justifyLastSystem: boolean;
+    rhythmProportion: number;
+    firstSystemIndent: number;
+    systemScale: number;
+    minMeasureWidth: number;
+  };
+  systems: {
+    systemGap: number;
+    trackGap: number;
+    staffLineColor: string;
+    staffLineThickness: number;
+    barlineColor: string;
+    barlineThickness: number;
+    bracketThickness: number;
+    showTrackNames: TrackNameMode;
+    useShortNames: boolean;
+    hideEmptyStaves: boolean;
+    hideTabForStandardOnly: boolean;
+    capoShiftAffectsNotation: boolean;
+    tuningNotice: boolean;
+  };
+  headerFooter: {
+    headerVisibility: HeaderFooterVisibility;
+    footerVisibility: HeaderFooterVisibility;
+    firstPageTitle: string;
+    firstPageSubtitle: string;
+    leftHeader: string;
+    centerHeader: string;
+    rightHeader: string;
+    leftFooter: string;
+    centerFooter: string;
+    rightFooter: string;
+    showPageNumbers: boolean;
+    showCopyright: boolean;
+  };
+  texts: {
+    titleFont: string;
+    titleSize: number;
+    subtitleFont: string;
+    subtitleSize: number;
+    bodyFont: string;
+    bodySize: number;
+    chordFont: string;
+    chordSize: number;
+    lyricsFont: string;
+    lyricsSize: number;
+    lyricsPosition: LyricsPosition;
+    tempoDecimals: number;
+    barNumberFrequency: BarNumberFrequency;
+    barNumberSize: number;
+    sectionFontSize: number;
+    dynamicFontSize: number;
+  };
+  notation: {
+    replaceCommonTime: boolean;
+    replaceCutTime: boolean;
+    showTabRhythm: boolean;
+    tabRhythmPositionVoice1: TabRhythmPosition;
+    tabRhythmPositionVoice2: TabRhythmPosition;
+    tabRhythmPositionVoice3: TabRhythmPosition;
+    tabRhythmPositionVoice4: TabRhythmPosition;
+    colorizeTabVoices: boolean;
+    showVoiceStems: boolean;
+    stemDirectionVoice1: StemDirection;
+    stemDirectionVoice2: StemDirection;
+    restPositionVoice1: "auto" | "above" | "below";
+    restPositionVoice2: "auto" | "above" | "below";
+  };
+  symbols: {
+    style: SymbolStyle;
+    textColor: string;
+    mutedTextColor: string;
+    effectColor: string;
+    sectionBoxFill: string;
+    extendLinesOverRests: boolean;
+    palmMuteText: string;
+    letRingText: string;
+    harmonicText: string;
+    tapText: string;
+    slapText: string;
+    popText: string;
+    pickstrokeDownText: string;
+    pickstrokeUpText: string;
+    bendText: string;
+    trillText: string;
+    showChordNames: boolean;
+    showChordDiagrams: boolean;
+    chordDiagramScale: number;
+    chordDiagramSpacing: number;
+    scaleDiagramSpacing: number;
+    showDirections: boolean;
+    showFermatas: boolean;
+    showDynamics: boolean;
+    showGraceNotes: boolean;
+    showTupletBrackets: boolean;
+    showOttava: boolean;
+    showWhammy: boolean;
+    showBrush: boolean;
+    showPickstroke: boolean;
+    showLeftHandFingerings: boolean;
+    showRightHandFingerings: boolean;
+  };
+  fingerings: {
+    leftHandPosition: FingeringsPosition;
+    rightHandPosition: FingeringsPosition;
+    showStringNumbers: boolean;
+    stringNumberCircle: boolean;
+    barreDisplay: "roman" | "arabic";
+    fingeringScale: number;
+  };
 }
 
 export interface AudioTrackRef {
@@ -280,6 +412,8 @@ export interface Note {
   string: number;
   fret: number;
   midiPitch?: number;
+  midiNumber?: number;
+  articulation?: string;
   tieOrigin?: NoteRef;
   tieDestination?: NoteRef;
   accidental: Accidental;

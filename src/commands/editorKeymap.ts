@@ -1,5 +1,6 @@
 import { executeCommand } from "./registry";
 import type { EditorCommandContext } from "./editingCommands";
+import { commandIdForKeyEvent, detectPlatform } from "./keymap";
 
 export interface FretInputBuffer {
   digits: string;
@@ -72,84 +73,13 @@ function handleNumericInput(
 }
 
 function commandIdForEvent(event: KeyboardEvent, context: EditorCommandContext): string | null {
-  const key = event.key;
-  const ctrl = event.ctrlKey || event.metaKey;
-  const shift = event.shiftKey;
-  const alt = event.altKey;
-
-  if (alt && shift && key === "ArrowUp") return "note.transposeUp";
-  if (alt && shift && key === "ArrowDown") return "note.transposeDown";
-  if (alt && key === "ArrowUp") return "note.moveStringUp";
-  if (alt && key === "ArrowDown") return "note.moveStringDown";
-  if (alt && key === "ArrowLeft") return "playback.previousBeat";
-  if (alt && key === "ArrowRight") return "playback.nextBeat";
-
-  if (ctrl && shift && key === "ArrowRight") return "selection.extendBarRight";
-  if (ctrl && shift && key === "ArrowLeft") return "selection.extendBarLeft";
-  if (ctrl && key === "ArrowUp") return "cursor.previousTrack";
-  if (ctrl && key === "ArrowDown") return "cursor.nextTrack";
-  if (ctrl && key === "ArrowLeft") return "playback.previousBar";
-  if (ctrl && key === "ArrowRight") return "playback.nextBar";
-  if (key === "ArrowLeft") return "cursor.moveLeft";
-  if (key === "ArrowRight") return "cursor.moveRight";
-  if (key === "ArrowUp") return "cursor.moveUp";
-  if (key === "ArrowDown") return "cursor.moveDown";
-  if (ctrl && key === "Home") return "cursor.firstBar";
-  if (ctrl && key === "End") return "cursor.lastBar";
-  if (key === "Home") return "cursor.home";
-  if (key === "End") return "cursor.end";
-  if (key === "Tab") return "cursor.toggleStaff";
-  if (ctrl && key === " ") return "playback.fromStart";
-  if (key === " ") return "playback.toggle";
-  if (key === "F9") return "playback.loop";
-
-  if (ctrl && shift && key.toLowerCase() === "c") return "clipboard.copyMultitrack";
-  if (ctrl && shift && key.toLowerCase() === "x") return "clipboard.cutMultitrack";
-  if (ctrl && shift && key.toLowerCase() === "v") return "clipboard.specialPaste";
-  if (ctrl && key.toLowerCase() === "c") return "clipboard.copy";
-  if (ctrl && key.toLowerCase() === "x") return "clipboard.cut";
-  if (ctrl && key.toLowerCase() === "v") return "clipboard.paste";
-  if (ctrl && key.toLowerCase() === "a") return "selection.selectTrack";
-  if (ctrl && key.toLowerCase() === "z") return "history.undo";
-  if ((ctrl && key.toLowerCase() === "y") || (event.metaKey && shift && key.toLowerCase() === "z")) return "history.redo";
-
-  if (ctrl && alt && key === "9") return "note.doubleSharp";
-  if (ctrl && alt && key === "7") return "note.doubleFlat";
-  if (ctrl && alt && key === "8") return "note.enharmonic";
-  if (ctrl && key === "9") return "note.sharp";
-  if (ctrl && key === "7") return "note.flat";
-  if (ctrl && key === "8") return "note.natural";
-  if (ctrl && key === ".") return "note.doubleDot";
-  if (ctrl && key.toLowerCase() === "b") return "bar.symbol.repeatClose";
-  if (ctrl && key.toLowerCase() === "m") return "bar.symbol.fermata";
-  if (ctrl && key.toLowerCase() === "t") return "bar.symbol.timeSignature";
-  if (ctrl && key.toLowerCase() === "k") return "bar.symbol.keySignature";
-
-  if (shift && key.toLowerCase() === "l") return "note.tieBeat";
-  if (key.toLowerCase() === "l") return "note.tie";
-  if (shift && key === ".") return "note.dot";
-  if (shift && key === "/") return "note.triplet";
-  if (key.toLowerCase() === "g") return "note.effect.ghost";
-  if (key.toLowerCase() === "x") return "note.effect.dead";
-  if (key.toLowerCase() === "a") return "note.effect.accent";
-  if (key.toLowerCase() === "s") return "note.effect.staccato";
-  if (key.toLowerCase() === "p") return "note.effect.palmMute";
-  if (key.toLowerCase() === "e") return "note.effect.letRing";
-  if (key.toLowerCase() === "b") return "note.effect.bend";
-  if (key.toLowerCase() === "h") return "note.effect.harmonic";
-  if (key.toLowerCase() === "v") return "note.effect.vibrato";
-  if (key.toLowerCase() === "u") return "note.effect.slide";
-  if (key.toLowerCase() === "r") return "note.rest";
-  if (key === "Backspace") return "note.delete";
-  if (shift && key === "Delete") return "beat.delete";
-  if (ctrl && key === "Delete") return "bar.delete";
-  if (ctrl && key === "Insert") return "beat.insert";
-  if (key === "Insert") return "bar.insert";
-  if (key.toLowerCase() === "c") return "beat.copyPrevious";
-  if (key === "+" || key === "=") {
-    return context.playbackStatus === "playing" ? "playback.speedUp" : "duration.shorter";
+  if (event.key === "+" || event.key === "=") {
+    return context.playbackStatus === "playing" ? "playback.speedUp" : "duration.longer";
   }
-  if (key === "-") return context.playbackStatus === "playing" ? "playback.speedDown" : "duration.longer";
 
-  return null;
+  if (event.key === "-") {
+    return context.playbackStatus === "playing" ? "playback.speedDown" : "duration.shorter";
+  }
+
+  return commandIdForKeyEvent(event, "workspace", detectPlatform());
 }

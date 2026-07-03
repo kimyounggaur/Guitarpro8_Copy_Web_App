@@ -130,6 +130,16 @@ button:disabled {
   padding: 0;
 }
 
+.homeGroup button {
+  width: 42px;
+  font-size: 0;
+}
+
+.homeGroup button::after {
+  content: "File";
+  font-size: 13px;
+}
+
 .utilityGroup button {
   width: auto;
   min-width: 42px;
@@ -148,11 +158,23 @@ button:disabled {
   padding: 0 8px;
 }
 
-.zoomGroup span {
+.zoomGroup,
+.displayGroup {
+  display: none;
+}
+
+.liveZoomGroup span {
   min-width: 48px;
   color: #cfe3dc;
   text-align: center;
   font-size: 13px;
+}
+
+.liveDisplayGroup button {
+  width: auto;
+  min-width: 34px;
+  padding: 0 7px;
+  font-size: 11px;
 }
 
 .printGroup {
@@ -223,6 +245,148 @@ button:disabled {
 .tabBar .tabAdd {
   min-width: 34px;
   text-align: center;
+}
+
+.commandPalette {
+  position: absolute;
+  z-index: 28;
+  top: 124px;
+  left: 226px;
+  right: 300px;
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #4f625d;
+  border-radius: 8px;
+  background: #171c1a;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+.commandPaletteInputRow {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 58px 30px;
+  gap: 6px;
+  align-items: center;
+  border-bottom: 1px solid #34413d;
+  padding: 8px;
+  background: #202723;
+}
+
+.commandPrompt {
+  display: grid;
+  place-items: center;
+  min-height: 30px;
+  border: 1px solid #3f514b;
+  border-radius: 5px;
+  color: #9fd9c6;
+  background: #121715;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.commandPalette input {
+  min-width: 0;
+  height: 32px;
+  border: 1px solid #4b5c56;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #f3faf7;
+  background: #0f1311;
+  outline: none;
+}
+
+.commandPalette input:focus {
+  border-color: #84d1b6;
+  box-shadow: 0 0 0 2px rgba(132, 209, 182, 0.18);
+}
+
+.commandPaletteInputRow button {
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.commandSuggestionList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  max-height: 250px;
+  overflow: auto;
+  background: #2f3a35;
+}
+
+.commandSuggestion {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.46fr) minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 34px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 9px;
+  color: #edf3f6;
+  background: #171c1a;
+  text-align: left;
+}
+
+.commandSuggestion strong,
+.commandSuggestion span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commandSuggestion strong {
+  color: #9fd9c6;
+  font-size: 12px;
+}
+
+.commandSuggestion span {
+  color: #cbd8d4;
+  font-size: 12px;
+}
+
+.commandSuggestion em {
+  color: #7fbdf4;
+  font-style: normal;
+  text-align: right;
+}
+
+.commandSuggestion.selectedSuggestion {
+  background: #123a57;
+}
+
+.commandSuggestion.selectedSuggestion strong {
+  color: #d7f8ff;
+}
+
+.commandSuggestion.disabledSuggestion {
+  color: #77817e;
+  background: #151817;
+}
+
+.commandUsageBar,
+.commandPatternPreview {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid #23425c;
+  padding: 7px 10px;
+  color: #dbe8e4;
+  background: #102b40;
+  font-size: 12px;
+}
+
+.commandUsageBar strong {
+  color: #9fd9c6;
+}
+
+.commandPatternPreview {
+  grid-template-columns: minmax(0, 1fr);
+  border-top-color: #34413d;
+  color: #f7c75f;
+  background: #151814;
 }
 
 .gpMain {
@@ -321,15 +485,41 @@ button:disabled {
   display: grid;
   gap: 22px;
   justify-content: center;
+  width: max-content;
+  min-width: 100%;
 }
 
 .scorePage {
-  width: min(100%, 794px);
+  max-width: none;
   height: auto;
-  aspect-ratio: 794 / 1123;
   border-radius: 2px;
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.38);
   background: #fbfaf7;
+  flex: 0 0 auto;
+}
+
+.scorePages.display-horizontal-page,
+.scorePages.display-horizontal-screen {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.scorePages.display-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, max-content));
+  justify-content: start;
+}
+
+.scorePages.display-parchment,
+.scorePages.display-vertical-screen {
+  justify-content: start;
+}
+
+.scorePages.display-parchment .scorePage,
+.scorePages.display-vertical-screen .scorePage,
+.scorePages.display-horizontal-screen .scorePage {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .inspectorPanel label {
@@ -382,6 +572,22 @@ button:disabled {
   font-size: 13px;
 }
 
+.inspectorButtonRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.inspectorButtonRow button {
+  min-width: 0;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
 .bottomDock {
   display: grid;
   min-height: 0;
@@ -425,6 +631,17 @@ button:disabled {
 
 .globalTracks .activeTrack {
   border-color: #6fb99f;
+}
+
+.globalModeBadge {
+  display: block;
+  border: 1px solid #3b4037;
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: #9fd9c6;
+  background: #151814;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .masterStrip,
@@ -508,7 +725,7 @@ button:disabled {
   margin-top: 10px;
 }
 
-.globalTracks span,
+.globalTracks span:not(.globalModeBadge),
 .globalCell span {
   display: block;
   width: 10px;
@@ -597,7 +814,10 @@ button:disabled {
   background: #f7c75f;
 }
 
-.toolPanel {
+.toolPanel,
+.trackSystemPanel,
+.stylesheetPanel,
+.fileIoPanel {
   position: absolute;
   z-index: 20;
   top: 92px;
@@ -611,6 +831,26 @@ button:disabled {
   overflow: hidden;
   background: #1d201b;
   box-shadow: 0 22px 52px rgba(0, 0, 0, 0.42);
+}
+
+.trackSystemPanel {
+  z-index: 22;
+  left: 248px;
+  right: 324px;
+}
+
+.stylesheetPanel {
+  z-index: 24;
+  grid-template-rows: 34px 42px minmax(0, 1fr);
+  left: 220px;
+  right: 280px;
+}
+
+.fileIoPanel {
+  z-index: 26;
+  grid-template-rows: 34px minmax(0, 1fr) 34px;
+  left: 220px;
+  right: 280px;
 }
 
 .toolPanelHeader {
@@ -629,9 +869,192 @@ button:disabled {
   padding: 0;
 }
 
+.fileIoBody {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1.2fr;
+  gap: 10px;
+  overflow: auto;
+  padding: 10px;
+  background: #171a16;
+}
+
+.fileIoColumn {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid #384136;
+  border-radius: 8px;
+  padding: 10px;
+  background: #20241e;
+}
+
+.fileIoColumn h2 {
+  margin: 0;
+  color: #edf3f6;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fileIoColumn p {
+  overflow: hidden;
+  margin: 0;
+  color: #b8c5c1;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileIoColumn > button,
+.fileButtonGrid button {
+  display: grid;
+  justify-items: start;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.fileIoColumn button span {
+  color: #9aa8a4;
+  font-size: 11px;
+}
+
+.fileButtonGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.fileDirtyBadge,
+.fileCleanBadge {
+  width: fit-content;
+  border: 1px solid #4c584a;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #edf3f6;
+  font-size: 11px;
+}
+
+.fileDirtyBadge {
+  border-color: #8a7047;
+  background: #3b3020;
+}
+
+.fileCleanBadge {
+  background: #22362e;
+}
+
+.fileIoStatus {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-top: 1px solid #394037;
+  padding: 0 10px;
+  color: #b8c5c1;
+  background: #20241e;
+  font-size: 12px;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.stylesheetTabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  overflow: auto;
+  border-bottom: 1px solid #394037;
+  padding: 6px 8px;
+  background: #181b17;
+}
+
+.stylesheetTabs button {
+  width: auto;
+  min-width: 72px;
+  padding: 0 10px;
+}
+
+.stylesheetBody {
+  overflow: auto;
+  min-width: 0;
+  padding: 10px;
+}
+
+.styleFormGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  gap: 9px;
+  align-content: start;
+}
+
+.wideStyleGrid {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+}
+
+.styleField {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: #aab7be;
+  font-size: 12px;
+}
+
+.styleField input,
+.styleField select {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #43483f;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #edf3f6;
+  background: #111410;
+}
+
+.styleField input[type="color"] {
+  padding: 2px;
+}
+
+.styleCheck {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  color: #c6d4d1;
+  font-size: 12px;
+}
+
+.styleCheck input {
+  width: 16px;
+  height: 16px;
+  accent-color: #6fb99f;
+}
+
+.presetButtons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.presetButtons button,
+.stylesheetBody > .styleFormGrid > button {
+  width: auto;
+  min-width: 0;
+  padding: 0 8px;
+}
+
 .toolGrid {
   display: grid;
   grid-template-columns: minmax(160px, 0.7fr) minmax(220px, 1fr) minmax(260px, 1.2fr);
+  gap: 10px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.trackWizardGrid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.75fr) minmax(210px, 0.9fr) minmax(260px, 1.1fr);
   gap: 10px;
   overflow: auto;
   padding: 10px;
@@ -680,6 +1103,122 @@ button:disabled {
   width: auto;
   min-width: 58px;
   padding: 0 8px;
+}
+
+.instrumentList,
+.drumList {
+  display: grid;
+  gap: 6px;
+  max-height: 388px;
+  overflow: auto;
+}
+
+.instrumentList button,
+.drumList button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.instrumentList span,
+.drumList span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instrumentList em,
+.drumList em {
+  color: #aab7be;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.tuningEditor {
+  display: grid;
+  gap: 6px;
+}
+
+.tuningEditor label {
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: center;
+}
+
+.tuningEditor em {
+  color: #d9ebe4;
+  font-size: 12px;
+  font-style: normal;
+  text-align: right;
+}
+
+.capoPreview {
+  display: grid;
+  gap: 4px;
+  min-height: 34px;
+  align-items: end;
+}
+
+.capoPreview span {
+  display: grid;
+  place-items: center;
+  min-height: 28px;
+  border: 1px solid #465047;
+  border-radius: 4px;
+  color: #dbe8e4;
+  background: #151814;
+  font-size: 12px;
+}
+
+.capoPreview .partialCapo {
+  border-color: #f7c75f;
+  color: #fff4cf;
+  background: #4b3916;
+}
+
+.voicePanel,
+.drumPanel {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.6fr) minmax(260px, 1fr);
+  gap: 10px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.voiceGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.voiceGrid button {
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.drumStaffPreview {
+  display: grid;
+  grid-template-rows: repeat(18, 12px);
+  grid-auto-flow: column;
+  gap: 3px;
+  align-items: center;
+  min-height: 228px;
+  border: 1px solid #3d453c;
+  border-radius: 6px;
+  padding: 8px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 23px, rgba(255, 255, 255, 0.08) 23px 24px),
+    #111410;
+}
+
+.drumStaffPreview button {
+  width: 28px;
+  min-width: 28px;
+  min-height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 11px;
 }
 
 .toolMeta,

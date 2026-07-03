@@ -36,6 +36,14 @@ export function barTheoreticalTicks(masterBar: MasterBar): number {
 }
 
 export function noteMidiPitch(note: Note, track: Track): number {
+  if (note.midiPitch !== undefined) {
+    return note.midiPitch;
+  }
+
+  if (note.midiNumber !== undefined) {
+    return note.midiNumber;
+  }
+
   const openStringPitch = stringPitch(note.string, track);
   return openStringPitch + effectiveCapoForString(note.string, track) + note.fret;
 }

@@ -9,6 +9,11 @@ import {
 } from "./metrics";
 import type { HitMetadata, ScenePrimitive } from "./sceneGraph";
 
+interface LineStyle {
+  stroke?: string;
+  strokeWidth?: number;
+}
+
 export function trackLabel(track: Track, trackIndex: number, x: number, y: number): ScenePrimitive {
   return {
     id: `${track.id}-label`,
@@ -30,7 +35,8 @@ export function standardStaffLines(
   trackId: string,
   x1: number,
   x2: number,
-  y: number
+  y: number,
+  style: LineStyle = {}
 ): ScenePrimitive[] {
   return Array.from({ length: 5 }, (_, index) => ({
     id: `${trackId}-standard-line-${index}`,
@@ -39,8 +45,8 @@ export function standardStaffLines(
     y1: y + index * STAFF_LINE_GAP,
     x2,
     y2: y + index * STAFF_LINE_GAP,
-    stroke: "#202020",
-    strokeWidth: 1
+    stroke: style.stroke ?? "#202020",
+    strokeWidth: style.strokeWidth ?? 1
   }));
 }
 
@@ -49,7 +55,8 @@ export function tabStaffLines(
   x1: number,
   x2: number,
   y: number,
-  stringCount: number
+  stringCount: number,
+  style: LineStyle = {}
 ): ScenePrimitive[] {
   return Array.from({ length: stringCount }, (_, index) => ({
     id: `${trackId}-tab-line-${index}`,
@@ -58,8 +65,8 @@ export function tabStaffLines(
     y1: y + index * TAB_LINE_GAP,
     x2,
     y2: y + index * TAB_LINE_GAP,
-    stroke: "#202020",
-    strokeWidth: 1
+    stroke: style.stroke ?? "#202020",
+    strokeWidth: style.strokeWidth ?? 1
   }));
 }
 
@@ -137,7 +144,8 @@ export function barlinePrimitive(
   x: number,
   top: number,
   bottom: number,
-  stroke = "#111827"
+  stroke = "#111827",
+  strokeWidth = 1
 ): ScenePrimitive {
   return {
     id: `${trackId}-${barIndex}-barline-${x}`,
@@ -147,7 +155,7 @@ export function barlinePrimitive(
     x2: x,
     y2: bottom + BARLINE_BOTTOM_PADDING,
     stroke,
-    strokeWidth: 1,
+    strokeWidth,
     hit: { kind: "bar", ref: { trackId, barIndex }, bbox: { x: x - 3, y: top, width: 6, height: bottom - top } }
   };
 }

@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactNode } from "react";
 import { beatDurationTicks, barTheoreticalTicks } from "../../model/derive";
-import { TICKS_PER_QUARTER, type AutomationPoint, type BeatDuration, type Score, type SongInfo, type Track } from "../../model/types";
+import { TICKS_PER_QUARTER, type AutomationPoint, type BeatDuration, type DisplayMode, type NotationType, type Score, type SongInfo, type StaffConfig, type Stylesheet, type StylesheetPresetName, type Track } from "../../model/types";
 import type { CursorPosition } from "../../engine/editing/types";
 import type { EffectSlotType, EqPreset, MixerState, TrackMixerState } from "../../engine/audio/mixer";
 import type { DocumentTabState } from "../../store/documentStore";
@@ -10,8 +10,21 @@ import {
   type CleanupRequest,
   type ToolPanelId
 } from "./ToolPanels";
+import {
+  TrackSystemPanels,
+  type TrackCreateOptions,
+  type TrackPanelId
+} from "./TrackSystemPanels";
+import { CommandPalette, type CommandPaletteResult } from "./CommandPalette";
+import { StylesheetPanel } from "./StylesheetPanel";
+import { FileIoPanel, type ExportFormat, type ImportFormat } from "./FileIoPanel";
 import type { ChordVoicing } from "../../model/chords";
 import type { TransposeOptions } from "../../engine/tools/transpose";
+import type { RetuneMode } from "../../model/instruments";
+import type { Command } from "../../commands/registry";
+import type { EditorCommandContext } from "../../commands/editingCommands";
+import { MENU_TREE } from "../../commands/paletteCommands";
+import { shortcutLabel, type Platform } from "../../commands/keymap";
 
 export type AutomationLaneId = "tempo" | "masterVolume" | "masterPan" | "trackVolume" | "trackPan";
 
@@ -34,11 +47,26 @@ interface EditorShellProps {
   speedPercent: number;
   mixer: MixerState;
   activeToolPanel: ToolPanelId | null;
+  activeTrackPanel: TrackPanelId | null;
+  stylesheetPanelOpen: boolean;
+  fileIoPanelOpen: boolean;
+  fileIoStatus: string;
+  commandPaletteOpen: boolean;
+  commandPaletteInitialValue: string;
+  platform: Platform;
+  registeredCommands: Array<Command<EditorCommandContext>>;
+  multiVoiceEdit: boolean;
+  multiTrackView: boolean;
   workspace: ReactNode;
   dispatchCommand: (commandId: string) => void;
   togglePanel: (panel: keyof PanelVisibility) => void;
   onSongInfoChange: (field: keyof SongInfo, value: string) => void;
   onTrackChange: (trackId: string, patch: Partial<Pick<Track, "name" | "shortName" | "color">>) => void;
+  onTrackSystemPatch: (trackId: string, patch: Partial<Pick<Track, "notationTypes" | "staffConfig">>) => void;
+  onTrackTranspositionChange: (trackId: string, soundingOffset: number) => void;
+  onConcertToneToggle: () => void;
+  onTrackDelete: (trackId: string) => void;
+  onTrackMove: (trackId: string, direction: -1 | 1) => void;
   onGlobalJump: (trackId: string, barIndex: number) => void;
   onMixerTrackChange: (trackId: string, patch: Partial<TrackMixerState>) => void;
   onMixerEffectToggle: (trackId: string, effect: EffectSlotType) => void;
@@ -48,26 +76,37 @@ interface EditorShellProps {
   onAutomationTransitionToggle: (lane: AutomationLaneId, tick: number) => void;
   onToolOpen: (tool: ToolPanelId) => void;
   onToolClose: () => void;
+  onTrackPanelOpen: (panel: TrackPanelId) => void;
+  onTrackPanelClose: () => void;
+  onFileIoPanelOpen: () => void;
+  onFileIoPanelClose: () => void;
+  onNewFile: () => void;
+  onOpenNativeFile: () => void;
+  onSaveNativeFile: () => void;
+  onSaveNativeFileAs: () => void;
+  onImportFile: (format: ImportFormat) => void;
+  onExportFile: (format: ExportFormat) => void;
+  onStylesheetPanelOpen: () => void;
+  onStylesheetPanelClose: () => void;
+  onStylesheetChange: (stylesheet: Stylesheet) => void;
+  onStylesheetPreset: (presetName: StylesheetPresetName) => void;
+  onDisplayModeChange: (mode: DisplayMode) => void;
+  onZoomChange: (zoom: number) => void;
+  onCommandPaletteOpen: (initialValue?: string) => void;
+  onCommandPaletteClose: () => void;
+  onCommandPaletteSubmit: (input: string) => CommandPaletteResult;
+  onCreateTrack: (options: TrackCreateOptions) => void;
+  onApplyTuning: (trackId: string, tuning: Track["tuning"], mode: RetuneMode) => void;
+  onVoiceSelect: (voiceIndex: number) => void;
+  onMoveNoteToVoice: (voiceIndex: number) => void;
+  onToggleMultiVoice: () => void;
+  onToggleMultiTrackView: () => void;
+  onDrumToggle: (mappingId: string, articulation: string) => void;
   onInsertChordVoicing: (voicing: ChordVoicing, chordName: string) => void;
   onFretboardNoteToggle: (string: number, fret: number, advance: boolean) => void;
   onTransposeRequest: (options: TransposeOptions) => void;
   onCleanupRequest: (request: CleanupRequest) => void;
 }
-
-const menuNames = [
-  "File",
-  "Edit",
-  "Track",
-  "Bar",
-  "Note",
-  "Effects",
-  "Section",
-  "Tools",
-  "Sound",
-  "View",
-  "Window",
-  "Help"
-];
 
 const noteDurations: BeatDuration[] = [1, 2, 4, 8, 16, 32, 64];
 const barSymbolButtons = [
@@ -141,6 +180,14 @@ const effectSlotButtons: Array<[EffectSlotType, string]> = [
   ["wah", "Wah"],
   ["compressor", "Cmp"]
 ];
+const displayModeButtons: Array<[DisplayMode, string, string]> = [
+  ["vertical-page", "VP", "Vertical Page"],
+  ["horizontal-page", "HP", "Horizontal Page"],
+  ["grid", "Grid", "Grid"],
+  ["parchment", "Parch", "Parchment"],
+  ["vertical-screen", "VS", "Vertical Screen"],
+  ["horizontal-screen", "HS", "Horizontal Screen"]
+];
 
 export function EditorShell(props: EditorShellProps) {
   return (
@@ -148,6 +195,35 @@ export function EditorShell(props: EditorShellProps) {
       <MenuBar />
       <Toolbar {...props} />
       <TabBar documents={props.documents} activeId={props.activeId} />
+      <CommandPalette
+        open={props.commandPaletteOpen}
+        initialValue={props.commandPaletteInitialValue}
+        registeredCommands={props.registeredCommands}
+        onClose={props.onCommandPaletteClose}
+        onSubmit={props.onCommandPaletteSubmit}
+      />
+      <FileIoPanel
+        open={props.fileIoPanelOpen}
+        score={props.score}
+        dirty={props.dirty}
+        status={props.fileIoStatus}
+        onClose={props.onFileIoPanelClose}
+        onNew={props.onNewFile}
+        onOpenNative={props.onOpenNativeFile}
+        onSaveNative={props.onSaveNativeFile}
+        onSaveNativeAs={props.onSaveNativeFileAs}
+        onImport={props.onImportFile}
+        onExport={props.onExportFile}
+      />
+      <StylesheetPanel
+        open={props.stylesheetPanelOpen}
+        score={props.score}
+        onClose={props.onStylesheetPanelClose}
+        onChange={props.onStylesheetChange}
+        onPreset={props.onStylesheetPreset}
+        onDisplayModeChange={props.onDisplayModeChange}
+        onZoomChange={props.onZoomChange}
+      />
       <section
         className={[
           "gpMain",
@@ -155,7 +231,15 @@ export function EditorShell(props: EditorShellProps) {
           props.panelVisibility.songInspector || props.panelVisibility.trackInspector ? "" : "inspectorHidden"
         ].join(" ")}
       >
-        {props.panelVisibility.palette ? <EditionPalette dispatchCommand={props.dispatchCommand} /> : null}
+        {props.panelVisibility.palette ? (
+          <EditionPalette
+            dispatchCommand={props.dispatchCommand}
+            cursor={props.cursor}
+            multiVoiceEdit={props.multiVoiceEdit}
+            onVoiceSelect={props.onVoiceSelect}
+            onToggleMultiVoice={props.onToggleMultiVoice}
+          />
+        ) : null}
         <section className="workspacePanel">{props.workspace}</section>
         {props.panelVisibility.songInspector || props.panelVisibility.trackInspector ? (
           <InspectorPanel {...props} />
@@ -183,6 +267,20 @@ export function EditorShell(props: EditorShellProps) {
         onTransposeRequest={props.onTransposeRequest}
         onCleanupRequest={props.onCleanupRequest}
       />
+      <TrackSystemPanels
+        activePanel={props.activeTrackPanel}
+        activeTrack={props.score.tracks.find((track) => track.id === props.cursor.trackId) ?? null}
+        cursor={props.cursor}
+        multiVoiceEdit={props.multiVoiceEdit}
+        onClose={props.onTrackPanelClose}
+        onCreateTrack={props.onCreateTrack}
+        onApplyTuning={props.onApplyTuning}
+        onTrackPatch={props.onTrackSystemPatch}
+        onVoiceSelect={props.onVoiceSelect}
+        onMoveNoteToVoice={props.onMoveNoteToVoice}
+        onToggleMultiVoice={props.onToggleMultiVoice}
+        onDrumToggle={props.onDrumToggle}
+      />
     </main>
   );
 }
@@ -190,9 +288,9 @@ export function EditorShell(props: EditorShellProps) {
 function MenuBar() {
   return (
     <nav className="menuBar" aria-label="Application menus">
-      {menuNames.map((menu) => (
-        <button key={menu} type="button">
-          {menu}
+      {MENU_TREE.map((menu) => (
+        <button key={menu.name} type="button">
+          {menu.name}
         </button>
       ))}
     </nav>
@@ -206,7 +304,7 @@ function Toolbar(props: EditorShellProps) {
   return (
     <header className="toolbar" aria-label="Toolbar">
       <div className="toolbarGroup homeGroup">
-        <button type="button" title="Home" disabled>
+        <button type="button" title="File I/O" onClick={props.onFileIoPanelOpen}>
           ⌂
         </button>
       </div>
@@ -228,6 +326,34 @@ function Toolbar(props: EditorShellProps) {
         </button>
       </div>
       <div className="toolbarGroup toolLaunchGroup">
+        <button type="button" title={titleWithShortcut("Add Track", "track.add", props.platform)} onClick={() => props.onTrackPanelOpen("wizard")}>
+          +Trk
+        </button>
+        <button type="button" title="Tuning" disabled={!currentTrack} onClick={() => props.onTrackPanelOpen("tuning")}>
+          Tune
+        </button>
+        <button
+          type="button"
+          className={props.multiVoiceEdit ? "activeToggle" : ""}
+          title={titleWithShortcut("Voices", "voice.toggleMulti", props.platform)}
+          onClick={() => props.onTrackPanelOpen("voices")}
+        >
+          Vox
+        </button>
+        <button
+          type="button"
+          title={titleWithShortcut("Drum kit", "tools.instrument", props.platform)}
+          disabled={currentTrack?.icon !== "drums"}
+          onClick={() => props.onTrackPanelOpen("drums")}
+        >
+          Kit
+        </button>
+        <button type="button" title={titleWithShortcut("Command Palette", "tools.commandPalette", props.platform)} onClick={() => props.onCommandPaletteOpen()}>
+          Cmd
+        </button>
+        <button type="button" title={titleWithShortcut("Score Stylesheet", "view.stylesheet", props.platform)} onClick={props.onStylesheetPanelOpen}>
+          Style
+        </button>
         <button type="button" title="Chord tool A" onClick={() => props.onToolOpen("chords")}>
           Chord
         </button>
@@ -246,6 +372,28 @@ function Toolbar(props: EditorShellProps) {
         <button type="button" title="Check bar duration F4" onClick={() => props.onToolOpen("cleanup")}>
           Check
         </button>
+      </div>
+      <div className="toolbarGroup liveZoomGroup">
+        <button type="button" title={titleWithShortcut("Zoom out", "view.zoomOut", props.platform)} onClick={() => props.onZoomChange(props.score.documentSettings.zoom - 10)}>
+          -
+        </button>
+        <span>{props.score.documentSettings.zoom}%</span>
+        <button type="button" title={titleWithShortcut("Zoom in", "view.zoomIn", props.platform)} onClick={() => props.onZoomChange(props.score.documentSettings.zoom + 10)}>
+          +
+        </button>
+      </div>
+      <div className="toolbarGroup liveDisplayGroup">
+        {displayModeButtons.map(([mode, label, title]) => (
+          <button
+            key={mode}
+            type="button"
+            className={props.score.documentSettings.displayMode === mode ? "activeToggle" : ""}
+            title={title}
+            onClick={() => props.onDisplayModeChange(mode)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
       <div className="toolbarGroup zoomGroup">
         <button type="button" disabled>
@@ -307,8 +455,8 @@ function Toolbar(props: EditorShellProps) {
         <span className={lcd.issue ? "lcdWarning" : ""}>
           {lcd.actual}/{lcd.expected}
         </span>
-        <button type="button" disabled>
-          1
+        <button type="button" className={props.multiTrackView ? "activeToggle" : ""} title="Multitrack view F3" onClick={props.onToggleMultiTrackView}>
+          {props.multiTrackView ? "Multi" : "1"}
         </button>
         <button type="button" disabled>
           ♫
@@ -373,17 +521,33 @@ function TabBar({
   );
 }
 
-function EditionPalette({ dispatchCommand }: Pick<EditorShellProps, "dispatchCommand">) {
+function EditionPalette({
+  dispatchCommand,
+  cursor,
+  multiVoiceEdit,
+  onVoiceSelect,
+  onToggleMultiVoice
+}: Pick<EditorShellProps, "dispatchCommand" | "cursor" | "multiVoiceEdit" | "onVoiceSelect" | "onToggleMultiVoice">) {
   return (
     <aside className="palettePanel" aria-label="Edition palette">
       <PaletteGroup title="Voices">
         {[1, 2, 3, 4].map((voice) => (
-          <button key={voice} type="button" disabled={voice !== 1}>
+          <button
+            key={voice}
+            type="button"
+            className={cursor.voiceIndex === voice - 1 ? "activeToggle" : ""}
+            onClick={() => onVoiceSelect(voice - 1)}
+          >
             V{voice}
           </button>
         ))}
       </PaletteGroup>
-      {["Multivoice", "Design", "Lyrics", "Chords"].map((title) => (
+      <PaletteGroup title="Multivoice">
+        <button type="button" className={multiVoiceEdit ? "activeToggle" : ""} onClick={onToggleMultiVoice}>
+          {multiVoiceEdit ? "On" : "Off"}
+        </button>
+      </PaletteGroup>
+      {["Design", "Lyrics", "Chords"].map((title) => (
         <PaletteGroup key={title} title={title} disabled />
       ))}
       <PaletteGroup title="Bar symbols">
@@ -490,7 +654,11 @@ function InspectorPanel(props: EditorShellProps) {
               />
             </label>
           ))}
-          <button type="button" disabled>
+          <button
+            type="button"
+            className={props.score.documentSettings.concertTone ? "activeToggle" : ""}
+            onClick={props.onConcertToneToggle}
+          >
             Concert tone
           </button>
         </section>
@@ -523,13 +691,66 @@ function InspectorPanel(props: EditorShellProps) {
           <div className="notationChecks">
             {["standard", "tab", "slash", "numbered"].map((notation) => (
               <label key={notation}>
-                <input type="checkbox" checked={currentTrack.notationTypes.includes(notation as never)} readOnly />
+                <input
+                  type="checkbox"
+                  checked={currentTrack.notationTypes.includes(notation as NotationType)}
+                  onChange={(event) =>
+                    props.onTrackSystemPatch(currentTrack.id, {
+                      notationTypes: nextNotationTypes(
+                        currentTrack.notationTypes,
+                        notation as NotationType,
+                        event.target.checked
+                      )
+                    })
+                  }
+                />
                 <span>{notation}</span>
               </label>
             ))}
           </div>
+          <label>
+            <span>Staff</span>
+            <select
+              value={currentTrack.staffConfig}
+              onChange={(event) =>
+                props.onTrackSystemPatch(currentTrack.id, { staffConfig: event.target.value as StaffConfig })
+              }
+            >
+              <option value="single">single</option>
+              <option value="grand">grand</option>
+            </select>
+          </label>
+          <label>
+            <span>Transposition</span>
+            <select
+              value={currentTrack.transpositionTonality.soundingOffset}
+              onChange={(event) =>
+                props.onTrackTranspositionChange(currentTrack.id, Number(event.target.value))
+              }
+            >
+              <option value="0">Concert C</option>
+              <option value="-2">Bb instrument</option>
+              <option value="-9">Eb alto</option>
+              <option value="12">Octave up</option>
+              <option value="-12">Octave down</option>
+            </select>
+          </label>
           <p>{currentTrack.tuning.label}</p>
-          <button type="button" disabled>
+          <div className="inspectorButtonRow">
+            <button type="button" onClick={() => props.onTrackPanelOpen("tuning")}>
+              Tuning
+            </button>
+            <button type="button" onClick={() => props.onTrackMove(currentTrack.id, -1)}>
+              Up
+            </button>
+            <button type="button" onClick={() => props.onTrackMove(currentTrack.id, 1)}>
+              Down
+            </button>
+            <button type="button" onClick={() => props.onTrackDelete(currentTrack.id)}>
+              Delete
+            </button>
+          </div>
+          <button type="button" onClick={() => props.onTrackPanelOpen("voices")}>
             Interpretation
           </button>
           {currentMixer ? (
@@ -576,9 +797,10 @@ function GlobalView(props: EditorShellProps) {
   return (
     <section className="globalView" aria-label="Global view">
       <div className="globalTracks">
-        <button type="button" disabled>
+        <button type="button" onClick={() => props.onTrackPanelOpen("wizard")}>
           + Track
         </button>
+        <span className="globalModeBadge">{props.multiTrackView ? "F3 Multitrack" : "Single focus"}</span>
         <div className="masterStrip">
           <strong>Master</strong>
           <label className="mixerSlider">
@@ -926,6 +1148,24 @@ function currentLcdStatus(score: Score, cursor: CursorPosition) {
     issue,
     title: issue ? `Voice ${cursor.voiceIndex + 1}: ${actual}/${expected}` : "Bar duration ok"
   };
+}
+
+function nextNotationTypes(
+  current: NotationType[],
+  notation: NotationType,
+  enabled: boolean
+): NotationType[] {
+  if (enabled) {
+    return current.includes(notation) ? current : [...current, notation];
+  }
+
+  const next = current.filter((candidate) => candidate !== notation);
+  return next.length > 0 ? next : current;
+}
+
+function titleWithShortcut(label: string, commandId: string, platform: Platform): string {
+  const shortcut = shortcutLabel(commandId, platform);
+  return shortcut ? `${label} ${shortcut}` : label;
 }
 
 function clamp(value: number, min: number, max: number): number {
