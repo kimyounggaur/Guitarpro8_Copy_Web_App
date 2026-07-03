@@ -2,6 +2,9 @@ import { beatDurationTicks, writtenPitch } from "../../model/derive";
 import type {
   Beat,
   BeatDuration,
+  DirectionJump,
+  DirectionTarget,
+  MasterBar,
   Note,
   NoteRef,
   Score,
@@ -44,7 +47,7 @@ import {
   TUPLET_BRACKET_GAP
 } from "./metrics";
 import { tickToMeasureX } from "./measureContents";
-import type { LinePrimitive, PathPrimitive, ScenePrimitive } from "./sceneGraph";
+import type { HitKind, LinePrimitive, PathPrimitive, ScenePrimitive } from "./sceneGraph";
 import type { SystemMeasure } from "./systemBreaker";
 
 export interface SystemPrimitiveOptions {
@@ -94,6 +97,9 @@ interface TieAnchor {
 
 const RHYTHM_BLACK = "#111827";
 const INACTIVE_VOICE = "#999999";
+const SYMBOL_TEXT = "#1f2937";
+const SYMBOL_MUTED = "#4b5563";
+const EFFECT_BLUE = "#1d4ed8";
 
 export function systemPrimitives(
   score: Score,
@@ -169,6 +175,12 @@ function trackPrimitives(
     );
     primitives.push(barHitRect(track.id, measure.content.barIndex, x, originY, measure.width, tabY + tabHeight));
 
+    if (trackIndex === 0) {
+      primitives.push(
+        ...masterBarSymbolPrimitives(masterBar, measure, x, measure.width, originY, tabY + tabHeight)
+      );
+    }
+
     if (measure.x === 0) {
       primitives.push(
         timeSignaturePrimitive(track.id, measure.content.barIndex, x + 24, originY, masterBar.timeSignature.numerator, masterBar.timeSignature.denominator)
@@ -191,6 +203,219 @@ function trackPrimitives(
   }
 
   return primitives;
+}
+
+function masterBarSymbolPrimitives(
+  masterBar: MasterBar,
+  measure: SystemMeasure,
+  x: number,
+  width: number,
+  staffY: number,
+  bottomY: number
+): ScenePrimitive[] {
+  const barIndex = measure.content.barIndex;
+  const rightX = x + width;
+  const centerX = x + width / 2;
+  const primitives: ScenePrimitive[] = [];
+
+  if (masterBar.section) {
+    const label = `${masterBar.section.letter} ${masterBar.section.name}`.trim();
+    const rectWidth = Math.min(Math.max(label.length * 6 + 14, 34), width - 8);
+    primitives.push({
+      id: `master-${barIndex}-section-box`,
+      type: "rect",
+      x: x + 4,
+      y: staffY - 50,
+      width: rectWidth,
+      height: 18,
+      fill: masterBar.section.boxed ? "#f8fafc" : "transparent",
+      stroke: SYMBOL_TEXT,
+      strokeWidth: masterBar.section.boxed ? 1 : 0,
+      radius: 2,
+      hit: symbolHit("section", barIndex, x + 4, staffY - 50, rectWidth, 18)
+    });
+    primitives.push(symbolText(`master-${barIndex}-section-text`, label, x + 10, staffY - 37, 11, "start", "section", barIndex));
+  }
+
+  if (masterBar.alternateEndings > 0) {
+    const y = staffY - 24;
+    const label = alternateEndingLabel(masterBar.alternateEndings);
+    primitives.push({
+      id: `master-${barIndex}-volta-hit`,
+      type: "rect",
+      x: x + 2,
+      y: y - 10,
+      width: width - 6,
+      height: 18,
+      fill: "transparent",
+      hit: symbolHit("volta", barIndex, x + 2, y - 10, width - 6, 18)
+    });
+    primitives.push(bracketLine(`master-${barIndex}-volta-left`, x + 4, y, x + 4, y + 10, SYMBOL_TEXT));
+    primitives.push(bracketLine(`master-${barIndex}-volta-top`, x + 4, y, rightX - 4, y, SYMBOL_TEXT));
+    primitives.push(symbolText(`master-${barIndex}-volta-label`, label, x + 10, y - 3, 10, "start", "volta", barIndex));
+  }
+
+  if (masterBar.repeatOpen) {
+    primitives.push(...repeatOpenPrimitives(barIndex, x, staffY, bottomY));
+  }
+
+  if (masterBar.repeatClose > 0) {
+    primitives.push(...repeatClosePrimitives(barIndex, rightX, staffY, bottomY, masterBar.repeatClose));
+  }
+
+  if (masterBar.doubleBar) {
+    primitives.push(bracketLine(`master-${barIndex}-double-bar-outer`, rightX - 5, staffY - 2, rightX - 5, bottomY + 2, SYMBOL_TEXT));
+    primitives.push(bracketLine(`master-${barIndex}-double-bar-inner`, rightX - 9, staffY - 2, rightX - 9, bottomY + 2, SYMBOL_TEXT));
+  }
+
+  masterBar.directionTargets.forEach((target, index) => {
+    primitives.push(
+      symbolText(
+        `master-${barIndex}-direction-target-${index}`,
+        directionTargetLabel(target),
+        x + 14 + index * 44,
+        staffY - 8,
+        11,
+        "start",
+        "direction",
+        barIndex
+      )
+    );
+  });
+
+  masterBar.directionJumps.forEach((jump, index) => {
+    primitives.push(
+      symbolText(
+        `master-${barIndex}-direction-jump-${index}`,
+        directionJumpLabel(jump),
+        rightX - 8 - index * 44,
+        staffY - 8,
+        11,
+        "end",
+        "direction",
+        barIndex
+      )
+    );
+  });
+
+  if (masterBar.tripletFeel) {
+    primitives.push(
+      symbolText(
+        `master-${barIndex}-triplet-feel`,
+        masterBar.tripletFeel,
+        centerX,
+        staffY - 8,
+        10,
+        "middle",
+        "barSymbol",
+        barIndex
+      )
+    );
+  }
+
+  if (masterBar.freeTime) {
+    primitives.push(symbolText(`master-${barIndex}-free-time`, "free time", centerX, bottomY + 15, 10, "middle", "barSymbol", barIndex));
+  }
+
+  if (masterBar.anacrusis) {
+    primitives.push(symbolText(`master-${barIndex}-anacrusis`, "pickup", x + 12, bottomY + 15, 10, "start", "barSymbol", barIndex));
+  }
+
+  if (masterBar.simileMark !== "none") {
+    primitives.push(
+      symbolText(
+        `master-${barIndex}-simile`,
+        masterBar.simileMark === "single" ? "%" : "%%",
+        centerX,
+        staffY + STAFF_LINE_GAP * 2.5,
+        18,
+        "middle",
+        "barSymbol",
+        barIndex
+      )
+    );
+  }
+
+  masterBar.fermatas.forEach((fermata, index) => {
+    const fermataX = x + 16 + tickToMeasureX(measure.content, fermata.beatTick, width - 28);
+    primitives.push({
+      id: `master-${barIndex}-fermata-${index}`,
+      type: "text",
+      x: fermataX,
+      y: staffY - 8,
+      text: SMUFL.fermataAbove,
+      fill: SYMBOL_TEXT,
+      fontSize: 20,
+      fontFamily: MUSIC_FONT_FAMILY,
+      anchor: "middle",
+      hit: symbolHit("fermata", barIndex, fermataX - 10, staffY - 28, 20, 22)
+    });
+  });
+
+  return primitives;
+}
+
+function repeatOpenPrimitives(barIndex: number, x: number, staffY: number, bottomY: number): ScenePrimitive[] {
+  return [
+    {
+      id: `master-${barIndex}-repeat-open-thick`,
+      type: "line",
+      x1: x + 5,
+      y1: staffY - 2,
+      x2: x + 5,
+      y2: bottomY + 2,
+      stroke: SYMBOL_TEXT,
+      strokeWidth: 3,
+      hit: symbolHit("repeat", barIndex, x, staffY - 4, 18, bottomY - staffY + 8)
+    },
+    bracketLine(`master-${barIndex}-repeat-open-thin`, x + 10, staffY - 2, x + 10, bottomY + 2, SYMBOL_TEXT),
+    repeatDot(`master-${barIndex}-repeat-open-mark-1`, x + 15, staffY + STAFF_LINE_GAP * 1.5, barIndex),
+    repeatDot(`master-${barIndex}-repeat-open-mark-2`, x + 15, staffY + STAFF_LINE_GAP * 2.5, barIndex)
+  ];
+}
+
+function repeatClosePrimitives(
+  barIndex: number,
+  rightX: number,
+  staffY: number,
+  bottomY: number,
+  repeatCount: number
+): ScenePrimitive[] {
+  const primitives: ScenePrimitive[] = [
+    bracketLine(`master-${barIndex}-repeat-close-thin`, rightX - 10, staffY - 2, rightX - 10, bottomY + 2, SYMBOL_TEXT),
+    {
+      id: `master-${barIndex}-repeat-close-thick`,
+      type: "line",
+      x1: rightX - 5,
+      y1: staffY - 2,
+      x2: rightX - 5,
+      y2: bottomY + 2,
+      stroke: SYMBOL_TEXT,
+      strokeWidth: 3,
+      hit: symbolHit("repeat", barIndex, rightX - 18, staffY - 4, 18, bottomY - staffY + 8)
+    },
+    repeatDot(`master-${barIndex}-repeat-close-mark-1`, rightX - 15, staffY + STAFF_LINE_GAP * 1.5, barIndex),
+    repeatDot(`master-${barIndex}-repeat-close-mark-2`, rightX - 15, staffY + STAFF_LINE_GAP * 2.5, barIndex)
+  ];
+
+  if (repeatCount > 2) {
+    primitives.push(symbolText(`master-${barIndex}-repeat-count`, `x${repeatCount}`, rightX - 18, staffY - 8, 10, "end", "repeat", barIndex));
+  }
+
+  return primitives;
+}
+
+function repeatDot(id: string, cx: number, cy: number, barIndex: number): ScenePrimitive {
+  return {
+    id,
+    type: "ellipse",
+    cx,
+    cy,
+    rx: 2,
+    ry: 2,
+    fill: SYMBOL_TEXT,
+    hit: symbolHit("repeat", barIndex, cx - 4, cy - 4, 8, 8)
+  };
 }
 
 function beatAndRhythmPrimitives(
@@ -311,9 +536,12 @@ function beatPrimitives(placement: BeatRenderPlacement, isBeamed: boolean): Scen
   }
 
   const primitives = placement.notePlacements.flatMap((notePlacement) => [
+    ...accidentalPrimitives(placement, notePlacement),
     noteHeadPrimitive(placement, notePlacement),
+    ...deadNoteCrossPrimitives(placement, notePlacement),
     tabFretPrimitive(placement, notePlacement),
-    ...dotPrimitives(placement.beat.dots, placement.x + 12, notePlacement.y, placement.color)
+    ...dotPrimitives(placement.beat.dots, placement.x + 12, notePlacement.y, placement.color),
+    ...noteEffectPrimitives(placement, notePlacement)
   ]);
 
   if (placement.stem) {
@@ -328,6 +556,8 @@ function beatPrimitives(placement: BeatRenderPlacement, isBeamed: boolean): Scen
     primitives.push(...flagPrimitives(placement, "standard"));
     primitives.push(...flagPrimitives(placement, "tab"));
   }
+
+  primitives.push(...beatEffectPrimitives(placement));
 
   return primitives;
 }
@@ -360,12 +590,15 @@ function tabFretPrimitive(
   placement: BeatRenderPlacement,
   notePlacement: NotePlacement
 ): ScenePrimitive {
+  const note = notePlacement.note;
+  const fretText = note.deadNote ? "x" : note.ghost ? `(${note.fret})` : String(note.fret);
+
   return {
     id: `${noteId(notePlacement.ref)}-tab`,
     type: "text",
     x: notePlacement.x,
     y: notePlacement.tabY,
-    text: String(notePlacement.note.fret),
+    text: fretText,
     fill: placement.color,
     fontSize: 11,
     anchor: "middle",
@@ -375,6 +608,345 @@ function tabFretPrimitive(
       bbox: { x: notePlacement.x - 8, y: notePlacement.tabY - 10, width: 16, height: 14 }
     }
   };
+}
+
+function accidentalPrimitives(
+  placement: BeatRenderPlacement,
+  notePlacement: NotePlacement
+): ScenePrimitive[] {
+  const glyph = accidentalGlyph(notePlacement.note.accidental);
+
+  if (!notePlacement.note.forceAccidental || !glyph) {
+    return [];
+  }
+
+  return [
+    {
+      id: `${noteId(notePlacement.ref)}-accidental`,
+      type: "text",
+      x: notePlacement.x - 16,
+      y: notePlacement.y + 5,
+      text: glyph,
+      fill: placement.color,
+      fontSize: 17,
+      fontFamily: MUSIC_FONT_FAMILY,
+      anchor: "middle",
+      hit: effectHit(notePlacement.ref, notePlacement.x - 24, notePlacement.y - 12, 16, 22)
+    }
+  ];
+}
+
+function deadNoteCrossPrimitives(
+  placement: BeatRenderPlacement,
+  notePlacement: NotePlacement
+): ScenePrimitive[] {
+  if (!notePlacement.note.deadNote) {
+    return [];
+  }
+
+  const id = noteId(notePlacement.ref);
+  return [
+    bracketLine(`${id}-effect-dead-left`, notePlacement.x - 5, notePlacement.y - 5, notePlacement.x + 5, notePlacement.y + 5, placement.color),
+    bracketLine(`${id}-effect-dead-right`, notePlacement.x - 5, notePlacement.y + 5, notePlacement.x + 5, notePlacement.y - 5, placement.color)
+  ];
+}
+
+function noteEffectPrimitives(
+  placement: BeatRenderPlacement,
+  notePlacement: NotePlacement
+): ScenePrimitive[] {
+  const note = notePlacement.note;
+  const ref = notePlacement.ref;
+  const id = noteId(ref);
+  const primitives: ScenePrimitive[] = [];
+  let aboveSlot = 0;
+  let tabSlot = 0;
+
+  const addAbove = (suffix: string, text: string, color = SYMBOL_MUTED) => {
+    primitives.push(
+      effectText(
+        `${id}-effect-${suffix}`,
+        text,
+        notePlacement.x,
+        notePlacement.y - 12 - aboveSlot * 10,
+        9,
+        "middle",
+        ref,
+        color
+      )
+    );
+    aboveSlot += 1;
+  };
+  const addTab = (suffix: string, text: string, color = SYMBOL_MUTED) => {
+    primitives.push(
+      effectText(
+        `${id}-effect-${suffix}`,
+        text,
+        notePlacement.x,
+        notePlacement.tabY + 14 + tabSlot * 10,
+        9,
+        "middle",
+        ref,
+        color
+      )
+    );
+    tabSlot += 1;
+  };
+
+  if (note.ghost) {
+    addAbove("ghost", "ghost");
+  }
+
+  if (note.accent !== "none") {
+    addAbove("accent", note.accent === "heavy" ? "^" : ">", placement.color);
+  }
+
+  if (note.staccato) {
+    primitives.push({
+      id: `${id}-effect-staccato`,
+      type: "ellipse",
+      cx: notePlacement.x,
+      cy: notePlacement.y + 10,
+      rx: 1.8,
+      ry: 1.8,
+      fill: placement.color,
+      hit: effectHit(ref, notePlacement.x - 5, notePlacement.y + 5, 10, 10)
+    });
+  }
+
+  if (note.dynamic !== 4) {
+    addTab("dynamic", dynamicLabel(note.dynamic), SYMBOL_TEXT);
+  }
+
+  if (note.letRing) {
+    primitives.push(...sustainLinePrimitives(`${id}-effect-let-ring`, "let ring", ref, notePlacement.x, placement.tabBottomY + 14));
+  }
+
+  if (note.palmMute) {
+    primitives.push(...sustainLinePrimitives(`${id}-effect-palm-mute`, "PM", ref, notePlacement.x, placement.tabBottomY + 26));
+  }
+
+  if (note.hopo) {
+    addTab("hopo", "H/P", EFFECT_BLUE);
+  }
+
+  if (note.slide) {
+    primitives.push({
+      id: `${id}-effect-slide`,
+      type: "line",
+      x1: notePlacement.x + 8,
+      y1: notePlacement.tabY - 2,
+      x2: notePlacement.x + 26,
+      y2: notePlacement.tabY - 14,
+      stroke: EFFECT_BLUE,
+      strokeWidth: 1.3,
+      strokeLinecap: "round",
+      hit: effectHit(ref, notePlacement.x + 4, notePlacement.tabY - 18, 26, 20)
+    });
+  }
+
+  if (note.bend) {
+    primitives.push({
+      id: `${id}-effect-bend-curve`,
+      type: "path",
+      d: `M ${notePlacement.x + 6} ${notePlacement.y - 18} C ${notePlacement.x + 24} ${notePlacement.y - 28}, ${notePlacement.x + 28} ${notePlacement.y - 36}, ${notePlacement.x + 34} ${notePlacement.y - 36}`,
+      fill: "none",
+      stroke: EFFECT_BLUE,
+      strokeWidth: 1.2,
+      strokeLinecap: "round",
+      hit: effectHit(ref, notePlacement.x + 4, notePlacement.y - 42, 34, 26)
+    });
+    primitives.push(effectText(`${id}-effect-bend-label`, "full", notePlacement.x + 38, notePlacement.y - 34, 8, "start", ref, EFFECT_BLUE));
+  }
+
+  if (note.harmonic) {
+    addAbove("harmonic", harmonicLabel(note.harmonic.type), EFFECT_BLUE);
+  }
+
+  if (note.vibrato !== "none") {
+    addTab("vibrato", note.vibrato === "wide" ? "~~~~" : "~~", EFFECT_BLUE);
+  }
+
+  if (note.trill) {
+    addAbove("trill", `tr ${note.trill.secondFret}`, EFFECT_BLUE);
+  }
+
+  if (note.tremoloPicking) {
+    addAbove("tremolo", `trem ${note.tremoloPicking}`, EFFECT_BLUE);
+  }
+
+  if (note.fadeIn) {
+    addTab("fade-in", "fade in");
+  }
+
+  if (note.fadeOut) {
+    addTab("fade-out", "fade out");
+  }
+
+  if (note.volumeSwell) {
+    addTab("swell", "swell");
+  }
+
+  if (note.wah) {
+    addTab("wah", `wah ${note.wah}`);
+  }
+
+  if (note.slap) {
+    addTab("slap", "S", EFFECT_BLUE);
+  }
+
+  if (note.pop) {
+    addTab("pop", "P", EFFECT_BLUE);
+  }
+
+  if (note.golpe) {
+    addTab("golpe", `golpe ${note.golpe}`);
+  }
+
+  if (note.pickscrape) {
+    addTab("pickscrape", "pickscrape");
+  }
+
+  if (note.deadSlapped) {
+    addTab("dead-slapped", "dead slap");
+  }
+
+  if (note.showStringNumber) {
+    addAbove("string-number", `str ${note.string}`);
+  }
+
+  if (note.leftFinger) {
+    addTab("left-finger", `L${note.leftFinger}`);
+  }
+
+  if (note.rightFinger) {
+    addTab("right-finger", `R${note.rightFinger}`);
+  }
+
+  return primitives;
+}
+
+function beatEffectPrimitives(placement: BeatRenderPlacement): ScenePrimitive[] {
+  const id = beatPlacementId(placement);
+  const ref = {
+    trackId: placement.track.id,
+    barIndex: placement.barIndex,
+    voiceIndex: placement.voiceIndex,
+    beatIndex: placement.beatIndex
+  };
+  const primitives: ScenePrimitive[] = [];
+
+  placement.beat.graceNotes.forEach((grace, index) => {
+    primitives.push(
+      effectText(
+        `${id}-effect-grace-${index}`,
+        String(grace.fret),
+        placement.x - 18 - index * 8,
+        placement.tabY + (grace.string - 1) * TAB_LINE_GAP + 4,
+        8,
+        "middle",
+        ref,
+        EFFECT_BLUE
+      )
+    );
+  });
+
+  if (placement.beat.brush) {
+    primitives.push(effectText(`${id}-effect-brush`, placement.beat.brush.direction === "down" ? "brush v" : "brush ^", placement.x - 12, placement.tabY - 8, 8, "end", ref));
+  }
+
+  if (placement.beat.arpeggio) {
+    primitives.push(effectText(`${id}-effect-arpeggio`, placement.beat.arpeggio.direction === "down" ? "arp v" : "arp ^", placement.x - 12, placement.tabY + 4, 8, "end", ref));
+  }
+
+  if (placement.beat.tapping) {
+    primitives.push(effectText(`${id}-effect-tapping`, "T", placement.x, placement.staffY - 22, 10, "middle", ref, EFFECT_BLUE));
+  }
+
+  if (placement.beat.pickstroke !== "none") {
+    primitives.push(effectText(`${id}-effect-pickstroke`, placement.beat.pickstroke === "down" ? "v" : "^", placement.x, placement.staffY - 10, 11, "middle", ref));
+  }
+
+  if (placement.beat.barVibrato !== "none") {
+    primitives.push(effectText(`${id}-effect-bar-vibrato`, placement.beat.barVibrato === "wide" ? "~~~~" : "~~", placement.x + 18, placement.tabBottomY + 14, 10, "start", ref, EFFECT_BLUE));
+  }
+
+  if (placement.beat.dynamicHairpin) {
+    const opening = placement.beat.dynamicHairpin.type === "cresc";
+    const y = placement.staffY + STANDARD_STAFF_HEIGHT + 24;
+    const x1 = placement.x + 6;
+    const x2 = placement.x + 42;
+    primitives.push({
+      id: `${id}-effect-hairpin-${placement.beat.dynamicHairpin.type}-top`,
+      type: "line",
+      x1,
+      y1: opening ? y : y - 6,
+      x2,
+      y2: opening ? y - 6 : y,
+      stroke: SYMBOL_TEXT,
+      strokeWidth: 1,
+      hit: effectHit(ref, x1, y - 10, x2 - x1, 14)
+    });
+    primitives.push({
+      id: `${id}-effect-hairpin-${placement.beat.dynamicHairpin.type}-bottom`,
+      type: "line",
+      x1,
+      y1: opening ? y : y + 6,
+      x2,
+      y2: opening ? y + 6 : y,
+      stroke: SYMBOL_TEXT,
+      strokeWidth: 1,
+      hit: effectHit(ref, x1, y - 2, x2 - x1, 14)
+    });
+  }
+
+  if (placement.beat.ottava !== "none") {
+    const y = placement.staffY - 34;
+    primitives.push(effectText(`${id}-effect-ottava-label`, placement.beat.ottava, placement.x, y, 9, "middle", ref, SYMBOL_TEXT));
+    primitives.push({
+      id: `${id}-effect-ottava-line`,
+      type: "line",
+      x1: placement.x + 14,
+      y1: y - 3,
+      x2: placement.x + 56,
+      y2: y - 3,
+      stroke: SYMBOL_TEXT,
+      strokeWidth: 1,
+      strokeDasharray: "4 3",
+      hit: effectHit(ref, placement.x, y - 12, 60, 14)
+    });
+  }
+
+  if (placement.beat.whammy) {
+    primitives.push({
+      id: `${id}-effect-whammy`,
+      type: "path",
+      d: `M ${placement.x + 8} ${placement.staffY - 16} C ${placement.x + 18} ${placement.staffY - 28}, ${placement.x + 32} ${placement.staffY - 6}, ${placement.x + 44} ${placement.staffY - 18}`,
+      fill: "none",
+      stroke: EFFECT_BLUE,
+      strokeWidth: 1.1,
+      strokeLinecap: "round",
+      hit: effectHit(ref, placement.x + 6, placement.staffY - 32, 42, 30)
+    });
+  }
+
+  if (placement.beat.text) {
+    primitives.push(effectText(`${id}-effect-text`, placement.beat.text, placement.x, placement.staffY - 42, 10, "middle", ref, SYMBOL_TEXT));
+  }
+
+  if (placement.beat.timer) {
+    primitives.push(effectText(`${id}-effect-timer`, "timer", placement.x, placement.tabBottomY + 34, 8, "middle", ref));
+  }
+
+  if (placement.beat.chordId) {
+    primitives.push(effectText(`${id}-effect-chord`, placement.beat.chordId, placement.x, placement.staffY - 50, 11, "middle", ref, SYMBOL_TEXT));
+  }
+
+  if (placement.beat.slash) {
+    primitives.push(effectText(`${id}-effect-slash`, "/", placement.x, placement.staffY + STAFF_LINE_GAP * 2, 18, "middle", ref, SYMBOL_MUTED));
+  }
+
+  return primitives;
 }
 
 function restPrimitives(placement: BeatRenderPlacement): ScenePrimitive[] {
@@ -789,6 +1361,167 @@ function tieToEdgePrimitive(anchor: TieAnchor, edgeX: number, side: "start" | "e
     strokeWidth: 1.3,
     strokeLinecap: "round"
   };
+}
+
+function symbolText(
+  id: string,
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  anchor: "start" | "middle" | "end",
+  kind: HitKind,
+  barIndex: number
+): ScenePrimitive {
+  return {
+    id,
+    type: "text",
+    x,
+    y,
+    text,
+    fill: SYMBOL_TEXT,
+    fontSize,
+    anchor,
+    hit: symbolHit(kind, barIndex, x - text.length * 3, y - fontSize, Math.max(18, text.length * 6), fontSize + 4)
+  };
+}
+
+function effectText(
+  id: string,
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  anchor: "start" | "middle" | "end",
+  ref: Partial<NoteRef>,
+  fill = SYMBOL_MUTED
+): ScenePrimitive {
+  const width = Math.max(12, text.length * fontSize * 0.55);
+  return {
+    id,
+    type: "text",
+    x,
+    y,
+    text,
+    fill,
+    fontSize,
+    anchor,
+    hit: effectHit(ref, x - width / 2, y - fontSize, width, fontSize + 4)
+  };
+}
+
+function sustainLinePrimitives(
+  id: string,
+  label: string,
+  ref: NoteRef,
+  x: number,
+  y: number
+): ScenePrimitive[] {
+  return [
+    effectText(`${id}-label`, label, x - 3, y, 8, "end", ref, SYMBOL_MUTED),
+    {
+      id: `${id}-line`,
+      type: "line",
+      x1: x + 3,
+      y1: y - 3,
+      x2: x + 42,
+      y2: y - 3,
+      stroke: SYMBOL_MUTED,
+      strokeWidth: 1,
+      strokeDasharray: "4 3",
+      hit: effectHit(ref, x - 32, y - 10, 78, 16)
+    }
+  ];
+}
+
+function symbolHit(kind: HitKind, barIndex: number, x: number, y: number, width: number, height: number) {
+  return {
+    kind,
+    ref: { barIndex },
+    bbox: { x, y, width, height }
+  };
+}
+
+function effectHit(ref: Partial<NoteRef>, x: number, y: number, width: number, height: number) {
+  return {
+    kind: "effect" as const,
+    ref,
+    bbox: { x, y, width, height }
+  };
+}
+
+function directionTargetLabel(target: DirectionTarget): string {
+  const labels: Record<DirectionTarget, string> = {
+    Coda: "Coda",
+    DoubleCoda: "Double Coda",
+    Segno: "Segno",
+    SegnoSegno: "Segno Segno",
+    Fine: "Fine"
+  };
+
+  return labels[target];
+}
+
+function directionJumpLabel(jump: DirectionJump): string {
+  const labels: Record<DirectionJump, string> = {
+    DaCapo: "D.C.",
+    DalSegno: "D.S.",
+    DalSegnoSegno: "D.S.S.",
+    DaCoda: "Da Coda",
+    DaDoubleCoda: "Da Double Coda",
+    AlCoda: "Al Coda",
+    AlDoubleCoda: "Al Double Coda",
+    AlFine: "Al Fine"
+  };
+
+  return labels[jump];
+}
+
+function alternateEndingLabel(mask: number): string {
+  const endings = Array.from({ length: 8 }, (_, index) => index + 1).filter(
+    (ending) => (mask & (1 << (ending - 1))) !== 0
+  );
+  return `${endings.join(", ")}.`;
+}
+
+function accidentalGlyph(accidental: Note["accidental"]): string {
+  const glyphs: Record<Note["accidental"], string> = {
+    none: "",
+    sharp: SMUFL.accidentalSharp,
+    flat: SMUFL.accidentalFlat,
+    natural: SMUFL.accidentalNatural,
+    doubleSharp: SMUFL.accidentalDoubleSharp,
+    doubleFlat: SMUFL.accidentalDoubleFlat
+  };
+
+  return glyphs[accidental];
+}
+
+function dynamicLabel(dynamic: Note["dynamic"]): string {
+  const dynamics: Record<Note["dynamic"], string> = {
+    0: "ppp",
+    1: "pp",
+    2: "p",
+    3: "mp",
+    4: "mf",
+    5: "f",
+    6: "ff",
+    7: "fff"
+  };
+
+  return dynamics[dynamic];
+}
+
+function harmonicLabel(type: NonNullable<Note["harmonic"]>["type"]): string {
+  const labels: Record<NonNullable<Note["harmonic"]>["type"], string> = {
+    natural: "N.H.",
+    artificial: "A.H.",
+    tapped: "T.H.",
+    pinch: "P.H.",
+    semi: "S.H."
+  };
+
+  return labels[type];
 }
 
 function bracketLine(id: string, x1: number, y1: number, x2: number, y2: number, color: string): LinePrimitive {

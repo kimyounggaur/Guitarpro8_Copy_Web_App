@@ -113,11 +113,25 @@ function commandIdForEvent(event: KeyboardEvent): string | null {
   if (ctrl && key === "7") return "note.flat";
   if (ctrl && key === "8") return "note.natural";
   if (ctrl && key === ".") return "note.doubleDot";
+  if (ctrl && key.toLowerCase() === "b") return "bar.symbol.repeatClose";
+  if (ctrl && key.toLowerCase() === "m") return "bar.symbol.fermata";
+  if (ctrl && key.toLowerCase() === "t") return "bar.symbol.timeSignature";
+  if (ctrl && key.toLowerCase() === "k") return "bar.symbol.keySignature";
 
   if (shift && key.toLowerCase() === "l") return "note.tieBeat";
   if (key.toLowerCase() === "l") return "note.tie";
   if (shift && key === ".") return "note.dot";
   if (shift && key === "/") return "note.triplet";
+  if (key.toLowerCase() === "g") return "note.effect.ghost";
+  if (key.toLowerCase() === "x") return "note.effect.dead";
+  if (key.toLowerCase() === "a") return "note.effect.accent";
+  if (key.toLowerCase() === "s") return "note.effect.staccato";
+  if (key.toLowerCase() === "p") return "note.effect.palmMute";
+  if (key.toLowerCase() === "e") return "note.effect.letRing";
+  if (key.toLowerCase() === "b") return "note.effect.bend";
+  if (key.toLowerCase() === "h") return "note.effect.harmonic";
+  if (key.toLowerCase() === "v") return "note.effect.vibrato";
+  if (key.toLowerCase() === "u") return "note.effect.slide";
   if (key.toLowerCase() === "r") return "note.rest";
   if (key === "Backspace") return "note.delete";
   if (shift && key === "Delete") return "beat.delete";

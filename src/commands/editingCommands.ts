@@ -1,4 +1,9 @@
 import type { CursorMove } from "../engine/editing/types";
+import type {
+  BarSymbolCommand,
+  BeatEffectCommand,
+  NoteEffectCommand
+} from "../engine/editing/operations";
 import type { BeatDuration, Note } from "../model/types";
 import { getCommand, registerCommand } from "./registry";
 
@@ -15,6 +20,12 @@ export interface EditorCommandContext {
   toggleTie: (wholeBeat?: boolean) => void;
   setDots: (dots: 1 | 2) => void;
   toggleTriplet: () => void;
+  cycleTimeSignature: () => void;
+  cycleKeySignature: () => void;
+  toggleBarSymbol: (symbol: BarSymbolCommand) => void;
+  setDynamic: (dynamic: Note["dynamic"]) => void;
+  toggleNoteEffect: (effect: NoteEffectCommand) => void;
+  toggleBeatEffect: (effect: BeatEffectCommand) => void;
   deleteNote: () => void;
   deleteBeat: () => void;
   deleteBar: () => void;
@@ -297,6 +308,9 @@ export function ensureEditingCommandsRegistered(): void {
   });
 
   registerAccidentalCommands();
+  registerDynamicCommands();
+  registerBarSymbolCommands();
+  registerEffectCommands();
 }
 
 function registerMove(id: string, label: string, win: string, move: CursorMove): void {
@@ -329,6 +343,127 @@ function registerAccidentalCommands(): void {
       category: "Accidentals",
       shortcut: { win, mac: win.replace("Ctrl", "Cmd") },
       execute: (context) => context.setAccidental(accidental)
+    });
+  });
+}
+
+function registerDynamicCommands(): void {
+  const dynamics: Array<[string, string, Note["dynamic"]]> = [
+    ["note.dynamic.0", "ppp", 0],
+    ["note.dynamic.1", "pp", 1],
+    ["note.dynamic.2", "p", 2],
+    ["note.dynamic.3", "mp", 3],
+    ["note.dynamic.4", "mf", 4],
+    ["note.dynamic.5", "f", 5],
+    ["note.dynamic.6", "ff", 6],
+    ["note.dynamic.7", "fff", 7]
+  ];
+
+  dynamics.forEach(([id, label, dynamic]) => {
+    registerCommand<EditorCommandContext>({
+      id,
+      label,
+      category: "Dynamics",
+      execute: (context) => context.setDynamic(dynamic)
+    });
+  });
+}
+
+function registerBarSymbolCommands(): void {
+  const symbols: Array<[string, string, BarSymbolCommand]> = [
+    ["bar.symbol.repeatOpen", "Repeat open", "repeatOpen"],
+    ["bar.symbol.repeatClose", "Repeat close", "repeatClose"],
+    ["bar.symbol.doubleBar", "Double barline", "doubleBar"],
+    ["bar.symbol.freeTime", "Free time", "freeTime"],
+    ["bar.symbol.tripletFeel", "Triplet feel", "tripletFeel"],
+    ["bar.symbol.alternateEnding", "Alternate ending", "alternateEnding"],
+    ["bar.symbol.section", "Section", "section"],
+    ["bar.symbol.directionTarget", "Direction target", "directionTarget"],
+    ["bar.symbol.directionJump", "Direction jump", "directionJump"],
+    ["bar.symbol.fermata", "Fermata", "fermata"],
+    ["bar.symbol.simile", "Simile mark", "simile"],
+    ["bar.symbol.anacrusis", "Anacrusis", "anacrusis"]
+  ];
+
+  registerCommand<EditorCommandContext>({
+    id: "bar.symbol.timeSignature",
+    label: "Time signature",
+    category: "Bar symbols",
+    execute: (context) => context.cycleTimeSignature()
+  });
+
+  registerCommand<EditorCommandContext>({
+    id: "bar.symbol.keySignature",
+    label: "Key signature",
+    category: "Bar symbols",
+    execute: (context) => context.cycleKeySignature()
+  });
+
+  symbols.forEach(([id, label, symbol]) => {
+    registerCommand<EditorCommandContext>({
+      id,
+      label,
+      category: "Bar symbols",
+      execute: (context) => context.toggleBarSymbol(symbol)
+    });
+  });
+}
+
+function registerEffectCommands(): void {
+  const noteEffects: Array<[string, string, NoteEffectCommand]> = [
+    ["note.effect.ghost", "Ghost note", "ghost"],
+    ["note.effect.dead", "Dead note", "dead"],
+    ["note.effect.accent", "Accent", "accent"],
+    ["note.effect.heavyAccent", "Heavy accent", "heavyAccent"],
+    ["note.effect.staccato", "Staccato", "staccato"],
+    ["note.effect.letRing", "Let ring", "letRing"],
+    ["note.effect.palmMute", "Palm mute", "palmMute"],
+    ["note.effect.hopo", "Hammer-on/pull-off", "hopo"],
+    ["note.effect.slide", "Slide", "slide"],
+    ["note.effect.bend", "Bend", "bend"],
+    ["note.effect.harmonic", "Harmonic", "harmonic"],
+    ["note.effect.vibrato", "Vibrato", "vibrato"],
+    ["note.effect.trill", "Trill", "trill"],
+    ["note.effect.tremoloPicking", "Tremolo picking", "tremoloPicking"],
+    ["note.effect.fadeIn", "Fade in", "fadeIn"],
+    ["note.effect.fadeOut", "Fade out", "fadeOut"],
+    ["note.effect.volumeSwell", "Volume swell", "volumeSwell"],
+    ["note.effect.wah", "Wah", "wah"],
+    ["note.effect.slap", "Slap", "slap"],
+    ["note.effect.pop", "Pop", "pop"],
+    ["note.effect.pickscrape", "Pickscrape", "pickscrape"],
+    ["note.effect.deadSlapped", "Dead slapped", "deadSlapped"],
+    ["note.effect.stringNumber", "String number", "stringNumber"]
+  ];
+  const beatEffects: Array<[string, string, BeatEffectCommand]> = [
+    ["beat.effect.brushDown", "Brush down", "brushDown"],
+    ["beat.effect.brushUp", "Brush up", "brushUp"],
+    ["beat.effect.arpeggioDown", "Arpeggio down", "arpeggioDown"],
+    ["beat.effect.arpeggioUp", "Arpeggio up", "arpeggioUp"],
+    ["beat.effect.pickDown", "Pickstroke down", "pickDown"],
+    ["beat.effect.pickUp", "Pickstroke up", "pickUp"],
+    ["beat.effect.tapping", "Tapping", "tapping"],
+    ["beat.effect.barVibrato", "Bar vibrato", "barVibrato"],
+    ["beat.effect.hairpinCresc", "Crescendo", "hairpinCresc"],
+    ["beat.effect.hairpinDecresc", "Decrescendo", "hairpinDecresc"],
+    ["beat.effect.ottava", "Ottava", "ottava"]
+  ];
+
+  noteEffects.forEach(([id, label, effect]) => {
+    registerCommand<EditorCommandContext>({
+      id,
+      label,
+      category: "Effects",
+      execute: (context) => context.toggleNoteEffect(effect)
+    });
+  });
+
+  beatEffects.forEach(([id, label, effect]) => {
+    registerCommand<EditorCommandContext>({
+      id,
+      label,
+      category: "Effects",
+      execute: (context) => context.toggleBeatEffect(effect)
     });
   });
 }

@@ -46,6 +46,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           stroke={primitive.stroke}
           strokeWidth={primitive.strokeWidth}
           strokeLinecap={primitive.strokeLinecap}
+          strokeDasharray={primitive.strokeDasharray}
           pointerEvents={primitive.pointerEvents}
           {...hitProps}
         />
@@ -111,6 +112,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           strokeWidth={primitive.strokeWidth}
           strokeLinecap={primitive.strokeLinecap}
           strokeLinejoin={primitive.strokeLinejoin}
+          strokeDasharray={primitive.strokeDasharray}
           pointerEvents={primitive.pointerEvents}
           {...hitProps}
         />

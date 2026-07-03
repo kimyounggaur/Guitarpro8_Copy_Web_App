@@ -14,6 +14,8 @@ import {
   changeDurationAtCursor,
   cloneCurrentBar,
   copyPreviousBeat,
+  cycleKeySignatureAtCursor,
+  cycleTimeSignatureAtCursor,
   defaultCursor,
   deleteBarAtCursor,
   deleteBeatAtCursor,
@@ -28,10 +30,14 @@ import {
   normaliseCursor,
   replaceTrackBars,
   setAccidentalAtCursor,
+  setDynamicAtCursor,
   setDurationAtCursor,
   setDotsAtCursor,
   shouldMutateOnMoveRight,
   tieCurrentNoteToNext,
+  toggleBarSymbolAtCursor,
+  toggleBeatEffectAtCursor,
+  toggleNoteEffectAtCursor,
   toggleRestAtCursor,
   toggleTripletAtCursor,
   transposeNoteAtCursor
@@ -179,6 +185,28 @@ function App() {
       setDots: (dots) => editWithCursor("Set dots", (draft) => setDotsAtCursor(draft, cursor, dots)),
       toggleTriplet: () =>
         editWithCursor("Toggle triplet", (draft) => toggleTripletAtCursor(draft, cursor)),
+      cycleTimeSignature: () =>
+        editWithCursor("Cycle time signature", (draft) =>
+          cycleTimeSignatureAtCursor(draft, cursor)
+        ),
+      cycleKeySignature: () =>
+        editWithCursor("Cycle key signature", (draft) =>
+          cycleKeySignatureAtCursor(draft, cursor)
+        ),
+      toggleBarSymbol: (symbol) =>
+        editWithCursor("Toggle bar symbol", (draft) =>
+          toggleBarSymbolAtCursor(draft, cursor, symbol)
+        ),
+      setDynamic: (dynamic) =>
+        editWithCursor("Set dynamic", (draft) => setDynamicAtCursor(draft, cursor, dynamic)),
+      toggleNoteEffect: (effect) =>
+        editWithCursor("Toggle note effect", (draft) =>
+          toggleNoteEffectAtCursor(draft, cursor, effect)
+        ),
+      toggleBeatEffect: (effect) =>
+        editWithCursor("Toggle beat effect", (draft) =>
+          toggleBeatEffectAtCursor(draft, cursor, effect)
+        ),
       deleteNote: () => editWithCursor("Delete note", (draft) => deleteNoteAtCursor(draft, cursor)),
       deleteBeat: () => editWithCursor("Delete beat", (draft) => deleteBeatAtCursor(draft, cursor)),
       deleteBar: () => editWithCursor("Delete bar", (draft) => deleteBarAtCursor(draft, cursor)),

@@ -5,8 +5,12 @@ import {
   defaultCursor,
   inputFret,
   moveRightWithScoreMutation,
+  setDynamicAtCursor,
   shouldMutateOnMoveRight,
   tieCurrentNoteToNext,
+  toggleBarSymbolAtCursor,
+  toggleBeatEffectAtCursor,
+  toggleNoteEffectAtCursor,
   toggleTripletAtCursor
 } from "./operations";
 
@@ -91,6 +95,40 @@ describe("Phase 3 editing operations", () => {
       n: 3,
       m: 2
     });
+  });
+
+  it("toggles phase 5 master-bar symbols", () => {
+    const score = scoreWithTrack();
+    const cursor = defaultCursor(score);
+
+    toggleBarSymbolAtCursor(score, cursor, "repeatOpen");
+    toggleBarSymbolAtCursor(score, cursor, "alternateEnding");
+    toggleBarSymbolAtCursor(score, cursor, "fermata");
+
+    expect(score.masterBars[0].repeatOpen).toBe(true);
+    expect(score.masterBars[0].alternateEndings).toBe(1);
+    expect(score.masterBars[0].fermatas[0]).toMatchObject({ beatTick: 0 });
+  });
+
+  it("toggles phase 5 note and beat effects", () => {
+    const score = scoreWithTrack();
+    const cursor = { ...defaultCursor(score), string: 2 };
+    score.tracks[0].bars[0].voices[0].beats[0] = createBeat({
+      duration: 4,
+      rest: false,
+      notes: [createNote(2, 5)]
+    });
+
+    toggleNoteEffectAtCursor(score, cursor, "bend");
+    toggleNoteEffectAtCursor(score, cursor, "palmMute");
+    setDynamicAtCursor(score, cursor, 6);
+    toggleBeatEffectAtCursor(score, cursor, "brushDown");
+
+    const beat = score.tracks[0].bars[0].voices[0].beats[0];
+    expect(beat.notes[0].bend?.points).toHaveLength(2);
+    expect(beat.notes[0].palmMute).toBe(true);
+    expect(beat.notes[0].dynamic).toBe(6);
+    expect(beat.brush).toMatchObject({ direction: "down" });
   });
 });
 

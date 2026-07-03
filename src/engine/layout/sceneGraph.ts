@@ -4,6 +4,13 @@ export type HitKind =
   | "note"
   | "beat"
   | "bar"
+  | "barSymbol"
+  | "section"
+  | "repeat"
+  | "direction"
+  | "fermata"
+  | "volta"
+  | "effect"
   | "header"
   | "timeSig"
   | "keySig"
@@ -38,6 +45,7 @@ export interface LinePrimitive extends PrimitiveBase {
   stroke: string;
   strokeWidth: number;
   strokeLinecap?: "butt" | "round" | "square";
+  strokeDasharray?: string;
 }
 
 export interface TextPrimitive extends PrimitiveBase {
@@ -82,6 +90,7 @@ export interface PathPrimitive extends PrimitiveBase {
   strokeWidth?: number;
   strokeLinecap?: "butt" | "round" | "square";
   strokeLinejoin?: "miter" | "round" | "bevel";
+  strokeDasharray?: string;
 }
 
 export type ScenePrimitive =

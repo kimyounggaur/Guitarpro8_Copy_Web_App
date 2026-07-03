@@ -238,8 +238,19 @@ button:disabled {
 
 .paletteButtons {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+}
+
+.paletteButtons button {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.05;
+  font-size: 11px;
 }
 
 .paletteButtons .modeButton {

@@ -39,6 +39,55 @@ const menuNames = [
 ];
 
 const noteDurations: BeatDuration[] = [1, 2, 4, 8, 16, 32, 64];
+const barSymbolButtons = [
+  ["Time", "bar.symbol.timeSignature"],
+  ["Key", "bar.symbol.keySignature"],
+  ["|:", "bar.symbol.repeatOpen"],
+  [":|", "bar.symbol.repeatClose"],
+  ["||", "bar.symbol.doubleBar"],
+  ["Volta", "bar.symbol.alternateEnding"],
+  ["Segno", "bar.symbol.directionTarget"],
+  ["D.C.", "bar.symbol.directionJump"],
+  ["Ferm.", "bar.symbol.fermata"],
+  ["Simile", "bar.symbol.simile"],
+  ["Swing", "bar.symbol.tripletFeel"],
+  ["Free", "bar.symbol.freeTime"],
+  ["Pickup", "bar.symbol.anacrusis"],
+  ["Sec.", "bar.symbol.section"]
+] as const;
+const noteEffectButtons = [
+  ["ghost", "note.effect.ghost"],
+  ["x", "note.effect.dead"],
+  [">", "note.effect.accent"],
+  ["^", "note.effect.heavyAccent"],
+  ["stac", "note.effect.staccato"],
+  ["let", "note.effect.letRing"],
+  ["PM", "note.effect.palmMute"],
+  ["H/P", "note.effect.hopo"],
+  ["slide", "note.effect.slide"],
+  ["bend", "note.effect.bend"],
+  ["N.H.", "note.effect.harmonic"],
+  ["vib", "note.effect.vibrato"],
+  ["tr", "note.effect.trill"],
+  ["trem", "note.effect.tremoloPicking"],
+  ["wah", "note.effect.wah"],
+  ["slap", "note.effect.slap"],
+  ["pop", "note.effect.pop"],
+  ["str", "note.effect.stringNumber"]
+] as const;
+const beatEffectButtons = [
+  ["brush v", "beat.effect.brushDown"],
+  ["brush ^", "beat.effect.brushUp"],
+  ["arp v", "beat.effect.arpeggioDown"],
+  ["arp ^", "beat.effect.arpeggioUp"],
+  ["pick v", "beat.effect.pickDown"],
+  ["pick ^", "beat.effect.pickUp"],
+  ["tap", "beat.effect.tapping"],
+  ["bar vib", "beat.effect.barVibrato"],
+  ["<", "beat.effect.hairpinCresc"],
+  [">", "beat.effect.hairpinDecresc"],
+  ["8va", "beat.effect.ottava"]
+] as const;
 const songFields: Array<keyof SongInfo> = [
   "title",
   "artist",
@@ -207,9 +256,16 @@ function EditionPalette({ dispatchCommand }: Pick<EditorShellProps, "dispatchCom
           </button>
         ))}
       </PaletteGroup>
-      {["Multivoice", "Design", "Lyrics", "Chords", "Bar symbols"].map((title) => (
+      {["Multivoice", "Design", "Lyrics", "Chords"].map((title) => (
         <PaletteGroup key={title} title={title} disabled />
       ))}
+      <PaletteGroup title="Bar symbols">
+        {barSymbolButtons.map(([label, command]) => (
+          <button key={command} type="button" onClick={() => dispatchCommand(command)}>
+            {label}
+          </button>
+        ))}
+      </PaletteGroup>
       <PaletteGroup title="Note symbols">
         {noteDurations.map((duration) => (
           <button key={duration} type="button" onClick={() => dispatchCommand(`duration.set.${duration}`)}>
@@ -239,13 +295,27 @@ function EditionPalette({ dispatchCommand }: Pick<EditorShellProps, "dispatchCom
             {label}
           </button>
         ))}
-        {["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"].map((dynamic) => (
-          <button key={dynamic} type="button" disabled>
+        {["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"].map((dynamic, index) => (
+          <button key={dynamic} type="button" onClick={() => dispatchCommand(`note.dynamic.${index}`)}>
             {dynamic}
           </button>
         ))}
       </PaletteGroup>
-      {["Effect symbols", "Notation symbols", "Automation symbols"].map((title) => (
+      <PaletteGroup title="Effect symbols">
+        {noteEffectButtons.map(([label, command]) => (
+          <button key={command} type="button" onClick={() => dispatchCommand(command)}>
+            {label}
+          </button>
+        ))}
+      </PaletteGroup>
+      <PaletteGroup title="Beat effects">
+        {beatEffectButtons.map(([label, command]) => (
+          <button key={command} type="button" onClick={() => dispatchCommand(command)}>
+            {label}
+          </button>
+        ))}
+      </PaletteGroup>
+      {["Notation symbols", "Automation symbols"].map((title) => (
         <PaletteGroup key={title} title={title} disabled />
       ))}
     </aside>

@@ -1,5 +1,5 @@
 import { createBar, createBeat, createEmptyScore, createMasterBar, createNote, createTrack } from "./factory";
-import type { Bar, Beat, BeatDuration, Score, Tuplet } from "./types";
+import type { Bar, Beat, BeatDuration, Note, Score, Tuplet } from "./types";
 
 const guitarPattern = [
   [6, 0],
@@ -17,8 +17,9 @@ const bassPattern = [
 
 export function createDemoScore(): Score {
   const score = createEmptyScore();
-  score.meta.title = "Phase 2b Rhythm Engraving Demo";
+  score.meta.title = "Phase 5 Symbols and Effects Demo";
   score.masterBars = Array.from({ length: 11 }, () => createMasterBar());
+  applyPhase5MasterSymbols(score);
   score.masterBars[3].layout.forcedBreak = true;
   score.masterBars[7].layout.forcedBreak = true;
 
@@ -45,6 +46,28 @@ export function createDemoScore(): Score {
   bass.bars = bassDemoBars(score.masterBars.length);
 
   return score;
+}
+
+function applyPhase5MasterSymbols(score: Score): void {
+  score.masterBars[0].section = { letter: "A", name: "Intro", boxed: true };
+  score.masterBars[0].repeatOpen = true;
+  score.masterBars[0].tripletFeel = "8th swing";
+  score.masterBars[1].alternateEndings = 1;
+  score.masterBars[1].fermatas = [{ beatTick: 960, glyph: "above", tempoScale: 0.75 }];
+  score.masterBars[2].repeatClose = 2;
+  score.masterBars[3].directionTargets = ["Segno"];
+  score.masterBars[3].doubleBar = true;
+  score.masterBars[4].freeTime = true;
+  score.masterBars[4].directionJumps = ["DaCapo"];
+  score.masterBars[5].simileMark = "single";
+  score.masterBars[6].directionTargets = ["Coda"];
+  score.masterBars[6].simileMark = "double";
+  score.masterBars[7].alternateEndings = 2;
+  score.masterBars[7].repeatClose = 3;
+  score.masterBars[8].directionJumps = ["AlCoda"];
+  score.masterBars[9].section = { letter: "B", name: "Solo", boxed: true };
+  score.masterBars[9].anacrusis = true;
+  score.masterBars[10].fermatas = [{ beatTick: 960, glyph: "above", tempoScale: 0.65 }];
 }
 
 function guitarDemoBars(trackId: string): Bar[] {
@@ -81,16 +104,38 @@ function bassDemoBars(count: number): Bar[] {
 
 function dottedQuarterBar(): Bar {
   return barWithVoice([
-    noteBeat(4, 6, 0, { dots: 1 }),
-    noteBeat(8, 5, 2),
-    noteBeat(4, 4, 2),
-    noteBeat(4, 3, 1)
+    noteBeatWithEffects(4, 6, 0, { ghost: true, letRing: true, accent: "accent", dynamic: 5 }, { dots: 1 }),
+    noteBeatWithEffects(8, 5, 2, { staccato: true, palmMute: true }),
+    noteBeatWithEffects(4, 4, 2, {
+      bend: {
+        points: [
+          { offset: 0, value: 0 },
+          { offset: 60, value: 100 }
+        ]
+      }
+    }),
+    noteBeatWithEffects(4, 3, 1, { vibrato: "wide", harmonic: { type: "natural", touchFret: 12 } })
   ]);
 }
 
 function sixteenthBeamBar(): Bar {
+  const effectPatches: Array<Partial<Note>> = [
+    { deadNote: true },
+    { hopo: true },
+    { slide: "shift" },
+    { trill: { secondFret: 4, speed: 16 } },
+    { tremoloPicking: 16 },
+    { fadeIn: true },
+    { wah: "open" },
+    { showStringNumber: true }
+  ];
   const sixteenths = Array.from({ length: 8 }, (_, index) =>
-    noteBeat(16, guitarPattern[index % guitarPattern.length][0], index % 4)
+    noteBeatWithEffects(
+      16,
+      guitarPattern[index % guitarPattern.length][0],
+      index % 4,
+      effectPatches[index] ?? {}
+    )
   );
 
   return barWithVoice([...sixteenths, noteBeat(4, 4, 4), noteBeat(4, 3, 2)]);
@@ -128,24 +173,26 @@ function nestedTupletBar(): Bar {
 }
 
 function wholeNoteBar(): Bar {
-  return barWithVoice([noteBeat(1, 4, 7)]);
+  return barWithVoice([
+    noteBeatWithEffects(1, 4, 7, { volumeSwell: true }, { chordId: "Em9", text: "swell" })
+  ]);
 }
 
 function durationLadderBar(): Bar {
   return barWithVoice([
-    noteBeat(2, 5, 5),
-    noteBeat(4, 4, 5),
-    noteBeat(8, 3, 5),
-    noteBeat(16, 2, 3),
-    noteBeat(16, 1, 3)
+    noteBeat(2, 5, 5, { brush: { direction: "down", speed: 1, delay: 0 } }),
+    noteBeat(4, 4, 5, { arpeggio: { direction: "up", speed: 1, delay: 0 } }),
+    noteBeat(8, 3, 5, { pickstroke: "down", dynamicHairpin: { type: "cresc" } }),
+    noteBeat(16, 2, 3, { tapping: true, ottava: "8va" }),
+    noteBeat(16, 1, 3, { barVibrato: "wide" })
   ]);
 }
 
 function flaggedRhythmBar(): Bar {
   return barWithVoice([
-    noteBeat(32, 6, 7),
+    noteBeatWithEffects(32, 6, 7, { slap: true }),
     noteBeat(32, 5, 7),
-    noteBeat(32, 4, 7),
+    noteBeatWithEffects(32, 4, 7, { pop: true }),
     noteBeat(32, 3, 7),
     noteBeat(64, 2, 5),
     noteBeat(64, 1, 5),
@@ -199,7 +246,11 @@ function twoVoiceBar(): Bar {
 }
 
 function incompleteBar(): Bar {
-  return barWithVoice([noteBeat(4, 6, 0), noteBeat(4, 5, 2), noteBeat(4, 4, 2)]);
+  return barWithVoice([
+    noteBeatWithEffects(4, 6, 0, { pickscrape: true }),
+    noteBeatWithEffects(4, 5, 2, { deadSlapped: true }),
+    noteBeat(4, 4, 2)
+  ]);
 }
 
 function barWithVoice(beats: Beat[]): Bar {
@@ -218,6 +269,23 @@ function noteBeat(
     duration,
     rest: false,
     notes: [createNote(string, fret)],
+    ...options
+  });
+}
+
+function noteBeatWithEffects(
+  duration: BeatDuration,
+  string: number,
+  fret: number,
+  notePatch: Partial<Note>,
+  options: Partial<Beat> = {}
+): Beat {
+  const note = createNote(string, fret);
+  Object.assign(note, notePatch);
+  return createBeat({
+    duration,
+    rest: false,
+    notes: [note],
     ...options
   });
 }
