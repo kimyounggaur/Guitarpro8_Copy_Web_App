@@ -25,7 +25,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -50,6 +51,7 @@ button:disabled {
 }
 
 .gpShell {
+  position: relative;
   display: grid;
   grid-template-rows: 32px 54px 38px minmax(0, 1fr) minmax(220px, 30vh);
   height: 100vh;
@@ -129,6 +131,12 @@ button:disabled {
 }
 
 .utilityGroup button {
+  width: auto;
+  min-width: 42px;
+  padding: 0 8px;
+}
+
+.toolLaunchGroup button {
   width: auto;
   min-width: 42px;
   padding: 0 8px;
@@ -587,6 +595,248 @@ button:disabled {
 
 .automationPoint.progressive {
   background: #f7c75f;
+}
+
+.toolPanel {
+  position: absolute;
+  z-index: 20;
+  top: 92px;
+  left: 226px;
+  right: 300px;
+  display: grid;
+  grid-template-rows: 34px minmax(0, 1fr);
+  max-height: min(560px, calc(100vh - 150px));
+  border: 1px solid #566254;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1d201b;
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.42);
+}
+
+.toolPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #394037;
+  padding: 0 10px;
+  color: #dbe8e4;
+  background: #242821;
+}
+
+.toolPanelHeader button {
+  width: 28px;
+  min-height: 24px;
+  padding: 0;
+}
+
+.toolGrid {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(220px, 1fr) minmax(260px, 1.2fr);
+  gap: 10px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.instrumentTool,
+.tunerTool,
+.transposeTool,
+.cleanupTool {
+  grid-template-columns: minmax(170px, 0.6fr) minmax(0, 1.4fr);
+}
+
+.toolColumn {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.toolColumn label {
+  display: grid;
+  gap: 4px;
+  color: #aab7be;
+  font-size: 12px;
+}
+
+.toolColumn input,
+.toolColumn select {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #43483f;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #edf3f6;
+  background: #111410;
+}
+
+.toolButtonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.toolButtonRow button,
+.toolColumn > button {
+  width: auto;
+  min-width: 58px;
+  padding: 0 8px;
+}
+
+.toolMeta,
+.toolWarning {
+  margin: 0;
+  color: #d49a5d;
+  font-size: 12px;
+}
+
+.toolWarning {
+  color: #f87171;
+}
+
+.voicingList,
+.scaleList,
+.reportList,
+.matchList {
+  display: grid;
+  gap: 5px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.voicingList button,
+.scaleList button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.voicingList em {
+  color: #aab7be;
+  font-style: normal;
+}
+
+.chordDiagram,
+.fretboardGrid {
+  display: grid;
+  gap: 3px;
+  align-items: center;
+  min-width: 0;
+}
+
+.chordDiagram strong,
+.chordDiagram em,
+.fretboardGrid strong,
+.fretboardGrid em {
+  color: #aab7be;
+  font-size: 11px;
+  font-style: normal;
+  text-align: center;
+}
+
+.chordDiagram span {
+  min-height: 22px;
+  border: 1px solid #3a4339;
+  border-radius: 4px;
+  background: #111410;
+}
+
+.chordDiagram .diagramDot {
+  border-color: #f7c75f;
+  background: #6fb99f;
+}
+
+.fretCell {
+  min-width: 0;
+  min-height: 26px;
+  padding: 0;
+  justify-content: center;
+  color: #6f7f78;
+  font-size: 10px;
+}
+
+.fretCell.scaleCell {
+  border-color: #526a63;
+  color: #d9ebe4;
+  background: #20302c;
+}
+
+.fretCell.rootCell {
+  border-color: #f7c75f;
+  color: #fff8d7;
+  background: #4b3916;
+}
+
+.fretCell.activeFret {
+  border-color: #84d1b6;
+  box-shadow: inset 0 0 0 2px rgba(132, 209, 182, 0.45);
+}
+
+.fretboardLefty .fretboardGrid {
+  direction: rtl;
+}
+
+.fretboardLefty .fretboardGrid > * {
+  direction: ltr;
+}
+
+.matchList span,
+.reportList span {
+  min-height: 24px;
+  border: 1px solid #394037;
+  border-radius: 5px;
+  padding: 4px 7px;
+  color: #dbe8e4;
+  background: #141712;
+  font-size: 12px;
+}
+
+.tuningBars {
+  gap: 6px;
+}
+
+.tuningTarget {
+  display: grid;
+  grid-template-columns: 28px 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: #c6d4d1;
+  font-size: 12px;
+}
+
+.tuningTarget meter {
+  width: 100%;
+}
+
+.activeTarget {
+  color: #f7c75f;
+}
+
+.tunerGood {
+  color: #84d1b6;
+}
+
+.tunerNear {
+  color: #f7c75f;
+}
+
+.toolCheck {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 7px;
+}
+
+.toolCheck input {
+  width: 16px;
+  height: 16px;
+}
+
+.transposeMatrix {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
 @media (min-width: 1280px) {

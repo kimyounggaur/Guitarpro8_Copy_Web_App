@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ensureDemoCommandsRegistered } from "./commands/demoCommands";
 import {
   ensureEditingCommandsRegistered,
@@ -12,6 +12,7 @@ import { executeCommand } from "./commands/registry";
 import { compilePlayback, type NoteEvent, type PlaybackCompilation } from "./engine/audio/compile";
 import { PlaybackScheduler } from "./engine/audio/scheduler";
 import type { EffectSlotType, TrackMixerState } from "./engine/audio/mixer";
+import { beatDurationTicks, barTheoreticalTicks } from "./model/derive";
 import { cursorFromHit } from "./engine/editing/hitTest";
 import {
   changeDurationAtCursor,
@@ -48,9 +49,11 @@ import {
 import { withEditorOverlays } from "./engine/editing/overlays";
 import type { ClipboardPayload, CursorMove, CursorPosition, SelectionRange } from "./engine/editing/types";
 import { layoutScore } from "./engine/layout/layoutScore";
+import { transposeScore, type TransposeOptions } from "./engine/tools/transpose";
 import { unrollScore } from "./engine/unroll/unrollScore";
-import { createBar } from "./model/factory";
-import { TICKS_PER_QUARTER, type Automation, type AutomationScope, type AutomationType, type Score, type SongInfo, type Track } from "./model/types";
+import { createBar, createBeat, createNote } from "./model/factory";
+import type { ChordVoicing } from "./model/chords";
+import { TICKS_PER_QUARTER, type Automation, type AutomationScope, type AutomationType, type BeatDuration, type Score, type SongInfo, type Track } from "./model/types";
 import { SvgRenderer } from "./engine/render/SvgRenderer";
 import { createDemoScore } from "./model/demoScore";
 import { useDocumentStore } from "./store/documentStore";
@@ -58,6 +61,7 @@ import { usePlaybackStore } from "./store/playbackStore";
 import { usePreferencesStore } from "./store/preferencesStore";
 import { useViewStore } from "./store/viewStore";
 import { EditorShell, type AutomationLaneId } from "./ui/shell/EditorShell";
+import type { CleanupRequest, ToolPanelId } from "./ui/shell/ToolPanels";
 
 function App() {
   ensureDemoCommandsRegistered();
@@ -100,6 +104,7 @@ function App() {
   const panelVisibility = usePreferencesStore((state) => state.panelVisibility);
   const togglePanel = usePreferencesStore((state) => state.togglePanel);
   const demoScore = useMemo(() => createDemoScore(), []);
+  const [activeToolPanel, setActiveToolPanel] = useState<ToolPanelId | null>(null);
   const fretBufferRef = useRef<FretInputBuffer>({ digits: "", timer: null });
   const clipboardRef = useRef<ClipboardPayload | null>(null);
   const schedulerRef = useRef<PlaybackScheduler | null>(null);
@@ -172,6 +177,55 @@ function App() {
     window.addEventListener("keydown", handlePanelShortcuts);
     return () => window.removeEventListener("keydown", handlePanelShortcuts);
   }, [togglePanel]);
+
+  useEffect(() => {
+    function handleToolShortcuts(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const editingText =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "SELECT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+
+      if (editingText) {
+        return;
+      }
+
+      const ctrl = event.ctrlKey || event.metaKey;
+
+      if (event.key === "Escape" && activeToolPanel) {
+        event.preventDefault();
+        setActiveToolPanel(null);
+        return;
+      }
+
+      if (!ctrl && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        setActiveToolPanel("chords");
+        return;
+      }
+
+      if (!ctrl && event.shiftKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        setActiveToolPanel("scales");
+        return;
+      }
+
+      if (ctrl && event.key === "F6") {
+        event.preventDefault();
+        setActiveToolPanel("instrument");
+        return;
+      }
+
+      if (event.key === "F4") {
+        event.preventDefault();
+        setActiveToolPanel("cleanup");
+      }
+    }
+
+    window.addEventListener("keydown", handleToolShortcuts, { capture: true });
+    return () => window.removeEventListener("keydown", handleToolShortcuts, { capture: true });
+  }, [activeToolPanel]);
 
   const editorContext = useMemo<EditorCommandContext>(
     () => ({
@@ -640,6 +694,129 @@ function App() {
     });
   }
 
+  function handleInsertChordVoicing(voicing: ChordVoicing, chordName: string) {
+    let nextCursor = cursor;
+    const nextScore = transact("Insert chord voicing", (draft) => {
+      const beat = ensureBeatAtCursor(draft, cursor);
+      const track = draft.tracks.find((candidate) => candidate.id === cursor.trackId);
+
+      if (!beat || !track) {
+        return;
+      }
+
+      beat.rest = false;
+      beat.chordId = chordName;
+      beat.notes = voicing.notes.map((voicingNote) => createNote(voicingNote.string, voicingNote.fret));
+
+      if (!track.chordLibrary.some((chord) => chord.id === chordName)) {
+        track.chordLibrary.push({ id: chordName, name: chordName });
+      }
+
+      nextCursor = {
+        ...cursor,
+        string: voicing.notes[0]?.string ?? cursor.string
+      };
+    });
+
+    setCursor(normaliseCursor(nextScore, nextCursor));
+  }
+
+  function handleFretboardNoteToggle(string: number, fret: number, advance: boolean) {
+    let nextCursor = { ...cursor, string };
+    const nextScore = transact("Fretboard note input", (draft) => {
+      const beat = ensureBeatAtCursor(draft, { ...cursor, string });
+
+      if (!beat) {
+        return;
+      }
+
+      const existingIndex = beat.notes.findIndex((note) => note.string === string && note.fret === fret);
+
+      if (existingIndex >= 0) {
+        beat.notes.splice(existingIndex, 1);
+      } else {
+        beat.rest = false;
+        const sameStringIndex = beat.notes.findIndex((note) => note.string === string);
+        const note = createNote(string, fret);
+
+        if (sameStringIndex >= 0) {
+          beat.notes[sameStringIndex] = note;
+        } else {
+          beat.notes.push(note);
+        }
+      }
+
+      if (beat.notes.length === 0) {
+        beat.rest = true;
+      }
+
+      if (advance) {
+        nextCursor = moveRightWithScoreMutation(draft, { ...cursor, string });
+      }
+    });
+
+    setCursor(normaliseCursor(nextScore, nextCursor));
+  }
+
+  function handleTransposeRequest(options: TransposeOptions) {
+    const nextScore = transact("Transpose", (draft) => {
+      transposeScore(draft, cursor, selection, options);
+    });
+    setCursor(normaliseCursor(nextScore, cursor));
+  }
+
+  function handleCleanupRequest(request: CleanupRequest) {
+    const nextScore = transact("Tools cleanup", (draft) => {
+      const track = draft.tracks.find((candidate) => candidate.id === cursor.trackId);
+
+      if (!track) {
+        return;
+      }
+
+      const { start, end } = selectedBarRange(draft, cursor, selection);
+
+      for (let barIndex = start; barIndex <= end; barIndex += 1) {
+        const bar = track.bars[barIndex];
+
+        if (!bar) {
+          continue;
+        }
+
+        bar.voices.forEach((voice) => {
+          voice.beats.forEach((beat) => {
+            beat.notes.forEach((note) => {
+              if (request === "letRing") {
+                note.letRing = true;
+                note.palmMute = false;
+              }
+
+              if (request === "palmMute") {
+                note.palmMute = true;
+                note.letRing = false;
+              }
+
+              if (request === "fingerPositioning" && note.fret > 12) {
+                note.fret -= 12;
+              }
+            });
+          });
+
+          if (request === "completeRests") {
+            const expected = draft.masterBars[barIndex] ? barTheoreticalTicks(draft.masterBars[barIndex]) : 0;
+            const actual = voice.beats.reduce((sum, beat) => sum + beatDurationTicks(beat), 0);
+            const remaining = expected - actual;
+
+            if (remaining > 0) {
+              voice.beats.push(createBeat({ duration: durationForTicks(remaining), rest: true }));
+            }
+          }
+        });
+      }
+    });
+
+    setCursor(normaliseCursor(nextScore, cursor));
+  }
+
   return (
     <EditorShell
       score={score}
@@ -659,6 +836,7 @@ function App() {
       countInEnabled={countInEnabled}
       speedPercent={speedPercent}
       mixer={mixer}
+      activeToolPanel={activeToolPanel}
       dispatchCommand={dispatchEditorCommand}
       togglePanel={togglePanel}
       onSongInfoChange={handleSongInfoChange}
@@ -670,6 +848,12 @@ function App() {
       onAutomationPointSet={handleAutomationPointSet}
       onAutomationPointRemove={handleAutomationPointRemove}
       onAutomationTransitionToggle={handleAutomationTransitionToggle}
+      onToolOpen={setActiveToolPanel}
+      onToolClose={() => setActiveToolPanel(null)}
+      onInsertChordVoicing={handleInsertChordVoicing}
+      onFretboardNoteToggle={handleFretboardNoteToggle}
+      onTransposeRequest={handleTransposeRequest}
+      onCleanupRequest={handleCleanupRequest}
       workspace={
         <div
           className="scoreViewport"
@@ -839,6 +1023,51 @@ function nearestAutomationPoint(automation: Automation, tick: number) {
 
 function snapAutomationTick(tick: number): number {
   return Math.max(0, Math.round(tick / TICKS_PER_QUARTER) * TICKS_PER_QUARTER);
+}
+
+function ensureBeatAtCursor(score: Score, cursor: CursorPosition) {
+  const track = score.tracks.find((candidate) => candidate.id === cursor.trackId);
+  const voice = track?.bars[cursor.barIndex]?.voices[cursor.voiceIndex];
+
+  if (!voice) {
+    return null;
+  }
+
+  while (voice.beats.length <= cursor.beatIndex) {
+    voice.beats.push(createBeat({ duration: 4 }));
+  }
+
+  return voice.beats[cursor.beatIndex];
+}
+
+function selectedBarRange(
+  score: Score,
+  cursor: CursorPosition,
+  selection: SelectionRange | null
+): { start: number; end: number } {
+  if (!selection) {
+    return { start: cursor.barIndex, end: cursor.barIndex };
+  }
+
+  return {
+    start: Math.max(0, Math.min(selection.anchor.barIndex, selection.head.barIndex)),
+    end: Math.min(score.masterBars.length - 1, Math.max(selection.anchor.barIndex, selection.head.barIndex))
+  };
+}
+
+function durationForTicks(ticks: number): BeatDuration {
+  const candidates: Array<[BeatDuration, number]> = [
+    [1, TICKS_PER_QUARTER * 4],
+    [2, TICKS_PER_QUARTER * 2],
+    [4, TICKS_PER_QUARTER],
+    [8, TICKS_PER_QUARTER / 2],
+    [16, TICKS_PER_QUARTER / 4],
+    [32, TICKS_PER_QUARTER / 8],
+    [64, TICKS_PER_QUARTER / 16]
+  ];
+  return candidates.reduce((best, candidate) =>
+    Math.abs(candidate[1] - ticks) < Math.abs(best[1] - ticks) ? candidate : best
+  )[0];
 }
 
 export default App;

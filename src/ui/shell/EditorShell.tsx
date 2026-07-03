@@ -5,6 +5,13 @@ import type { CursorPosition } from "../../engine/editing/types";
 import type { EffectSlotType, EqPreset, MixerState, TrackMixerState } from "../../engine/audio/mixer";
 import type { DocumentTabState } from "../../store/documentStore";
 import type { PanelVisibility } from "../../store/preferencesStore";
+import {
+  ToolPanels,
+  type CleanupRequest,
+  type ToolPanelId
+} from "./ToolPanels";
+import type { ChordVoicing } from "../../model/chords";
+import type { TransposeOptions } from "../../engine/tools/transpose";
 
 export type AutomationLaneId = "tempo" | "masterVolume" | "masterPan" | "trackVolume" | "trackPan";
 
@@ -26,6 +33,7 @@ interface EditorShellProps {
   countInEnabled: boolean;
   speedPercent: number;
   mixer: MixerState;
+  activeToolPanel: ToolPanelId | null;
   workspace: ReactNode;
   dispatchCommand: (commandId: string) => void;
   togglePanel: (panel: keyof PanelVisibility) => void;
@@ -38,6 +46,12 @@ interface EditorShellProps {
   onAutomationPointSet: (lane: AutomationLaneId, tick: number, value: number) => void;
   onAutomationPointRemove: (lane: AutomationLaneId, tick: number) => void;
   onAutomationTransitionToggle: (lane: AutomationLaneId, tick: number) => void;
+  onToolOpen: (tool: ToolPanelId) => void;
+  onToolClose: () => void;
+  onInsertChordVoicing: (voicing: ChordVoicing, chordName: string) => void;
+  onFretboardNoteToggle: (string: number, fret: number, advance: boolean) => void;
+  onTransposeRequest: (options: TransposeOptions) => void;
+  onCleanupRequest: (request: CleanupRequest) => void;
 }
 
 const menuNames = [
@@ -159,6 +173,16 @@ export function EditorShell(props: EditorShellProps) {
           {props.panelVisibility.globalView ? <GlobalView {...props} /> : null}
         </section>
       ) : null}
+      <ToolPanels
+        activeTool={props.activeToolPanel}
+        score={props.score}
+        cursor={props.cursor}
+        onClose={props.onToolClose}
+        onInsertChordVoicing={props.onInsertChordVoicing}
+        onFretboardNoteToggle={props.onFretboardNoteToggle}
+        onTransposeRequest={props.onTransposeRequest}
+        onCleanupRequest={props.onCleanupRequest}
+      />
     </main>
   );
 }
@@ -201,6 +225,26 @@ function Toolbar(props: EditorShellProps) {
         </button>
         <button type="button" title="Automation F10" onClick={() => props.togglePanel("automationView")}>
           A
+        </button>
+      </div>
+      <div className="toolbarGroup toolLaunchGroup">
+        <button type="button" title="Chord tool A" onClick={() => props.onToolOpen("chords")}>
+          Chord
+        </button>
+        <button type="button" title="Scale tool Shift+S" onClick={() => props.onToolOpen("scales")}>
+          Scale
+        </button>
+        <button type="button" title="Instrument view Ctrl+F6" onClick={() => props.onToolOpen("instrument")}>
+          Fret
+        </button>
+        <button type="button" title="Tuner" onClick={() => props.onToolOpen("tuner")}>
+          Tune
+        </button>
+        <button type="button" title="Transpose" onClick={() => props.onToolOpen("transpose")}>
+          Trans
+        </button>
+        <button type="button" title="Check bar duration F4" onClick={() => props.onToolOpen("cleanup")}>
+          Check
         </button>
       </div>
       <div className="toolbarGroup zoomGroup">

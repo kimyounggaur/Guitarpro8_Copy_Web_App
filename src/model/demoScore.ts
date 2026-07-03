@@ -17,7 +17,7 @@ const bassPattern = [
 
 export function createDemoScore(): Score {
   const score = createEmptyScore();
-  score.meta.title = "Phase 7 Audio Mixer Demo";
+  score.meta.title = "Phase 9 Tools Demo";
   score.masterBars = Array.from({ length: 11 }, () => createMasterBar());
   applyPhase5MasterSymbols(score);
   score.masterBars[3].layout.forcedBreak = true;
