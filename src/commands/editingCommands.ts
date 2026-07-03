@@ -9,6 +9,7 @@ import { getCommand, registerCommand } from "./registry";
 
 export interface EditorCommandContext {
   staffKind: "tab" | "standard";
+  playbackStatus: "stopped" | "playing" | "paused";
   moveCursor: (move: CursorMove, extendSelection?: boolean) => void;
   moveBarSelection: (direction: -1 | 1) => void;
   toggleStaffKind: () => void;
@@ -26,6 +27,14 @@ export interface EditorCommandContext {
   setDynamic: (dynamic: Note["dynamic"]) => void;
   toggleNoteEffect: (effect: NoteEffectCommand) => void;
   toggleBeatEffect: (effect: BeatEffectCommand) => void;
+  togglePlayback: (fromStart?: boolean) => void;
+  stopPlayback: () => void;
+  movePlaybackBar: (direction: -1 | 1) => void;
+  stepPlaybackBeat: (direction: -1 | 1) => void;
+  toggleLoop: () => void;
+  toggleMetronome: () => void;
+  toggleCountIn: () => void;
+  changePlaybackSpeed: (direction: -1 | 1) => void;
   deleteNote: () => void;
   deleteBeat: () => void;
   deleteBar: () => void;
@@ -311,6 +320,7 @@ export function ensureEditingCommandsRegistered(): void {
   registerDynamicCommands();
   registerBarSymbolCommands();
   registerEffectCommands();
+  registerPlaybackCommands();
 }
 
 function registerMove(id: string, label: string, win: string, move: CursorMove): void {
@@ -464,6 +474,33 @@ function registerEffectCommands(): void {
       label,
       category: "Effects",
       execute: (context) => context.toggleBeatEffect(effect)
+    });
+  });
+}
+
+function registerPlaybackCommands(): void {
+  const commands: Array<[string, string, string | undefined, (context: EditorCommandContext) => void]> = [
+    ["playback.toggle", "Play or stop", "Space", (context) => context.togglePlayback(false)],
+    ["playback.fromStart", "Play from beginning", "Ctrl+Space", (context) => context.togglePlayback(true)],
+    ["playback.stop", "Stop", undefined, (context) => context.stopPlayback()],
+    ["playback.previousBar", "Previous bar", "Ctrl+ArrowLeft", (context) => context.movePlaybackBar(-1)],
+    ["playback.nextBar", "Next bar", "Ctrl+ArrowRight", (context) => context.movePlaybackBar(1)],
+    ["playback.previousBeat", "Previous beat", "Alt+ArrowLeft", (context) => context.stepPlaybackBeat(-1)],
+    ["playback.nextBeat", "Next beat", "Alt+ArrowRight", (context) => context.stepPlaybackBeat(1)],
+    ["playback.loop", "Loop", "F9", (context) => context.toggleLoop()],
+    ["playback.metronome", "Metronome", undefined, (context) => context.toggleMetronome()],
+    ["playback.countIn", "Count-in", undefined, (context) => context.toggleCountIn()],
+    ["playback.speedUp", "Speed up", "+", (context) => context.changePlaybackSpeed(1)],
+    ["playback.speedDown", "Speed down", "-", (context) => context.changePlaybackSpeed(-1)]
+  ];
+
+  commands.forEach(([id, label, shortcut, execute]) => {
+    registerCommand<EditorCommandContext>({
+      id,
+      label,
+      category: "Playback",
+      shortcut: shortcut ? { win: shortcut, mac: shortcut.replace("Ctrl", "Cmd") } : undefined,
+      execute
     });
   });
 }

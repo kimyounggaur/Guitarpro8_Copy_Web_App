@@ -15,6 +15,13 @@ interface EditorShellProps {
   activeId: string;
   panelVisibility: PanelVisibility;
   playbackStatus: string;
+  playbackBarIndex: number;
+  playbackTick: number;
+  playbackTimeSec: number;
+  loopEnabled: boolean;
+  metronomeEnabled: boolean;
+  countInEnabled: boolean;
+  speedPercent: number;
   workspace: ReactNode;
   dispatchCommand: (commandId: string) => void;
   togglePanel: (panel: keyof PanelVisibility) => void;
@@ -192,6 +199,23 @@ function Toolbar(props: EditorShellProps) {
         </button>
       </div>
       <div className="toolbarGroup transportGroup">
+        <button type="button" title="First bar" onClick={() => props.dispatchCommand("cursor.firstBar")}>
+          |&lt;
+        </button>
+        <button type="button" title="Previous bar Ctrl+Left" onClick={() => props.dispatchCommand("playback.previousBar")}>
+          &lt;
+        </button>
+        <button type="button" title="Play / stop Space" onClick={() => props.dispatchCommand("playback.toggle")}>
+          {props.playbackStatus === "playing" ? "Stop" : "Play"}
+        </button>
+        <button type="button" title="Next bar Ctrl+Right" onClick={() => props.dispatchCommand("playback.nextBar")}>
+          &gt;
+        </button>
+        <button type="button" title="Last bar" onClick={() => props.dispatchCommand("cursor.lastBar")}>
+          &gt;|
+        </button>
+      </div>
+      <div className="toolbarGroup transportGroup transportLegacy">
         {["⏮", "◀", props.playbackStatus === "playing" ? "■" : "▶", "▶", "⏭"].map((label, index) => (
           <button key={`${label}-${index}`} type="button" disabled>
             {label}
@@ -215,7 +239,32 @@ function Toolbar(props: EditorShellProps) {
           ⚙
         </button>
       </div>
-      <div className="toolbarGroup utilityGroup">
+      <div className="toolbarGroup playbackTools">
+        <button type="button" className={props.countInEnabled ? "activeToggle" : ""} title="Count-in" onClick={() => props.dispatchCommand("playback.countIn")}>
+          C
+        </button>
+        <button type="button" className={props.metronomeEnabled ? "activeToggle" : ""} title="Metronome" onClick={() => props.dispatchCommand("playback.metronome")}>
+          M
+        </button>
+        <button type="button" className={props.loopEnabled ? "activeToggle" : ""} title="Loop F9" onClick={() => props.dispatchCommand("playback.loop")}>
+          Loop
+        </button>
+        <button type="button" title="Speed down" onClick={() => props.dispatchCommand("playback.speedDown")}>
+          -
+        </button>
+        <button type="button" title="Playback speed">
+          {props.speedPercent}%
+        </button>
+        <button type="button" title="Speed up" onClick={() => props.dispatchCommand("playback.speedUp")}>
+          +
+        </button>
+        <span className="playbackReadout">
+          {props.playbackStatus === "playing"
+            ? `Bar ${props.playbackBarIndex + 1} / ${props.playbackTimeSec.toFixed(1)}s`
+            : `Bar ${props.cursor.barIndex + 1} / Ready`}
+        </span>
+      </div>
+      <div className="toolbarGroup utilityGroup utilityLegacy">
         {["Loop", "100%", "C", "Audio", "View", "Tune", "Line"].map((label) => (
           <button key={label} type="button" disabled>
             {label}

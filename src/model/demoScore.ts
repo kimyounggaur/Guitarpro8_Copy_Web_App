@@ -17,11 +17,22 @@ const bassPattern = [
 
 export function createDemoScore(): Score {
   const score = createEmptyScore();
-  score.meta.title = "Phase 5 Symbols and Effects Demo";
+  score.meta.title = "Phase 6 Playback Engine Demo";
   score.masterBars = Array.from({ length: 11 }, () => createMasterBar());
   applyPhase5MasterSymbols(score);
   score.masterBars[3].layout.forcedBreak = true;
   score.masterBars[7].layout.forcedBreak = true;
+  score.masterAutomations = [
+    {
+      type: "tempo",
+      scope: "master",
+      points: [
+        { tick: 0, value: 120, transition: "constant" },
+        { tick: 3840, value: 144, transition: "progressive" },
+        { tick: 7680, value: 108, transition: "constant" }
+      ]
+    }
+  ];
 
   const guitar = createTrack(undefined, score.masterBars.length);
   guitar.name = "Guitar";

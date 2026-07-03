@@ -15,7 +15,7 @@ export function handleEditorKeyDown(
     return true;
   }
 
-  const commandId = commandIdForEvent(event);
+  const commandId = commandIdForEvent(event, context);
 
   if (!commandId) {
     return false;
@@ -71,7 +71,7 @@ function handleNumericInput(
   return true;
 }
 
-function commandIdForEvent(event: KeyboardEvent): string | null {
+function commandIdForEvent(event: KeyboardEvent, context: EditorCommandContext): string | null {
   const key = event.key;
   const ctrl = event.ctrlKey || event.metaKey;
   const shift = event.shiftKey;
@@ -81,11 +81,15 @@ function commandIdForEvent(event: KeyboardEvent): string | null {
   if (alt && shift && key === "ArrowDown") return "note.transposeDown";
   if (alt && key === "ArrowUp") return "note.moveStringUp";
   if (alt && key === "ArrowDown") return "note.moveStringDown";
+  if (alt && key === "ArrowLeft") return "playback.previousBeat";
+  if (alt && key === "ArrowRight") return "playback.nextBeat";
 
-  if (ctrl && key === "ArrowUp") return "cursor.previousTrack";
-  if (ctrl && key === "ArrowDown") return "cursor.nextTrack";
   if (ctrl && shift && key === "ArrowRight") return "selection.extendBarRight";
   if (ctrl && shift && key === "ArrowLeft") return "selection.extendBarLeft";
+  if (ctrl && key === "ArrowUp") return "cursor.previousTrack";
+  if (ctrl && key === "ArrowDown") return "cursor.nextTrack";
+  if (ctrl && key === "ArrowLeft") return "playback.previousBar";
+  if (ctrl && key === "ArrowRight") return "playback.nextBar";
   if (key === "ArrowLeft") return "cursor.moveLeft";
   if (key === "ArrowRight") return "cursor.moveRight";
   if (key === "ArrowUp") return "cursor.moveUp";
@@ -95,6 +99,9 @@ function commandIdForEvent(event: KeyboardEvent): string | null {
   if (key === "Home") return "cursor.home";
   if (key === "End") return "cursor.end";
   if (key === "Tab") return "cursor.toggleStaff";
+  if (ctrl && key === " ") return "playback.fromStart";
+  if (key === " ") return "playback.toggle";
+  if (key === "F9") return "playback.loop";
 
   if (ctrl && shift && key.toLowerCase() === "c") return "clipboard.copyMultitrack";
   if (ctrl && shift && key.toLowerCase() === "x") return "clipboard.cutMultitrack";
@@ -139,8 +146,10 @@ function commandIdForEvent(event: KeyboardEvent): string | null {
   if (ctrl && key === "Insert") return "beat.insert";
   if (key === "Insert") return "bar.insert";
   if (key.toLowerCase() === "c") return "beat.copyPrevious";
-  if (key === "+" || key === "=") return "duration.shorter";
-  if (key === "-") return "duration.longer";
+  if (key === "+" || key === "=") {
+    return context.playbackStatus === "playing" ? "playback.speedUp" : "duration.shorter";
+  }
+  if (key === "-") return context.playbackStatus === "playing" ? "playback.speedDown" : "duration.longer";
 
   return null;
 }

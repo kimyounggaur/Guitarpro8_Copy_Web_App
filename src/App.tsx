@@ -9,6 +9,8 @@ import {
   type FretInputBuffer
 } from "./commands/editorKeymap";
 import { executeCommand } from "./commands/registry";
+import { compilePlayback, type NoteEvent, type PlaybackCompilation } from "./engine/audio/compile";
+import { PlaybackScheduler } from "./engine/audio/scheduler";
 import { cursorFromHit } from "./engine/editing/hitTest";
 import {
   changeDurationAtCursor,
@@ -43,8 +45,9 @@ import {
   transposeNoteAtCursor
 } from "./engine/editing/operations";
 import { withEditorOverlays } from "./engine/editing/overlays";
-import type { ClipboardPayload, CursorMove, CursorPosition } from "./engine/editing/types";
+import type { ClipboardPayload, CursorMove, CursorPosition, SelectionRange } from "./engine/editing/types";
 import { layoutScore } from "./engine/layout/layoutScore";
+import { unrollScore } from "./engine/unroll/unrollScore";
 import { createBar } from "./model/factory";
 import type { SongInfo, Track } from "./model/types";
 import { SvgRenderer } from "./engine/render/SvgRenderer";
@@ -74,12 +77,26 @@ function App() {
   const setCursor = useViewStore((state) => state.setCursor);
   const setSelection = useViewStore((state) => state.setSelection);
   const playbackStatus = usePlaybackStore((state) => state.status);
+  const playbackBarIndex = usePlaybackStore((state) => state.currentBarIndex);
+  const playbackTick = usePlaybackStore((state) => state.currentTick);
+  const playbackTimeSec = usePlaybackStore((state) => state.currentTimeSec);
+  const loopEnabled = usePlaybackStore((state) => state.loopEnabled);
+  const metronomeEnabled = usePlaybackStore((state) => state.metronomeEnabled);
+  const countInEnabled = usePlaybackStore((state) => state.countInEnabled);
+  const speedPercent = usePlaybackStore((state) => state.speedPercent);
+  const setPlaybackStatus = usePlaybackStore((state) => state.setStatus);
+  const setPlaybackPosition = usePlaybackStore((state) => state.setPosition);
+  const togglePlaybackLoop = usePlaybackStore((state) => state.toggleLoop);
+  const toggleMetronome = usePlaybackStore((state) => state.toggleMetronome);
+  const toggleCountIn = usePlaybackStore((state) => state.toggleCountIn);
+  const setPlaybackSpeedPercent = usePlaybackStore((state) => state.setSpeedPercent);
   const invertPlusMinus = usePreferencesStore((state) => state.invertPlusMinus);
   const panelVisibility = usePreferencesStore((state) => state.panelVisibility);
   const togglePanel = usePreferencesStore((state) => state.togglePanel);
   const demoScore = useMemo(() => createDemoScore(), []);
   const fretBufferRef = useRef<FretInputBuffer>({ digits: "", timer: null });
   const clipboardRef = useRef<ClipboardPayload | null>(null);
+  const schedulerRef = useRef<PlaybackScheduler | null>(null);
 
   useEffect(() => {
     if (score.tracks.length === 0) {
@@ -87,6 +104,19 @@ function App() {
       setCursor(defaultCursor(demoScore));
     }
   }, [demoScore, loadScore, score.tracks.length, setCursor]);
+
+  useEffect(() => {
+    return () => schedulerRef.current?.stop("manual");
+  }, []);
+
+  const playbackCompilation = useMemo(
+    () =>
+      compilePlayback(score, unrollScore(score), {
+        mode: "relative",
+        percent: speedPercent
+      }),
+    [score, speedPercent]
+  );
 
   const baseScene = useMemo(
     () =>
@@ -96,8 +126,14 @@ function App() {
     [score, cursor]
   );
   const scene = useMemo(
-    () => withEditorOverlays(baseScene, cursor, selection),
-    [baseScene, cursor, selection]
+    () =>
+      withEditorOverlays(
+        baseScene,
+        cursor,
+        selection,
+        playbackStatus === "playing" ? playbackBarIndex : null
+      ),
+    [baseScene, cursor, playbackBarIndex, playbackStatus, selection]
   );
 
   useEffect(() => {
@@ -123,6 +159,7 @@ function App() {
   const editorContext = useMemo<EditorCommandContext>(
     () => ({
       staffKind: cursor.staffKind,
+      playbackStatus,
       moveCursor: (move, extendSelection) => {
         if (move === "right" && shouldMutateOnMoveRight(score, cursor)) {
           let nextCursor = cursor;
@@ -207,6 +244,41 @@ function App() {
         editWithCursor("Toggle beat effect", (draft) =>
           toggleBeatEffectAtCursor(draft, cursor, effect)
         ),
+      togglePlayback: (fromStart) => {
+        if (playbackStatus === "playing" && !fromStart) {
+          stopPlayback();
+          return;
+        }
+
+        void startPlayback(fromStart ? 0 : playbackCompilation.secondAtBar(cursor.barIndex));
+      },
+      stopPlayback,
+      movePlaybackBar: (direction) => {
+        const next = normaliseCursor(score, {
+          ...cursor,
+          barIndex: cursor.barIndex + direction,
+          beatIndex: 0
+        });
+        setCursor(next);
+
+        if (playbackStatus === "playing") {
+          schedulerRef.current?.seek(playbackCompilation.secondAtBar(next.barIndex));
+        }
+      },
+      stepPlaybackBeat: (direction) => {
+        const next = moveCursor(score, cursor, direction === 1 ? "right" : "left");
+        setCursor(next);
+
+        if (playbackStatus === "playing") {
+          schedulerRef.current?.seek(playbackCompilation.secondAtBar(next.barIndex));
+        }
+      },
+      toggleLoop: togglePlaybackLoop,
+      toggleMetronome,
+      toggleCountIn,
+      changePlaybackSpeed: (direction) => {
+        setPlaybackSpeedPercent(speedPercent + direction * 5);
+      },
       deleteNote: () => editWithCursor("Delete note", (draft) => deleteNoteAtCursor(draft, cursor)),
       deleteBeat: () => editWithCursor("Delete beat", (draft) => deleteBeatAtCursor(draft, cursor)),
       deleteBar: () => editWithCursor("Delete bar", (draft) => deleteBarAtCursor(draft, cursor)),
@@ -247,18 +319,71 @@ function App() {
       clipboardRef,
       cursor,
       invertPlusMinus,
+      playbackCompilation,
+      playbackStatus,
       redoDocument,
       score,
       selection,
+      setPlaybackSpeedPercent,
       setCursor,
       setSelection,
+      speedPercent,
       transact,
+      toggleCountIn,
+      toggleMetronome,
+      togglePlaybackLoop,
       undoDocument
     ]
   );
 
   function dispatchEditorCommand(commandId: string): void {
     executeCommand(commandId, editorContext);
+  }
+
+  async function startPlayback(startSec: number): Promise<void> {
+    const scheduler = schedulerRef.current ?? new PlaybackScheduler();
+    schedulerRef.current = scheduler;
+    const countInSeconds = countInEnabled ? countInDurationSeconds(playbackCompilation) : 0;
+    const events = playbackEvents(playbackCompilation, {
+      metronome: metronomeEnabled,
+      countIn: countInEnabled,
+      startSec,
+      countInSeconds
+    });
+
+    setPlaybackStatus("playing");
+
+    try {
+      await scheduler.play({
+        startSec: startSec - countInSeconds,
+        totalSeconds: playbackCompilation.totalSeconds,
+        events,
+        onPosition: ({ timeSec }) => {
+          const position = playbackCompilation.positionAtSecond(Math.max(0, timeSec));
+          setPlaybackPosition({
+            barIndex: position.barIndex,
+            tick: position.tick,
+            timeSec: position.timeSec
+          });
+        },
+        onStop: (reason) => {
+          setPlaybackStatus("stopped");
+
+          if (reason === "ended" && loopEnabled) {
+            window.setTimeout(() => {
+              void startPlayback(loopStartSecond(playbackCompilation, selection, cursor.barIndex));
+            }, 0);
+          }
+        }
+      });
+    } catch {
+      setPlaybackStatus("stopped");
+    }
+  }
+
+  function stopPlayback(): void {
+    schedulerRef.current?.stop("manual");
+    setPlaybackStatus("stopped");
   }
 
   function editWithCursor(
@@ -436,6 +561,13 @@ function App() {
       activeId={activeId}
       panelVisibility={panelVisibility}
       playbackStatus={playbackStatus}
+      playbackBarIndex={playbackBarIndex}
+      playbackTick={playbackTick}
+      playbackTimeSec={playbackTimeSec}
+      loopEnabled={loopEnabled}
+      metronomeEnabled={metronomeEnabled}
+      countInEnabled={countInEnabled}
+      speedPercent={speedPercent}
       dispatchCommand={dispatchEditorCommand}
       togglePanel={togglePanel}
       onSongInfoChange={handleSongInfoChange}
@@ -455,6 +587,83 @@ function App() {
       }
     />
   );
+}
+
+function playbackEvents(
+  compilation: PlaybackCompilation,
+  options: { metronome: boolean; countIn: boolean; startSec: number; countInSeconds: number }
+): NoteEvent[] {
+  const events = [...compilation.events];
+
+  if (options.metronome) {
+    compilation.segments.forEach((segment) => {
+      for (let tick = segment.startTick; tick < segment.startTick + segment.durationTicks; tick += 480) {
+        events.push(clickEvent(`metronome-${segment.sequenceIndex}-${tick}`, compilation.tempoMap.ticksToSeconds(tick), tick === segment.startTick));
+      }
+    });
+  }
+
+  if (options.countIn) {
+    const beatLength = options.countInSeconds / 4;
+
+    for (let beat = 0; beat < 4; beat += 1) {
+      events.push(
+        clickEvent(
+          `count-in-${beat}`,
+          options.startSec - options.countInSeconds + beat * beatLength,
+          beat === 0
+        )
+      );
+    }
+  }
+
+  return events.sort((left, right) => left.timeSec - right.timeSec);
+}
+
+function clickEvent(id: string, timeSec: number, downbeat: boolean): NoteEvent {
+  return {
+    id,
+    timeSec,
+    durationSec: 0.035,
+    startTick: 0,
+    durationTicks: 24,
+    midiPitch: downbeat ? 96 : 84,
+    velocity: downbeat ? 108 : 78,
+    trackId: "__metronome__",
+    barIndex: 0,
+    voiceIndex: 0,
+    beatIndex: 0,
+    noteIndex: 0,
+    string: 0,
+    effects: {
+      dead: false,
+      ghost: false,
+      palmMute: true,
+      letRing: false,
+      staccato: true,
+      accent: downbeat ? "heavy" : "none",
+      vibrato: "none",
+      bend: false,
+      slide: false,
+      harmonic: false
+    }
+  };
+}
+
+function countInDurationSeconds(compilation: PlaybackCompilation): number {
+  const bpm = compilation.tempoMap.points[0]?.bpm ?? 120;
+  return (60 / bpm) * 4;
+}
+
+function loopStartSecond(
+  compilation: PlaybackCompilation,
+  selection: SelectionRange | null,
+  fallbackBarIndex: number
+): number {
+  const barIndex = selection
+    ? Math.min(selection.anchor.barIndex, selection.head.barIndex)
+    : fallbackBarIndex;
+  return compilation.secondAtBar(barIndex);
 }
 
 export default App;

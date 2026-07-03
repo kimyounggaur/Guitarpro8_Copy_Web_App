@@ -5,14 +5,35 @@ import { VOICE_CURSOR_COLORS } from "./types";
 export function withEditorOverlays(
   scene: SceneGraph,
   cursor: CursorPosition,
-  selection: SelectionRange | null
+  selection: SelectionRange | null,
+  playbackBarIndex: number | null = null
 ): SceneGraph {
   return {
     pages: scene.pages.map((page) => ({
       ...page,
-      primitives: [...page.primitives, ...selectionPrimitives(page.primitives, selection), ...cursorPrimitives(page.primitives, cursor)]
+      primitives: [
+        ...page.primitives,
+        ...playbackPrimitives(page.primitives, playbackBarIndex),
+        ...selectionPrimitives(page.primitives, selection),
+        ...cursorPrimitives(page.primitives, cursor)
+      ]
     }))
   };
+}
+
+function playbackPrimitives(
+  primitives: ScenePrimitive[],
+  playbackBarIndex: number | null
+): ScenePrimitive[] {
+  if (playbackBarIndex === null) {
+    return [];
+  }
+
+  return primitives
+    .filter((primitive) => primitive.hit?.kind === "bar" && primitive.hit.ref.barIndex === playbackBarIndex)
+    .map((primitive, index) =>
+      cursorRect(`playback-bar-${playbackBarIndex}-${index}`, primitive.hit!.bbox, "#facc15", 0.12)
+    );
 }
 
 function cursorPrimitives(primitives: ScenePrimitive[], cursor: CursorPosition): ScenePrimitive[] {
