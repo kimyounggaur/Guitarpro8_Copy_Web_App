@@ -118,6 +118,12 @@ export interface MasterBar {
   fermatas: Fermata[];
   anacrusis: boolean;
   simileMark: SimileMark;
+  layout: BarLayout;
+}
+
+export interface BarLayout {
+  forcedBreak: boolean;
+  preventBreak: boolean;
 }
 
 export interface SectionMarker {

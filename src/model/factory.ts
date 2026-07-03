@@ -78,7 +78,11 @@ export function createMasterBar(): MasterBar {
     directionJumps: [],
     fermatas: [],
     anacrusis: false,
-    simileMark: "none"
+    simileMark: "none",
+    layout: {
+      forcedBreak: false,
+      preventBreak: false
+    }
   };
 }
 

@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { ensureDemoCommandsRegistered } from "./commands/demoCommands";
 import { executeCommand, getAllCommands } from "./commands/registry";
-import { useDocumentStore } from "./store/documentStore";
+import { layoutScore } from "./engine/layout/layoutScore";
+import { SvgRenderer } from "./engine/render/SvgRenderer";
+import { createDemoScore } from "./model/demoScore";
 import { usePlaybackStore } from "./store/playbackStore";
 import { usePreferencesStore } from "./store/preferencesStore";
 import { useViewStore } from "./store/viewStore";
@@ -13,12 +15,13 @@ interface DemoCommandState {
 function App() {
   ensureDemoCommandsRegistered();
 
-  const score = useDocumentStore((state) => state.score);
   const zoom = useViewStore((state) => state.zoom);
   const playbackStatus = usePlaybackStore((state) => state.status);
   const platform = usePreferencesStore((state) => state.platform);
   const [lastMessage, setLastMessage] = useState("No command executed yet.");
 
+  const demoScore = useMemo(() => createDemoScore(), []);
+  const scene = useMemo(() => layoutScore(demoScore), [demoScore]);
   const commands = useMemo(() => getAllCommands<DemoCommandState>(), []);
 
   function runAboutCommand() {
@@ -30,12 +33,12 @@ function App() {
   return (
     <main className="appShell">
       <section className="workspace">
-        <p className="eyebrow">Architecture scaffold</p>
-        <h1>Guitar Pro Clone - Phase 0</h1>
-        <div className="statusGrid" aria-label="Phase 0 state summary">
+        <p className="eyebrow">SVG engraving pipeline</p>
+        <h1>Guitar Pro Clone - Phase 2a</h1>
+        <div className="statusGrid" aria-label="Phase 2a state summary">
           <span>
             <strong>Tracks</strong>
-            {score.tracks.length}
+            {demoScore.tracks.length}
           </span>
           <span>
             <strong>Zoom</strong>
@@ -49,6 +52,9 @@ function App() {
             <strong>Platform</strong>
             {platform}
           </span>
+        </div>
+        <div className="scoreViewport">
+          <SvgRenderer scene={scene} />
         </div>
       </section>
 

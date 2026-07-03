@@ -1,0 +1,22 @@
+export const PAGE_WIDTH = 794;
+export const PAGE_HEIGHT = 1123;
+export const PAGE_MARGIN_X = 56;
+export const PAGE_MARGIN_TOP = 72;
+export const PAGE_MARGIN_BOTTOM = 64;
+export const HEADER_HEIGHT = 54;
+export const SYSTEM_GAP = 34;
+export const TRACK_GAP = 28;
+export const STAFF_LINE_GAP = 8;
+export const STANDARD_STAFF_HEIGHT = STAFF_LINE_GAP * 4;
+export const TAB_LINE_GAP = 10;
+export const TAB_STAFF_TOP_GAP = 34;
+export const MEASURE_MIN_WIDTH = 86;
+export const BEAT_MIN_GAP = 18;
+export const BARLINE_TOP_PADDING = 2;
+export const BARLINE_BOTTOM_PADDING = 2;
+export const NOTE_HEAD_WIDTH = 10;
+export const NOTE_HEAD_HEIGHT = 7;
+export const SYSTEM_LABEL_WIDTH = 52;
+
+export const CONTENT_WIDTH = PAGE_WIDTH - PAGE_MARGIN_X * 2;
+export const CONTENT_HEIGHT = PAGE_HEIGHT - PAGE_MARGIN_TOP - PAGE_MARGIN_BOTTOM;
