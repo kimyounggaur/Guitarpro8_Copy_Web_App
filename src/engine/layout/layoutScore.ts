@@ -1,4 +1,5 @@
 import type { Score } from "../../model/types";
+import { validateBarDurations } from "../validate";
 import { createMeasureContents } from "./measureContents";
 import { CONTENT_WIDTH, PAGE_HEIGHT, PAGE_MARGIN_X, PAGE_WIDTH } from "./metrics";
 import { layoutPages } from "./pageLayout";
@@ -6,10 +7,15 @@ import type { SceneGraph, ScenePrimitive } from "./sceneGraph";
 import { breakSystems } from "./systemBreaker";
 import { systemPrimitives } from "./trackScene";
 
-export function layoutScore(score: Score): SceneGraph {
+export interface LayoutScoreOptions {
+  editingBar?: { trackId?: string; barIndex: number };
+}
+
+export function layoutScore(score: Score, options: LayoutScoreOptions = {}): SceneGraph {
   const measureContents = createMeasureContents(score);
   const systems = breakSystems(measureContents, CONTENT_WIDTH);
   const pages = layoutPages(systems, score.tracks.length);
+  const durationIssues = validateBarDurations(score);
 
   return {
     pages: pages.map((page) => ({
@@ -20,7 +26,10 @@ export function layoutScore(score: Score): SceneGraph {
         pageBackground(page.index),
         header(score),
         ...page.systems.flatMap((pageSystem) =>
-          systemPrimitives(score, pageSystem.system.measures, PAGE_MARGIN_X, pageSystem.y)
+          systemPrimitives(score, pageSystem.system.measures, PAGE_MARGIN_X, pageSystem.y, {
+            durationIssues,
+            editingBar: options.editingBar
+          })
         )
       ]
     }))

@@ -5,7 +5,6 @@ import { layoutScore } from "./engine/layout/layoutScore";
 import { SvgRenderer } from "./engine/render/SvgRenderer";
 import { createDemoScore } from "./model/demoScore";
 import { usePlaybackStore } from "./store/playbackStore";
-import { usePreferencesStore } from "./store/preferencesStore";
 import { useViewStore } from "./store/viewStore";
 
 interface DemoCommandState {
@@ -17,7 +16,6 @@ function App() {
 
   const zoom = useViewStore((state) => state.zoom);
   const playbackStatus = usePlaybackStore((state) => state.status);
-  const platform = usePreferencesStore((state) => state.platform);
   const [lastMessage, setLastMessage] = useState("No command executed yet.");
 
   const demoScore = useMemo(() => createDemoScore(), []);
@@ -34,11 +32,15 @@ function App() {
     <main className="appShell">
       <section className="workspace">
         <p className="eyebrow">SVG engraving pipeline</p>
-        <h1>Guitar Pro Clone - Phase 2a</h1>
-        <div className="statusGrid" aria-label="Phase 2a state summary">
+        <h1>Guitar Pro Clone - Phase 2b</h1>
+        <div className="statusGrid" aria-label="Phase 2b state summary">
           <span>
             <strong>Tracks</strong>
             {demoScore.tracks.length}
+          </span>
+          <span>
+            <strong>Bars</strong>
+            {demoScore.masterBars.length}
           </span>
           <span>
             <strong>Zoom</strong>
@@ -47,10 +49,6 @@ function App() {
           <span>
             <strong>Playback</strong>
             {playbackStatus}
-          </span>
-          <span>
-            <strong>Platform</strong>
-            {platform}
           </span>
         </div>
         <div className="scoreViewport">

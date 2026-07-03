@@ -136,7 +136,8 @@ export function barlinePrimitive(
   barIndex: number,
   x: number,
   top: number,
-  bottom: number
+  bottom: number,
+  stroke = "#111827"
 ): ScenePrimitive {
   return {
     id: `${trackId}-${barIndex}-barline-${x}`,
@@ -145,7 +146,7 @@ export function barlinePrimitive(
     y1: top - BARLINE_TOP_PADDING,
     x2: x,
     y2: bottom + BARLINE_BOTTOM_PADDING,
-    stroke: "#111827",
+    stroke,
     strokeWidth: 1,
     hit: { kind: "bar", ref: { trackId, barIndex }, bbox: { x: x - 3, y: top, width: 6, height: bottom - top } }
   };
@@ -176,5 +177,28 @@ export function beatHit(ref: Partial<NoteRef>, x: number, y: number): HitMetadat
     kind: "beat",
     ref,
     bbox: { x: x - 8, y: y - 10, width: 16, height: 44 }
+  };
+}
+
+export function durationErrorRect(
+  trackId: string,
+  barIndex: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): ScenePrimitive {
+  return {
+    id: `${trackId}-${barIndex}-duration-error`,
+    type: "rect",
+    x,
+    y,
+    width,
+    height,
+    fill: "rgba(239, 68, 68, 0.07)",
+    stroke: "#ef4444",
+    strokeWidth: 1.5,
+    radius: 2,
+    hit: { kind: "bar", ref: { trackId, barIndex }, bbox: { x, y, width, height } }
   };
 }

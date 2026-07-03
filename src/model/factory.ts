@@ -145,6 +145,8 @@ export function createBeat(options: Partial<Beat> = {}): Beat {
     duration: options.duration ?? 4,
     dots: options.dots ?? 0,
     tuplet: options.tuplet,
+    stemDirection: options.stemDirection ?? "auto",
+    beamMode: options.beamMode ?? "auto",
     rest: options.rest ?? true,
     graceNotes: options.graceNotes ?? [],
     notes: options.notes ?? [],

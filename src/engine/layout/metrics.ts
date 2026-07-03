@@ -16,6 +16,15 @@ export const BARLINE_TOP_PADDING = 2;
 export const BARLINE_BOTTOM_PADDING = 2;
 export const NOTE_HEAD_WIDTH = 10;
 export const NOTE_HEAD_HEIGHT = 7;
+export const NOTE_DOT_RADIUS = 1.8;
+export const STEM_LENGTH = 34;
+export const STEM_WIDTH = 1.25;
+export const BEAM_THICKNESS = 4;
+export const BEAM_GAP = 6;
+export const FLAG_WIDTH = 12;
+export const TUPLET_BRACKET_GAP = 14;
+export const TAB_RHYTHM_GAP = 18;
+export const TAB_RHYTHM_STEM_LENGTH = 22;
 export const SYSTEM_LABEL_WIDTH = 52;
 
 export const CONTENT_WIDTH = PAGE_WIDTH - PAGE_MARGIN_X * 2;

@@ -42,18 +42,27 @@ export function tickToMeasureX(measure: MeasureContent, tick: number, width: num
 }
 
 function collectBeatPlacements(score: Score, barIndex: number): BeatPlacement[] {
-  const firstTrack = score.tracks[0];
-  const voice = firstTrack?.bars[barIndex]?.voices[0];
+  const placementsByTick = new Map<number, BeatPlacement>();
 
-  if (!voice) {
-    return [];
-  }
+  score.tracks.forEach((track) => {
+    const bar = track.bars[barIndex];
 
-  let tick = 0;
-  return voice.beats.map((beat) => {
-    const durationTicks = beatDurationTicks(beat);
-    const placement = { tick, durationTicks };
-    tick += durationTicks;
-    return placement;
+    bar?.voices.forEach((voice) => {
+      let tick = 0;
+
+      voice.beats.forEach((beat) => {
+        const durationTicks = beatDurationTicks(beat);
+        const previous = placementsByTick.get(tick);
+
+        placementsByTick.set(tick, {
+          tick,
+          durationTicks: Math.max(previous?.durationTicks ?? 0, durationTicks)
+        });
+
+        tick += durationTicks;
+      });
+    });
   });
+
+  return [...placementsByTick.values()].sort((left, right) => left.tick - right.tick);
 }

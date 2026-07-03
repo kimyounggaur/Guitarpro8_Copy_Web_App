@@ -51,6 +51,13 @@ export type Ottava = "none" | "8va" | "8vb" | "15ma" | "15mb";
 export type AutomationType = "tempo" | "volume" | "pan";
 export type AutomationScope = "track" | "master";
 export type AutomationTransition = "constant" | "progressive";
+export type StemDirection = "auto" | "up" | "down";
+export type BeamMode =
+  | "auto"
+  | "force"
+  | "break"
+  | "breakSecondary"
+  | "forceGroup";
 
 export interface SongInfo {
   title: string;
@@ -230,6 +237,8 @@ export interface Beat {
   duration: BeatDuration;
   dots: DotCount;
   tuplet?: Tuplet;
+  stemDirection: StemDirection;
+  beamMode: BeamMode;
   rest: boolean;
   graceNotes: GraceNote[];
   notes: Note[];

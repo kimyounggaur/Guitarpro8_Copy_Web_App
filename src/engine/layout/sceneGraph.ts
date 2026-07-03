@@ -36,6 +36,7 @@ export interface LinePrimitive extends PrimitiveBase {
   y2: number;
   stroke: string;
   strokeWidth: number;
+  strokeLinecap?: "butt" | "round" | "square";
 }
 
 export interface TextPrimitive extends PrimitiveBase {
@@ -72,7 +73,22 @@ export interface EllipsePrimitive extends PrimitiveBase {
   strokeWidth?: number;
 }
 
-export type ScenePrimitive = LinePrimitive | TextPrimitive | RectPrimitive | EllipsePrimitive;
+export interface PathPrimitive extends PrimitiveBase {
+  type: "path";
+  d: string;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+  strokeLinecap?: "butt" | "round" | "square";
+  strokeLinejoin?: "miter" | "round" | "bevel";
+}
+
+export type ScenePrimitive =
+  | LinePrimitive
+  | TextPrimitive
+  | RectPrimitive
+  | EllipsePrimitive
+  | PathPrimitive;
 
 export interface ScenePage {
   id: string;

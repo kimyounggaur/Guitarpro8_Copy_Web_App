@@ -23,6 +23,10 @@ export function validateBarDurations(score: Score): BarDurationIssue[] {
       const expected = barTheoreticalTicks(masterBar);
 
       bar.voices.forEach((voice, voiceIndex) => {
+        if (voice.beats.length === 0) {
+          return;
+        }
+
         const actual = voice.beats.reduce(
           (total, beat) => total + beatDurationTicks(beat),
           0

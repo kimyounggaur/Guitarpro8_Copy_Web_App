@@ -38,12 +38,14 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
       return (
         <line
           key={key}
+          id={primitive.id}
           x1={primitive.x1}
           y1={primitive.y1}
           x2={primitive.x2}
           y2={primitive.y2}
           stroke={primitive.stroke}
           strokeWidth={primitive.strokeWidth}
+          strokeLinecap={primitive.strokeLinecap}
           {...hitProps}
         />
       );
@@ -51,6 +53,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
       return (
         <text
           key={key}
+          id={primitive.id}
           x={primitive.x}
           y={primitive.y}
           fill={primitive.fill}
@@ -66,6 +69,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
       return (
         <rect
           key={key}
+          id={primitive.id}
           x={primitive.x}
           y={primitive.y}
           width={primitive.width}
@@ -81,6 +85,7 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
       return (
         <ellipse
           key={key}
+          id={primitive.id}
           cx={primitive.cx}
           cy={primitive.cy}
           rx={primitive.rx}
@@ -88,6 +93,20 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           fill={primitive.fill}
           stroke={primitive.stroke}
           strokeWidth={primitive.strokeWidth}
+          {...hitProps}
+        />
+      );
+    case "path":
+      return (
+        <path
+          key={key}
+          id={primitive.id}
+          d={primitive.d}
+          fill={primitive.fill}
+          stroke={primitive.stroke}
+          strokeWidth={primitive.strokeWidth}
+          strokeLinecap={primitive.strokeLinecap}
+          strokeLinejoin={primitive.strokeLinejoin}
           {...hitProps}
         />
       );
