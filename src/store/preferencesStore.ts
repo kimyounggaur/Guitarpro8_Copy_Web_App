@@ -7,6 +7,7 @@ export interface PanelVisibility {
   songInspector: boolean;
   trackInspector: boolean;
   globalView: boolean;
+  automationView: boolean;
 }
 
 interface PreferencesStore {
@@ -44,7 +45,8 @@ function loadPanelVisibility(): PanelVisibility {
     palette: true,
     songInspector: true,
     trackInspector: true,
-    globalView: true
+    globalView: true,
+    automationView: false
   };
 
   if (typeof localStorage === "undefined") {

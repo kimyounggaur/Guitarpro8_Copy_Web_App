@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createBeat, createEmptyScore, createNote, createTrack } from "../../model/factory";
 import { unrollScore } from "../unroll/unrollScore";
 import { compilePlayback } from "./compile";
+import { createDefaultMixerState } from "./mixer";
 import { buildTempoMap, tempoAutomationPoint } from "./tempoMap";
 
 describe("Phase 6 tempo map and playback compiler", () => {
@@ -33,6 +34,40 @@ describe("Phase 6 tempo map and playback compiler", () => {
     });
     expect(compilation.events[0].velocity).toBeGreaterThan(100);
     expect(compilation.events[0].durationSec).toBeGreaterThan(0);
+  });
+
+  it("attaches mixer automation to compiled note events", () => {
+    const score = scoreWithOneTrack();
+    const trackId = score.tracks[0].id;
+    const mixer = createDefaultMixerState(score.tracks);
+
+    mixer.tracks[trackId].volume = 1;
+    mixer.tracks[trackId].pan = 0;
+    score.masterAutomations = [
+      {
+        type: "volume",
+        scope: "master",
+        points: [{ tick: 0, value: 0.8, transition: "constant" }]
+      }
+    ];
+    score.tracks[0].automations = [
+      {
+        type: "volume",
+        scope: "track",
+        points: [{ tick: 0, value: 0.5, transition: "constant" }]
+      },
+      {
+        type: "pan",
+        scope: "track",
+        points: [{ tick: 0, value: -0.25, transition: "constant" }]
+      }
+    ];
+
+    const compilation = compilePlayback(score, unrollScore(score), { mode: "relative", percent: 100 }, mixer, trackId);
+
+    expect(compilation.events[0].writtenTick).toBe(0);
+    expect(compilation.events[0].mix.gain).toBeCloseTo(0.4, 5);
+    expect(compilation.events[0].mix.pan).toBeCloseTo(-0.25, 5);
   });
 
   it("repeats written tempo automation on repeated playback segments", () => {

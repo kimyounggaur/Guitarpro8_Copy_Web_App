@@ -11,6 +11,7 @@ import {
 import { executeCommand } from "./commands/registry";
 import { compilePlayback, type NoteEvent, type PlaybackCompilation } from "./engine/audio/compile";
 import { PlaybackScheduler } from "./engine/audio/scheduler";
+import type { EffectSlotType, TrackMixerState } from "./engine/audio/mixer";
 import { cursorFromHit } from "./engine/editing/hitTest";
 import {
   changeDurationAtCursor,
@@ -49,14 +50,14 @@ import type { ClipboardPayload, CursorMove, CursorPosition, SelectionRange } fro
 import { layoutScore } from "./engine/layout/layoutScore";
 import { unrollScore } from "./engine/unroll/unrollScore";
 import { createBar } from "./model/factory";
-import type { SongInfo, Track } from "./model/types";
+import { TICKS_PER_QUARTER, type Automation, type AutomationScope, type AutomationType, type Score, type SongInfo, type Track } from "./model/types";
 import { SvgRenderer } from "./engine/render/SvgRenderer";
 import { createDemoScore } from "./model/demoScore";
 import { useDocumentStore } from "./store/documentStore";
 import { usePlaybackStore } from "./store/playbackStore";
 import { usePreferencesStore } from "./store/preferencesStore";
 import { useViewStore } from "./store/viewStore";
-import { EditorShell } from "./ui/shell/EditorShell";
+import { EditorShell, type AutomationLaneId } from "./ui/shell/EditorShell";
 
 function App() {
   ensureDemoCommandsRegistered();
@@ -84,12 +85,17 @@ function App() {
   const metronomeEnabled = usePlaybackStore((state) => state.metronomeEnabled);
   const countInEnabled = usePlaybackStore((state) => state.countInEnabled);
   const speedPercent = usePlaybackStore((state) => state.speedPercent);
+  const mixer = usePlaybackStore((state) => state.mixer);
   const setPlaybackStatus = usePlaybackStore((state) => state.setStatus);
   const setPlaybackPosition = usePlaybackStore((state) => state.setPosition);
   const togglePlaybackLoop = usePlaybackStore((state) => state.toggleLoop);
   const toggleMetronome = usePlaybackStore((state) => state.toggleMetronome);
   const toggleCountIn = usePlaybackStore((state) => state.toggleCountIn);
   const setPlaybackSpeedPercent = usePlaybackStore((state) => state.setSpeedPercent);
+  const syncMixerTracks = usePlaybackStore((state) => state.syncMixerTracks);
+  const setTrackMixer = usePlaybackStore((state) => state.setTrackMixer);
+  const setMasterFocusPercent = usePlaybackStore((state) => state.setMasterFocusPercent);
+  const toggleTrackEffect = usePlaybackStore((state) => state.toggleTrackEffect);
   const invertPlusMinus = usePreferencesStore((state) => state.invertPlusMinus);
   const panelVisibility = usePreferencesStore((state) => state.panelVisibility);
   const togglePanel = usePreferencesStore((state) => state.togglePanel);
@@ -109,13 +115,23 @@ function App() {
     return () => schedulerRef.current?.stop("manual");
   }, []);
 
+  useEffect(() => {
+    syncMixerTracks(score.tracks);
+  }, [score.tracks, syncMixerTracks]);
+
   const playbackCompilation = useMemo(
     () =>
-      compilePlayback(score, unrollScore(score), {
-        mode: "relative",
-        percent: speedPercent
-      }),
-    [score, speedPercent]
+      compilePlayback(
+        score,
+        unrollScore(score),
+        {
+          mode: "relative",
+          percent: speedPercent
+        },
+        mixer,
+        cursor.trackId
+      ),
+    [score, speedPercent, mixer, cursor.trackId]
   );
 
   const baseScene = useMemo(
@@ -142,7 +158,8 @@ function App() {
         F2: "palette",
         F5: "songInspector",
         F6: "trackInspector",
-        F8: "globalView"
+        F8: "globalView",
+        F10: "automationView"
       } as const;
       const panel = panelByKey[event.key as keyof typeof panelByKey];
 
@@ -550,6 +567,79 @@ function App() {
     );
   }
 
+  function handleMixerTrackChange(trackId: string, patch: Partial<TrackMixerState>) {
+    setTrackMixer(trackId, patch);
+  }
+
+  function handleMixerEffectToggle(trackId: string, effect: EffectSlotType) {
+    toggleTrackEffect(trackId, effect);
+  }
+
+  function handleAutomationPointSet(lane: AutomationLaneId, tick: number, value: number) {
+    transact("Edit automation", (draft) => {
+      const target = automationTarget(draft, lane, cursor.trackId);
+
+      if (!target) {
+        return;
+      }
+
+      const automation = ensureAutomation(target.automations, target.type, target.scope);
+      const snappedTick = snapAutomationTick(tick);
+      const existing = nearestAutomationPoint(automation, snappedTick);
+
+      if (existing && Math.abs(existing.tick - snappedTick) <= TICKS_PER_QUARTER / 4) {
+        existing.tick = snappedTick;
+        existing.value = value;
+      } else {
+        automation.points.push({ tick: snappedTick, value, transition: "constant" });
+      }
+
+      automation.points.sort((left, right) => left.tick - right.tick);
+    });
+  }
+
+  function handleAutomationPointRemove(lane: AutomationLaneId, tick: number) {
+    transact("Remove automation point", (draft) => {
+      const target = automationTarget(draft, lane, cursor.trackId);
+
+      if (!target) {
+        return;
+      }
+
+      const automation = target.automations.find(
+        (candidate) => candidate.type === target.type && candidate.scope === target.scope
+      );
+
+      if (!automation) {
+        return;
+      }
+
+      const snappedTick = snapAutomationTick(tick);
+      automation.points = automation.points.filter(
+        (point) => Math.abs(point.tick - snappedTick) > TICKS_PER_QUARTER / 4
+      );
+    });
+  }
+
+  function handleAutomationTransitionToggle(lane: AutomationLaneId, tick: number) {
+    transact("Toggle automation transition", (draft) => {
+      const target = automationTarget(draft, lane, cursor.trackId);
+
+      if (!target) {
+        return;
+      }
+
+      const automation = target.automations.find(
+        (candidate) => candidate.type === target.type && candidate.scope === target.scope
+      );
+      const point = automation ? nearestAutomationPoint(automation, snapAutomationTick(tick)) : null;
+
+      if (point) {
+        point.transition = point.transition === "constant" ? "progressive" : "constant";
+      }
+    });
+  }
+
   return (
     <EditorShell
       score={score}
@@ -568,11 +658,18 @@ function App() {
       metronomeEnabled={metronomeEnabled}
       countInEnabled={countInEnabled}
       speedPercent={speedPercent}
+      mixer={mixer}
       dispatchCommand={dispatchEditorCommand}
       togglePanel={togglePanel}
       onSongInfoChange={handleSongInfoChange}
       onTrackChange={handleTrackChange}
       onGlobalJump={handleGlobalJump}
+      onMixerTrackChange={handleMixerTrackChange}
+      onMixerEffectToggle={handleMixerEffectToggle}
+      onMasterFocusChange={setMasterFocusPercent}
+      onAutomationPointSet={handleAutomationPointSet}
+      onAutomationPointRemove={handleAutomationPointRemove}
+      onAutomationTransitionToggle={handleAutomationTransitionToggle}
       workspace={
         <div
           className="scoreViewport"
@@ -626,6 +723,7 @@ function clickEvent(id: string, timeSec: number, downbeat: boolean): NoteEvent {
     timeSec,
     durationSec: 0.035,
     startTick: 0,
+    writtenTick: 0,
     durationTicks: 24,
     midiPitch: downbeat ? 96 : 84,
     velocity: downbeat ? 108 : 78,
@@ -643,9 +741,31 @@ function clickEvent(id: string, timeSec: number, downbeat: boolean): NoteEvent {
       staccato: true,
       accent: downbeat ? "heavy" : "none",
       vibrato: "none",
+      hopo: false,
+      fadeIn: false,
+      fadeOut: false,
+      volumeSwell: false,
+      slap: false,
+      pop: false,
+      deadSlapped: false,
+      pickscrape: false,
       bend: false,
-      slide: false,
-      harmonic: false
+      bendPoints: [],
+      slide: null,
+      harmonic: null,
+      harmonicShift: 0,
+      wah: null,
+      tremoloPicking: null,
+      attackSec: 0.002,
+      releaseSec: 0.02,
+      filter: "palmMute"
+    },
+    mix: {
+      muted: false,
+      gain: 0.9,
+      pan: 0,
+      eq: "bright",
+      effectChain: []
     }
   };
 }
@@ -664,6 +784,61 @@ function loopStartSecond(
     ? Math.min(selection.anchor.barIndex, selection.head.barIndex)
     : fallbackBarIndex;
   return compilation.secondAtBar(barIndex);
+}
+
+function automationTarget(score: Score, lane: AutomationLaneId, trackId: string | null) {
+  if (lane === "tempo") {
+    return { automations: score.masterAutomations, type: "tempo" as AutomationType, scope: "master" as AutomationScope };
+  }
+
+  if (lane === "masterVolume") {
+    return { automations: score.masterAutomations, type: "volume" as AutomationType, scope: "master" as AutomationScope };
+  }
+
+  if (lane === "masterPan") {
+    return { automations: score.masterAutomations, type: "pan" as AutomationType, scope: "master" as AutomationScope };
+  }
+
+  const track = score.tracks.find((candidate) => candidate.id === trackId);
+
+  if (!track) {
+    return null;
+  }
+
+  return {
+    automations: track.automations,
+    type: lane === "trackVolume" ? "volume" as AutomationType : "pan" as AutomationType,
+    scope: "track" as AutomationScope
+  };
+}
+
+function ensureAutomation(
+  automations: Automation[],
+  type: AutomationType,
+  scope: AutomationScope
+): Automation {
+  let automation = automations.find((candidate) => candidate.type === type && candidate.scope === scope);
+
+  if (!automation) {
+    automation = { type, scope, points: [] };
+    automations.push(automation);
+  }
+
+  return automation;
+}
+
+function nearestAutomationPoint(automation: Automation, tick: number) {
+  return automation.points.reduce<(typeof automation.points)[number] | null>((nearest, point) => {
+    if (!nearest || Math.abs(point.tick - tick) < Math.abs(nearest.tick - tick)) {
+      return point;
+    }
+
+    return nearest;
+  }, null);
+}
+
+function snapAutomationTick(tick: number): number {
+  return Math.max(0, Math.round(tick / TICKS_PER_QUARTER) * TICKS_PER_QUARTER);
 }
 
 export default App;

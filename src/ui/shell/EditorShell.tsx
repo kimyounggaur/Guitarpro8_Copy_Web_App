@@ -1,9 +1,12 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { beatDurationTicks, barTheoreticalTicks } from "../../model/derive";
-import type { BeatDuration, Score, SongInfo, Track } from "../../model/types";
+import { TICKS_PER_QUARTER, type AutomationPoint, type BeatDuration, type Score, type SongInfo, type Track } from "../../model/types";
 import type { CursorPosition } from "../../engine/editing/types";
+import type { EffectSlotType, EqPreset, MixerState, TrackMixerState } from "../../engine/audio/mixer";
 import type { DocumentTabState } from "../../store/documentStore";
 import type { PanelVisibility } from "../../store/preferencesStore";
+
+export type AutomationLaneId = "tempo" | "masterVolume" | "masterPan" | "trackVolume" | "trackPan";
 
 interface EditorShellProps {
   score: Score;
@@ -22,12 +25,19 @@ interface EditorShellProps {
   metronomeEnabled: boolean;
   countInEnabled: boolean;
   speedPercent: number;
+  mixer: MixerState;
   workspace: ReactNode;
   dispatchCommand: (commandId: string) => void;
   togglePanel: (panel: keyof PanelVisibility) => void;
   onSongInfoChange: (field: keyof SongInfo, value: string) => void;
   onTrackChange: (trackId: string, patch: Partial<Pick<Track, "name" | "shortName" | "color">>) => void;
   onGlobalJump: (trackId: string, barIndex: number) => void;
+  onMixerTrackChange: (trackId: string, patch: Partial<TrackMixerState>) => void;
+  onMixerEffectToggle: (trackId: string, effect: EffectSlotType) => void;
+  onMasterFocusChange: (value: number) => void;
+  onAutomationPointSet: (lane: AutomationLaneId, tick: number, value: number) => void;
+  onAutomationPointRemove: (lane: AutomationLaneId, tick: number) => void;
+  onAutomationTransitionToggle: (lane: AutomationLaneId, tick: number) => void;
 }
 
 const menuNames = [
@@ -107,6 +117,16 @@ const songFields: Array<keyof SongInfo> = [
   "notice",
   "instructions"
 ];
+const eqPresets: EqPreset[] = ["flat", "bright", "warm", "bass"];
+const effectSlotButtons: Array<[EffectSlotType, string]> = [
+  ["overdrive", "OD"],
+  ["chorus", "Cho"],
+  ["phaser", "Phs"],
+  ["delay", "Dly"],
+  ["reverb", "Rev"],
+  ["wah", "Wah"],
+  ["compressor", "Cmp"]
+];
 
 export function EditorShell(props: EditorShellProps) {
   return (
@@ -127,7 +147,18 @@ export function EditorShell(props: EditorShellProps) {
           <InspectorPanel {...props} />
         ) : null}
       </section>
-      {props.panelVisibility.globalView ? <GlobalView {...props} /> : null}
+      {props.panelVisibility.globalView || props.panelVisibility.automationView ? (
+        <section
+          className={[
+            "bottomDock",
+            props.panelVisibility.automationView ? "automationVisible" : "",
+            props.panelVisibility.globalView ? "globalVisible" : ""
+          ].join(" ")}
+        >
+          {props.panelVisibility.automationView ? <AutomationEditor {...props} /> : null}
+          {props.panelVisibility.globalView ? <GlobalView {...props} /> : null}
+        </section>
+      ) : null}
     </main>
   );
 }
@@ -167,6 +198,9 @@ function Toolbar(props: EditorShellProps) {
         </button>
         <button type="button" title="Global View F8" onClick={() => props.togglePanel("globalView")}>
           ▤
+        </button>
+        <button type="button" title="Automation F10" onClick={() => props.togglePanel("automationView")}>
+          A
         </button>
       </div>
       <div className="toolbarGroup zoomGroup">
@@ -396,6 +430,7 @@ function PaletteGroup({
 
 function InspectorPanel(props: EditorShellProps) {
   const currentTrack = props.score.tracks.find((track) => track.id === props.cursor.trackId);
+  const currentMixer = currentTrack ? props.mixer.tracks[currentTrack.id] : null;
 
   return (
     <aside className="inspectorPanel" aria-label="Inspector">
@@ -453,6 +488,40 @@ function InspectorPanel(props: EditorShellProps) {
           <button type="button" disabled>
             Interpretation
           </button>
+          {currentMixer ? (
+            <div className="soundInspector">
+              <h2>Sound</h2>
+              <select
+                value={currentMixer.eq}
+                onChange={(event) =>
+                  props.onMixerTrackChange(currentTrack.id, { eq: event.target.value as EqPreset })
+                }
+              >
+                {eqPresets.map((preset) => (
+                  <option key={preset} value={preset}>
+                    {preset}
+                  </option>
+                ))}
+              </select>
+              <div className="effectButtons">
+                {effectSlotButtons.map(([effect, label]) => {
+                  const active = currentMixer.effectChain.some((slot) => slot.type === effect);
+
+                  return (
+                    <button
+                      key={effect}
+                      type="button"
+                      className={active ? "activeToggle" : ""}
+                      title={effect}
+                      onClick={() => props.onMixerEffectToggle(currentTrack.id, effect)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
     </aside>
@@ -466,16 +535,23 @@ function GlobalView(props: EditorShellProps) {
         <button type="button" disabled>
           + Track
         </button>
+        <div className="masterStrip">
+          <strong>Master</strong>
+          <label className="mixerSlider">
+            <span>Focus</span>
+            <input
+              type="range"
+              min="-100"
+              max="100"
+              step="1"
+              value={props.mixer.master.focusPercent}
+              onChange={(event) => props.onMasterFocusChange(Number(event.target.value))}
+            />
+            <em>{props.mixer.master.focusPercent}</em>
+          </label>
+        </div>
         {props.score.tracks.map((track) => (
-          <button
-            key={track.id}
-            type="button"
-            className={track.id === props.cursor.trackId ? "activeTrack" : ""}
-            onClick={() => props.onGlobalJump(track.id, props.cursor.barIndex)}
-          >
-            <span style={{ background: track.color }} />
-            {track.shortName}
-          </button>
+          <TrackMixerStrip key={track.id} track={track} {...props} />
         ))}
       </div>
       <div className="globalGrid" style={{ gridTemplateColumns: `repeat(${props.score.masterBars.length}, 42px)` }}>
@@ -505,6 +581,292 @@ function GlobalView(props: EditorShellProps) {
   );
 }
 
+function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
+  const { track } = props;
+  const mixer = props.mixer.tracks[track.id];
+
+  if (!mixer) {
+    return (
+      <button
+        type="button"
+        className={track.id === props.cursor.trackId ? "activeTrack" : ""}
+        onClick={() => props.onGlobalJump(track.id, props.cursor.barIndex)}
+      >
+        <span style={{ background: track.color }} />
+        {track.shortName}
+      </button>
+    );
+  }
+
+  return (
+    <div className={track.id === props.cursor.trackId ? "trackMixerStrip activeTrack" : "trackMixerStrip"}>
+      <button
+        type="button"
+        className="trackSelectButton"
+        onClick={() => props.onGlobalJump(track.id, props.cursor.barIndex)}
+      >
+        <span style={{ background: track.color }} />
+        <strong>{track.shortName}</strong>
+      </button>
+      <div className="mixerButtons">
+        <button
+          type="button"
+          className={mixer.visible ? "activeToggle" : ""}
+          title="Visible"
+          onClick={() => props.onMixerTrackChange(track.id, { visible: !mixer.visible })}
+        >
+          V
+        </button>
+        <button
+          type="button"
+          className={mixer.mute ? "activeToggle" : ""}
+          title="Mute"
+          onClick={() => props.onMixerTrackChange(track.id, { mute: !mixer.mute })}
+        >
+          M
+        </button>
+        <button
+          type="button"
+          className={mixer.solo ? "activeToggle" : ""}
+          title="Solo"
+          onClick={() => props.onMixerTrackChange(track.id, { solo: !mixer.solo })}
+        >
+          S
+        </button>
+        <button
+          type="button"
+          className={mixer.volumeAutomationEnabled ? "automationActive" : ""}
+          title="Volume automation"
+          onClick={() =>
+            props.onMixerTrackChange(track.id, {
+              volumeAutomationEnabled: !mixer.volumeAutomationEnabled
+            })
+          }
+        >
+          A Vol
+        </button>
+        <button
+          type="button"
+          className={mixer.panAutomationEnabled ? "automationActive" : ""}
+          title="Pan automation"
+          onClick={() =>
+            props.onMixerTrackChange(track.id, {
+              panAutomationEnabled: !mixer.panAutomationEnabled
+            })
+          }
+        >
+          A Pan
+        </button>
+      </div>
+      <label className="mixerSlider">
+        <span>Vol</span>
+        <input
+          type="range"
+          min="0"
+          max="1.2"
+          step="0.01"
+          value={mixer.volume}
+          onChange={(event) => props.onMixerTrackChange(track.id, { volume: Number(event.target.value) })}
+        />
+        <em>{Math.round(mixer.volume * 100)}</em>
+      </label>
+      <label className="mixerSlider">
+        <span>Pan</span>
+        <input
+          type="range"
+          min="-1"
+          max="1"
+          step="0.01"
+          value={mixer.pan}
+          onChange={(event) => props.onMixerTrackChange(track.id, { pan: Number(event.target.value) })}
+        />
+        <em>{Math.round(mixer.pan * 100)}</em>
+      </label>
+      <select
+        className="mixerSelect"
+        value={mixer.eq}
+        title="EQ"
+        onChange={(event) => props.onMixerTrackChange(track.id, { eq: event.target.value as EqPreset })}
+      >
+        {eqPresets.map((preset) => (
+          <option key={preset} value={preset}>
+            {preset}
+          </option>
+        ))}
+      </select>
+      <div className="effectButtons">
+        {effectSlotButtons.map(([effect, label]) => {
+          const active = mixer.effectChain.some((slot) => slot.type === effect);
+
+          return (
+            <button
+              key={effect}
+              type="button"
+              className={active ? "activeToggle" : ""}
+              title={effect}
+              onClick={() => props.onMixerEffectToggle(track.id, effect)}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+interface AutomationLaneConfig {
+  id: AutomationLaneId;
+  label: string;
+  min: number;
+  max: number;
+  points: AutomationPoint[];
+}
+
+function AutomationEditor(props: EditorShellProps) {
+  const currentTrack = props.score.tracks.find((track) => track.id === props.cursor.trackId) ?? null;
+  const totalTicks = Math.max(
+    TICKS_PER_QUARTER,
+    props.score.masterBars.reduce((sum, masterBar) => sum + barTheoreticalTicks(masterBar), 0)
+  );
+  const lanes: AutomationLaneConfig[] = [
+    {
+      id: "tempo",
+      label: "Tempo",
+      min: 40,
+      max: 220,
+      points: automationPoints(props.score.masterAutomations, "tempo", "master")
+    },
+    {
+      id: "masterVolume",
+      label: "M Vol",
+      min: 0,
+      max: 1.2,
+      points: automationPoints(props.score.masterAutomations, "volume", "master")
+    },
+    {
+      id: "masterPan",
+      label: "M Pan",
+      min: -1,
+      max: 1,
+      points: automationPoints(props.score.masterAutomations, "pan", "master")
+    },
+    {
+      id: "trackVolume",
+      label: "T Vol",
+      min: 0,
+      max: 1.2,
+      points: currentTrack ? automationPoints(currentTrack.automations, "volume", "track") : []
+    },
+    {
+      id: "trackPan",
+      label: "T Pan",
+      min: -1,
+      max: 1,
+      points: currentTrack ? automationPoints(currentTrack.automations, "pan", "track") : []
+    }
+  ];
+
+  return (
+    <section className="automationEditor" aria-label="Automation editor">
+      {lanes.map((lane) => (
+        <div key={lane.id} className="automationRow">
+          <strong>{lane.label}</strong>
+          <div
+            className="automationLane"
+            role="button"
+            tabIndex={0}
+            onClick={(event) => handleAutomationLaneClick(event, lane, totalTicks, props)}
+          >
+            {lane.points.map((point, index) => (
+              <button
+                key={`${lane.id}-${point.tick}-${index}`}
+                type="button"
+                className={`automationPoint ${point.transition}`}
+                style={{
+                  left: `${pointLeft(point.tick, totalTicks)}%`,
+                  top: `${pointTop(normalizeAutomationPointValue(lane.id, point.value), lane)}%`
+                }}
+                title={`${lane.label} ${formatAutomationValue(lane.id, point.value)} ${point.transition}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+
+                  if (event.shiftKey) {
+                    props.onAutomationPointRemove(lane.id, point.tick);
+                  } else {
+                    props.onAutomationTransitionToggle(lane.id, point.tick);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function handleAutomationLaneClick(
+  event: MouseEvent<HTMLDivElement>,
+  lane: AutomationLaneConfig,
+  totalTicks: number,
+  props: EditorShellProps
+): void {
+  const bounds = event.currentTarget.getBoundingClientRect();
+  const xRatio = clamp((event.clientX - bounds.left) / Math.max(1, bounds.width), 0, 1);
+  const yRatio = clamp((event.clientY - bounds.top) / Math.max(1, bounds.height), 0, 1);
+  const tick = xRatio * totalTicks;
+  const value = roundAutomationValue(lane.id, lane.min + (1 - yRatio) * (lane.max - lane.min));
+
+  props.onAutomationPointSet(lane.id, tick, value);
+}
+
+function automationPoints(
+  automations: Score["masterAutomations"],
+  type: "tempo" | "volume" | "pan",
+  scope: "master" | "track"
+): AutomationPoint[] {
+  return automations.find((automation) => automation.type === type && automation.scope === scope)?.points ?? [];
+}
+
+function pointLeft(tick: number, totalTicks: number): number {
+  return clamp((tick / totalTicks) * 100, 0, 100);
+}
+
+function pointTop(value: number, lane: AutomationLaneConfig): number {
+  return clamp(100 - ((value - lane.min) / (lane.max - lane.min)) * 100, 0, 100);
+}
+
+function normalizeAutomationPointValue(lane: AutomationLaneId, value: number): number {
+  if (lane === "tempo") {
+    return value;
+  }
+
+  if (lane === "masterVolume" || lane === "trackVolume") {
+    return value > 1.6 ? value / 100 : value;
+  }
+
+  return Math.abs(value) > 1 ? value / 100 : value;
+}
+
+function roundAutomationValue(lane: AutomationLaneId, value: number): number {
+  if (lane === "tempo") {
+    return Math.round(value);
+  }
+
+  return Math.round(value * 100) / 100;
+}
+
+function formatAutomationValue(lane: AutomationLaneId, value: number): string {
+  const normalized = normalizeAutomationPointValue(lane, value);
+
+  if (lane === "tempo") {
+    return `${Math.round(normalized)} bpm`;
+  }
+
+  return `${Math.round(normalized * 100)}`;
+}
+
 function currentLcdStatus(score: Score, cursor: CursorPosition) {
   const track = score.tracks.find((candidate) => candidate.id === cursor.trackId);
   const voice = track?.bars[cursor.barIndex]?.voices[cursor.voiceIndex];
@@ -520,4 +882,8 @@ function currentLcdStatus(score: Score, cursor: CursorPosition) {
     issue,
     title: issue ? `Voice ${cursor.voiceIndex + 1}: ${actual}/${expected}` : "Bar duration ok"
   };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

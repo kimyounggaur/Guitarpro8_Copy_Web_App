@@ -63,8 +63,21 @@ export class PlaybackScheduler {
       } catch {
         // Already stopped by the audio graph.
       }
-      voice.oscillator.disconnect();
-      voice.gain.disconnect();
+      voice.modulators.forEach((modulator) => {
+        try {
+          modulator.stop();
+        } catch {
+          // Already stopped by the audio graph.
+        }
+        modulator.disconnect();
+      });
+      voice.nodes.forEach((node) => {
+        try {
+          node.disconnect();
+        } catch {
+          // Already disconnected by the audio graph.
+        }
+      });
     });
     this.scheduled = [];
     this.synth?.dispose();
@@ -113,7 +126,11 @@ export class PlaybackScheduler {
 
       if (event.timeSec + event.durationSec >= playbackSec - 0.02) {
         const when = this.startAudioTime + event.timeSec - this.startSec;
-        this.scheduled.push(this.synth.trigger(event, Math.max(this.context.currentTime, when)));
+        const voice = this.synth.trigger(event, Math.max(this.context.currentTime, when));
+
+        if (voice) {
+          this.scheduled.push(voice);
+        }
       }
 
       this.nextEventIndex += 1;

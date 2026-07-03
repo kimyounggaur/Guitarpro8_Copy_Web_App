@@ -17,7 +17,7 @@ const bassPattern = [
 
 export function createDemoScore(): Score {
   const score = createEmptyScore();
-  score.meta.title = "Phase 6 Playback Engine Demo";
+  score.meta.title = "Phase 7 Audio Mixer Demo";
   score.masterBars = Array.from({ length: 11 }, () => createMasterBar());
   applyPhase5MasterSymbols(score);
   score.masterBars[3].layout.forcedBreak = true;
@@ -30,6 +30,24 @@ export function createDemoScore(): Score {
         { tick: 0, value: 120, transition: "constant" },
         { tick: 3840, value: 144, transition: "progressive" },
         { tick: 7680, value: 108, transition: "constant" }
+      ]
+    },
+    {
+      type: "volume",
+      scope: "master",
+      points: [
+        { tick: 0, value: 0.95, transition: "constant" },
+        { tick: 3840, value: 1.08, transition: "progressive" },
+        { tick: 7680, value: 0.86, transition: "progressive" }
+      ]
+    },
+    {
+      type: "pan",
+      scope: "master",
+      points: [
+        { tick: 0, value: 0, transition: "constant" },
+        { tick: 5760, value: 0.08, transition: "progressive" },
+        { tick: 9600, value: -0.08, transition: "progressive" }
       ]
     }
   ];
@@ -53,6 +71,44 @@ export function createDemoScore(): Score {
   bass.notationTypes = ["standard", "tab"];
 
   score.tracks = [guitar, bass];
+  guitar.automations = [
+    {
+      type: "volume",
+      scope: "track",
+      points: [
+        { tick: 0, value: 0.88, transition: "constant" },
+        { tick: 3840, value: 1.12, transition: "progressive" },
+        { tick: 7680, value: 0.82, transition: "progressive" }
+      ]
+    },
+    {
+      type: "pan",
+      scope: "track",
+      points: [
+        { tick: 0, value: -0.18, transition: "constant" },
+        { tick: 3840, value: 0.18, transition: "progressive" }
+      ]
+    }
+  ];
+  bass.automations = [
+    {
+      type: "volume",
+      scope: "track",
+      points: [
+        { tick: 0, value: 0.9, transition: "constant" },
+        { tick: 5760, value: 0.72, transition: "progressive" },
+        { tick: 9600, value: 1.02, transition: "progressive" }
+      ]
+    },
+    {
+      type: "pan",
+      scope: "track",
+      points: [
+        { tick: 0, value: 0.14, transition: "constant" },
+        { tick: 5760, value: -0.16, transition: "progressive" }
+      ]
+    }
+  ];
   guitar.bars = guitarDemoBars(guitar.id);
   bass.bars = bassDemoBars(score.masterBars.length);
 
