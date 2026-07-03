@@ -1,0 +1,160 @@
+:root {
+  color: #e8edf2;
+  background: #181d22;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 1024px;
+  min-height: 768px;
+  margin: 0;
+}
+
+button {
+  min-height: 36px;
+  border: 1px solid #4b6073;
+  border-radius: 6px;
+  padding: 0 14px;
+  color: #f4f7fa;
+  background: #2d3b47;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #3a4c5a;
+}
+
+.appShell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, #20272e 0%, #171b20 100%),
+    #181d22;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 56px;
+  border-right: 1px solid #303b45;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: #79d4be;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 720px;
+  margin-bottom: 28px;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 18px;
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 12px;
+  max-width: 780px;
+}
+
+.statusGrid span {
+  display: grid;
+  gap: 8px;
+  min-height: 82px;
+  border: 1px solid #3b4852;
+  border-radius: 8px;
+  padding: 14px;
+  background: #202831;
+}
+
+.statusGrid strong {
+  color: #9eacb8;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.debugPanel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 24px;
+  background: #11161b;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.commandMessage {
+  min-height: 40px;
+  margin: 18px 0;
+  border: 1px solid #34424e;
+  border-radius: 8px;
+  padding: 12px;
+  color: #b7c5d1;
+  background: #1b2229;
+}
+
+.commandList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.commandList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  border: 1px solid #303d47;
+  border-radius: 8px;
+  padding: 12px;
+  background: #182029;
+}
+
+.commandList span {
+  display: grid;
+  gap: 4px;
+}
+
+.commandList small {
+  color: #91a1ae;
+}
+
+.commandList em {
+  color: #79d4be;
+  font-size: 12px;
+  font-style: normal;
+}
