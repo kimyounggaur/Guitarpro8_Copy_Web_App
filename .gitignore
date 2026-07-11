@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.tmp/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+*.local
+
+.vercel
+.env*

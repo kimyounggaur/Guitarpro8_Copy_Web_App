@@ -1,0 +1,1386 @@
+:root {
+  color: #e8edf2;
+  background: #151613;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+@font-face {
+  font-family: "Bravura";
+  src: local("Bravura");
+  font-display: swap;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 1024px;
+  min-height: 768px;
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  min-height: 30px;
+  border: 1px solid #4a4f47;
+  border-radius: 6px;
+  color: #edf3f6;
+  background: #252923;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: #6fb99f;
+  background: #30382f;
+}
+
+button:disabled {
+  color: #7f8a91;
+  cursor: default;
+  opacity: 0.72;
+}
+
+.gpShell {
+  position: relative;
+  display: grid;
+  grid-template-rows: 32px 54px 38px minmax(0, 1fr) minmax(220px, 30vh);
+  height: 100vh;
+  min-height: 768px;
+  background: #171815;
+}
+
+.menuBar,
+.toolbar,
+.tabBar,
+.palettePanel,
+.inspectorPanel,
+.globalView {
+  border-color: #383b34;
+  background: #20211d;
+}
+
+.menuBar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-bottom: 1px solid #34372f;
+  padding: 0 8px;
+}
+
+.menuBar button {
+  min-height: 24px;
+  border-color: transparent;
+  padding: 0 10px;
+  background: transparent;
+  font-size: 13px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border-bottom: 1px solid #3c4037;
+  padding: 7px 10px;
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: max-content;
+  border-right: 1px solid #3c4037;
+  padding-right: 8px;
+}
+
+.transportLegacy,
+.utilityLegacy {
+  display: none;
+}
+
+.playbackTools {
+  gap: 6px;
+}
+
+.playbackReadout {
+  min-width: 92px;
+  color: #cfe3dc;
+  font-size: 12px;
+}
+
+.activeToggle {
+  border-color: #84d1b6;
+  color: #f6fffb;
+  background: #1f4a3d;
+}
+
+.toolbarGroup button,
+.paletteButtons button {
+  width: 32px;
+  padding: 0;
+}
+
+.homeGroup button {
+  width: 42px;
+  font-size: 0;
+}
+
+.homeGroup button::after {
+  content: "File";
+  font-size: 13px;
+}
+
+.utilityGroup button {
+  width: auto;
+  min-width: 42px;
+  padding: 0 8px;
+}
+
+.toolLaunchGroup button {
+  width: auto;
+  min-width: 42px;
+  padding: 0 8px;
+}
+
+.playbackTools button {
+  width: auto;
+  min-width: 32px;
+  padding: 0 8px;
+}
+
+.zoomGroup,
+.displayGroup {
+  display: none;
+}
+
+.liveZoomGroup span {
+  min-width: 48px;
+  color: #cfe3dc;
+  text-align: center;
+  font-size: 13px;
+}
+
+.liveDisplayGroup button {
+  width: auto;
+  min-width: 34px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+
+.printGroup {
+  container-type: inline-size;
+}
+
+.lcd {
+  display: grid;
+  grid-template-columns: 10px minmax(52px, auto) auto auto 28px 28px 28px;
+  align-items: center;
+  gap: 8px;
+  min-width: 310px;
+  border: 1px solid #4b5548;
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #dbe8e4;
+  background: #151814;
+  font-size: 13px;
+}
+
+.trackColor {
+  width: 10px;
+  height: 28px;
+  border-radius: 3px;
+}
+
+.lcdWarning {
+  color: #f87171;
+}
+
+.utilityGroup {
+  overflow: hidden;
+  flex: 1;
+}
+
+.utilityGroup button:nth-last-child(-n + 3),
+.printGroup {
+  display: none;
+}
+
+.tabBar {
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  overflow: hidden;
+  border-bottom: 1px solid #383b34;
+  padding: 6px 10px 0;
+}
+
+.tabBar button {
+  min-width: 150px;
+  max-width: 260px;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  padding: 0 12px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabBar .activeTab {
+  border-color: #6fb99f;
+  border-bottom-color: #242722;
+  background: #242722;
+}
+
+.tabBar .tabAdd {
+  min-width: 34px;
+  text-align: center;
+}
+
+.commandPalette {
+  position: absolute;
+  z-index: 28;
+  top: 124px;
+  left: 226px;
+  right: 300px;
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #4f625d;
+  border-radius: 8px;
+  background: #171c1a;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+.commandPaletteInputRow {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 58px 30px;
+  gap: 6px;
+  align-items: center;
+  border-bottom: 1px solid #34413d;
+  padding: 8px;
+  background: #202723;
+}
+
+.commandPrompt {
+  display: grid;
+  place-items: center;
+  min-height: 30px;
+  border: 1px solid #3f514b;
+  border-radius: 5px;
+  color: #9fd9c6;
+  background: #121715;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.commandPalette input {
+  min-width: 0;
+  height: 32px;
+  border: 1px solid #4b5c56;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #f3faf7;
+  background: #0f1311;
+  outline: none;
+}
+
+.commandPalette input:focus {
+  border-color: #84d1b6;
+  box-shadow: 0 0 0 2px rgba(132, 209, 182, 0.18);
+}
+
+.commandPaletteInputRow button {
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.commandSuggestionList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  max-height: 250px;
+  overflow: auto;
+  background: #2f3a35;
+}
+
+.commandSuggestion {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.46fr) minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 34px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 9px;
+  color: #edf3f6;
+  background: #171c1a;
+  text-align: left;
+}
+
+.commandSuggestion strong,
+.commandSuggestion span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commandSuggestion strong {
+  color: #9fd9c6;
+  font-size: 12px;
+}
+
+.commandSuggestion span {
+  color: #cbd8d4;
+  font-size: 12px;
+}
+
+.commandSuggestion em {
+  color: #7fbdf4;
+  font-style: normal;
+  text-align: right;
+}
+
+.commandSuggestion.selectedSuggestion {
+  background: #123a57;
+}
+
+.commandSuggestion.selectedSuggestion strong {
+  color: #d7f8ff;
+}
+
+.commandSuggestion.disabledSuggestion {
+  color: #77817e;
+  background: #151817;
+}
+
+.commandUsageBar,
+.commandPatternPreview {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid #23425c;
+  padding: 7px 10px;
+  color: #dbe8e4;
+  background: #102b40;
+  font-size: 12px;
+}
+
+.commandUsageBar strong {
+  color: #9fd9c6;
+}
+
+.commandPatternPreview {
+  grid-template-columns: minmax(0, 1fr);
+  border-top-color: #34413d;
+  color: #f7c75f;
+  background: #151814;
+}
+
+.gpMain {
+  display: grid;
+  grid-template-columns: 214px minmax(0, 1fr) 286px;
+  min-height: 0;
+}
+
+.gpMain.paletteHidden {
+  grid-template-columns: minmax(0, 1fr) 286px;
+}
+
+.gpMain.inspectorHidden {
+  grid-template-columns: 214px minmax(0, 1fr);
+}
+
+.gpMain.paletteHidden.inspectorHidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.palettePanel,
+.inspectorPanel {
+  overflow: auto;
+  min-width: 0;
+  border-right: 1px solid #383b34;
+}
+
+.inspectorPanel {
+  border-right: 0;
+  border-left: 1px solid #383b34;
+}
+
+.paletteGroup,
+.inspectorPanel section {
+  border-bottom: 1px solid #33372f;
+  padding: 10px;
+}
+
+.paletteGroup h2,
+.inspectorPanel h2 {
+  margin: 0 0 8px;
+  color: #9fd9c6;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.paletteButtons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.paletteButtons button {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.05;
+  font-size: 11px;
+}
+
+.paletteButtons .modeButton {
+  border-color: #5ca6ff;
+  background: #1f3d54;
+}
+
+.workspacePanel {
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  background: #11120f;
+}
+
+.scoreViewport {
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid #3b392f;
+  border-radius: 8px;
+  padding: 18px;
+  background: #0d0e0c;
+  outline: none;
+}
+
+.scoreViewport:focus {
+  border-color: #84d1b6;
+  box-shadow: 0 0 0 2px rgba(132, 209, 182, 0.18);
+}
+
+.scorePages {
+  display: grid;
+  gap: 22px;
+  justify-content: center;
+  width: max-content;
+  min-width: 100%;
+}
+
+.scorePage {
+  max-width: none;
+  height: auto;
+  border-radius: 2px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.38);
+  background: #fbfaf7;
+  flex: 0 0 auto;
+}
+
+.scorePages.display-horizontal-page,
+.scorePages.display-horizontal-screen {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.scorePages.display-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, max-content));
+  justify-content: start;
+}
+
+.scorePages.display-parchment,
+.scorePages.display-vertical-screen {
+  justify-content: start;
+}
+
+.scorePages.display-parchment .scorePage,
+.scorePages.display-vertical-screen .scorePage,
+.scorePages.display-horizontal-screen .scorePage {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.inspectorPanel label {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+  color: #aab7be;
+  font-size: 12px;
+}
+
+.inspectorPanel input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #43483f;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #edf3f6;
+  background: #151814;
+}
+
+.inspectorPanel select,
+.mixerSelect,
+.soundInspector select {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #43483f;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #edf3f6;
+  background: #151814;
+}
+
+.notationChecks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.notationChecks label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.inspectorPanel p {
+  margin: 8px 0;
+  color: #d49a5d;
+  font-size: 13px;
+}
+
+.inspectorButtonRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.inspectorButtonRow button {
+  min-width: 0;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.bottomDock {
+  display: grid;
+  min-height: 0;
+  border-top: 1px solid #383b34;
+  background: #20211d;
+}
+
+.bottomDock.globalVisible.automationVisible {
+  grid-template-columns: minmax(310px, 34%) minmax(0, 1fr);
+}
+
+.bottomDock.globalVisible:not(.automationVisible),
+.bottomDock.automationVisible:not(.globalVisible) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.globalView {
+  display: grid;
+  grid-template-columns: 326px minmax(0, 1fr);
+  min-height: 108px;
+  min-width: 0;
+  border-top: 0;
+}
+
+.globalTracks {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  overflow: auto;
+  border-right: 1px solid #383b34;
+  padding: 8px;
+}
+
+.globalTracks button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  padding: 0 10px;
+}
+
+.globalTracks .activeTrack {
+  border-color: #6fb99f;
+}
+
+.globalModeBadge {
+  display: block;
+  border: 1px solid #3b4037;
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: #9fd9c6;
+  background: #151814;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.masterStrip,
+.trackMixerStrip {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #3b4037;
+  border-radius: 6px;
+  padding: 8px;
+  background: #181b17;
+}
+
+.masterStrip strong {
+  color: #d9ebe4;
+  font-size: 12px;
+}
+
+.trackMixerStrip.activeTrack {
+  border-color: #6fb99f;
+  box-shadow: inset 0 0 0 1px rgba(111, 185, 159, 0.22);
+}
+
+.trackSelectButton {
+  width: 100%;
+  min-width: 0;
+}
+
+.mixerButtons,
+.effectButtons {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.effectButtons {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.mixerButtons button,
+.effectButtons button {
+  justify-content: center;
+  min-width: 0;
+  min-height: 26px;
+  padding: 0 3px;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.automationActive {
+  border-color: #f7c75f;
+  color: #fff4cf;
+  background: #4b3916;
+}
+
+.mixerSlider {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 6px;
+  color: #c6d4d1;
+  font-size: 11px;
+}
+
+.mixerSlider input {
+  width: 100%;
+  accent-color: #6fb99f;
+}
+
+.mixerSlider em {
+  color: #edf3f6;
+  font-style: normal;
+  text-align: right;
+}
+
+.soundInspector {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.globalTracks span:not(.globalModeBadge),
+.globalCell span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.globalGrid {
+  display: grid;
+  grid-auto-rows: 28px;
+  align-content: start;
+  gap: 4px;
+  overflow: auto;
+  padding: 8px;
+}
+
+.globalHeader {
+  color: #9fb0b9;
+  font-size: 11px;
+  text-align: center;
+}
+
+.globalCell {
+  min-height: 24px;
+  border-radius: 4px;
+  padding: 0;
+  background: #151814;
+}
+
+.globalCell.activeCell {
+  border-color: #facc15;
+  background: #2b2715;
+}
+
+.automationEditor {
+  display: grid;
+  grid-template-rows: repeat(5, minmax(30px, 1fr));
+  gap: 5px;
+  overflow: hidden;
+  min-width: 0;
+  border-right: 1px solid #383b34;
+  padding: 8px;
+  background: #1a1c18;
+}
+
+.automationRow {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.automationRow strong {
+  color: #cfe3dc;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.automationLane {
+  position: relative;
+  min-height: 28px;
+  border: 1px solid #3d453c;
+  border-radius: 5px;
+  background:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px) 0 0 / 25% 100%,
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 50% / 100% 50%,
+    #111410;
+  cursor: crosshair;
+}
+
+.automationPoint {
+  position: absolute;
+  width: 12px;
+  min-width: 12px;
+  min-height: 12px;
+  height: 12px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 2px solid #fbf4d0;
+  border-radius: 50%;
+  background: #6fb99f;
+}
+
+.automationPoint.progressive {
+  background: #f7c75f;
+}
+
+.toolPanel,
+.trackSystemPanel,
+.stylesheetPanel,
+.fileIoPanel {
+  position: absolute;
+  z-index: 20;
+  top: 92px;
+  left: 226px;
+  right: 300px;
+  display: grid;
+  grid-template-rows: 34px minmax(0, 1fr);
+  max-height: min(560px, calc(100vh - 150px));
+  border: 1px solid #566254;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1d201b;
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.42);
+}
+
+.trackSystemPanel {
+  z-index: 22;
+  left: 248px;
+  right: 324px;
+}
+
+.stylesheetPanel {
+  z-index: 24;
+  grid-template-rows: 34px 42px minmax(0, 1fr);
+  left: 220px;
+  right: 280px;
+}
+
+.fileIoPanel {
+  z-index: 26;
+  grid-template-rows: 34px minmax(0, 1fr) 34px;
+  left: 220px;
+  right: 280px;
+}
+
+.toolPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #394037;
+  padding: 0 10px;
+  color: #dbe8e4;
+  background: #242821;
+}
+
+.toolPanelHeader button {
+  width: 28px;
+  min-height: 24px;
+  padding: 0;
+}
+
+.fileIoBody {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1.2fr;
+  gap: 10px;
+  overflow: auto;
+  padding: 10px;
+  background: #171a16;
+}
+
+.fileIoColumn {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid #384136;
+  border-radius: 8px;
+  padding: 10px;
+  background: #20241e;
+}
+
+.fileIoColumn h2 {
+  margin: 0;
+  color: #edf3f6;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fileIoColumn p {
+  overflow: hidden;
+  margin: 0;
+  color: #b8c5c1;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileIoColumn > button,
+.fileButtonGrid button {
+  display: grid;
+  justify-items: start;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.fileIoColumn button span {
+  color: #9aa8a4;
+  font-size: 11px;
+}
+
+.fileButtonGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.fileDirtyBadge,
+.fileCleanBadge {
+  width: fit-content;
+  border: 1px solid #4c584a;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #edf3f6;
+  font-size: 11px;
+}
+
+.fileDirtyBadge {
+  border-color: #8a7047;
+  background: #3b3020;
+}
+
+.fileCleanBadge {
+  background: #22362e;
+}
+
+.fileIoStatus {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-top: 1px solid #394037;
+  padding: 0 10px;
+  color: #b8c5c1;
+  background: #20241e;
+  font-size: 12px;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.stylesheetTabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  overflow: auto;
+  border-bottom: 1px solid #394037;
+  padding: 6px 8px;
+  background: #181b17;
+}
+
+.stylesheetTabs button {
+  width: auto;
+  min-width: 72px;
+  padding: 0 10px;
+}
+
+.stylesheetBody {
+  overflow: auto;
+  min-width: 0;
+  padding: 10px;
+}
+
+.styleFormGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  gap: 9px;
+  align-content: start;
+}
+
+.wideStyleGrid {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+}
+
+.styleField {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: #aab7be;
+  font-size: 12px;
+}
+
+.styleField input,
+.styleField select {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #43483f;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #edf3f6;
+  background: #111410;
+}
+
+.styleField input[type="color"] {
+  padding: 2px;
+}
+
+.styleCheck {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  color: #c6d4d1;
+  font-size: 12px;
+}
+
+.styleCheck input {
+  width: 16px;
+  height: 16px;
+  accent-color: #6fb99f;
+}
+
+.presetButtons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.presetButtons button,
+.stylesheetBody > .styleFormGrid > button {
+  width: auto;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.toolGrid {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(220px, 1fr) minmax(260px, 1.2fr);
+  gap: 10px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.trackWizardGrid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.75fr) minmax(210px, 0.9fr) minmax(260px, 1.1fr);
+  gap: 10px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.instrumentTool,
+.tunerTool,
+.transposeTool,
+.cleanupTool {
+  grid-template-columns: minmax(170px, 0.6fr) minmax(0, 1.4fr);
+}
+
+.toolColumn {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.toolColumn label {
+  display: grid;
+  gap: 4px;
+  color: #aab7be;
+  font-size: 12px;
+}
+
+.toolColumn input,
+.toolColumn select {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #43483f;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #edf3f6;
+  background: #111410;
+}
+
+.toolButtonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.toolButtonRow button,
+.toolColumn > button {
+  width: auto;
+  min-width: 58px;
+  padding: 0 8px;
+}
+
+.instrumentList,
+.drumList {
+  display: grid;
+  gap: 6px;
+  max-height: 388px;
+  overflow: auto;
+}
+
+.instrumentList button,
+.drumList button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.instrumentList span,
+.drumList span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instrumentList em,
+.drumList em {
+  color: #aab7be;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.tuningEditor {
+  display: grid;
+  gap: 6px;
+}
+
+.tuningEditor label {
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: center;
+}
+
+.tuningEditor em {
+  color: #d9ebe4;
+  font-size: 12px;
+  font-style: normal;
+  text-align: right;
+}
+
+.capoPreview {
+  display: grid;
+  gap: 4px;
+  min-height: 34px;
+  align-items: end;
+}
+
+.capoPreview span {
+  display: grid;
+  place-items: center;
+  min-height: 28px;
+  border: 1px solid #465047;
+  border-radius: 4px;
+  color: #dbe8e4;
+  background: #151814;
+  font-size: 12px;
+}
+
+.capoPreview .partialCapo {
+  border-color: #f7c75f;
+  color: #fff4cf;
+  background: #4b3916;
+}
+
+.voicePanel,
+.drumPanel {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.6fr) minmax(260px, 1fr);
+  gap: 10px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.voiceGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.voiceGrid button {
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.drumStaffPreview {
+  display: grid;
+  grid-template-rows: repeat(18, 12px);
+  grid-auto-flow: column;
+  gap: 3px;
+  align-items: center;
+  min-height: 228px;
+  border: 1px solid #3d453c;
+  border-radius: 6px;
+  padding: 8px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 23px, rgba(255, 255, 255, 0.08) 23px 24px),
+    #111410;
+}
+
+.drumStaffPreview button {
+  width: 28px;
+  min-width: 28px;
+  min-height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 11px;
+}
+
+.toolMeta,
+.toolWarning {
+  margin: 0;
+  color: #d49a5d;
+  font-size: 12px;
+}
+
+.toolWarning {
+  color: #f87171;
+}
+
+.voicingList,
+.scaleList,
+.reportList,
+.matchList {
+  display: grid;
+  gap: 5px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.voicingList button,
+.scaleList button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.voicingList em {
+  color: #aab7be;
+  font-style: normal;
+}
+
+.chordDiagram,
+.fretboardGrid {
+  display: grid;
+  gap: 3px;
+  align-items: center;
+  min-width: 0;
+}
+
+.chordDiagram strong,
+.chordDiagram em,
+.fretboardGrid strong,
+.fretboardGrid em {
+  color: #aab7be;
+  font-size: 11px;
+  font-style: normal;
+  text-align: center;
+}
+
+.chordDiagram span {
+  min-height: 22px;
+  border: 1px solid #3a4339;
+  border-radius: 4px;
+  background: #111410;
+}
+
+.chordDiagram .diagramDot {
+  border-color: #f7c75f;
+  background: #6fb99f;
+}
+
+.fretCell {
+  min-width: 0;
+  min-height: 26px;
+  padding: 0;
+  justify-content: center;
+  color: #6f7f78;
+  font-size: 10px;
+}
+
+.fretCell.scaleCell {
+  border-color: #526a63;
+  color: #d9ebe4;
+  background: #20302c;
+}
+
+.fretCell.rootCell {
+  border-color: #f7c75f;
+  color: #fff8d7;
+  background: #4b3916;
+}
+
+.fretCell.activeFret {
+  border-color: #84d1b6;
+  box-shadow: inset 0 0 0 2px rgba(132, 209, 182, 0.45);
+}
+
+.fretboardLefty .fretboardGrid {
+  direction: rtl;
+}
+
+.fretboardLefty .fretboardGrid > * {
+  direction: ltr;
+}
+
+.matchList span,
+.reportList span {
+  min-height: 24px;
+  border: 1px solid #394037;
+  border-radius: 5px;
+  padding: 4px 7px;
+  color: #dbe8e4;
+  background: #141712;
+  font-size: 12px;
+}
+
+.tuningBars {
+  gap: 6px;
+}
+
+.tuningTarget {
+  display: grid;
+  grid-template-columns: 28px 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: #c6d4d1;
+  font-size: 12px;
+}
+
+.tuningTarget meter {
+  width: 100%;
+}
+
+.activeTarget {
+  color: #f7c75f;
+}
+
+.tunerGood {
+  color: #84d1b6;
+}
+
+.tunerNear {
+  color: #f7c75f;
+}
+
+.toolCheck {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 7px;
+}
+
+.toolCheck input {
+  width: 16px;
+  height: 16px;
+}
+
+.transposeMatrix {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (min-width: 1280px) {
+  .printGroup,
+  .utilityGroup button:nth-last-child(-n + 3) {
+    display: flex;
+  }
+}
