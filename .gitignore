@@ -8,3 +8,13 @@ vite.config.d.ts
 
 .vercel
 .env*
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Local-only Guitar Pro 8 reference screenshots (never distributable, see docs/ui-remaster)
+reference-ui/
+visual-overlays/

@@ -191,7 +191,7 @@ const displayModeButtons: Array<[DisplayMode, string, string]> = [
 
 export function EditorShell(props: EditorShellProps) {
   return (
-    <main className="gpShell">
+    <main className="gpShell" data-testid="gp-shell">
       <MenuBar />
       <Toolbar {...props} />
       <TabBar documents={props.documents} activeId={props.activeId} />
@@ -240,7 +240,7 @@ export function EditorShell(props: EditorShellProps) {
             onToggleMultiVoice={props.onToggleMultiVoice}
           />
         ) : null}
-        <section className="workspacePanel">{props.workspace}</section>
+        <section className="workspacePanel" data-testid="workspace-panel">{props.workspace}</section>
         {props.panelVisibility.songInspector || props.panelVisibility.trackInspector ? (
           <InspectorPanel {...props} />
         ) : null}
@@ -252,6 +252,7 @@ export function EditorShell(props: EditorShellProps) {
             props.panelVisibility.automationView ? "automationVisible" : "",
             props.panelVisibility.globalView ? "globalVisible" : ""
           ].join(" ")}
+          data-testid="bottom-dock"
         >
           {props.panelVisibility.automationView ? <AutomationEditor {...props} /> : null}
           {props.panelVisibility.globalView ? <GlobalView {...props} /> : null}
@@ -348,7 +349,12 @@ function Toolbar(props: EditorShellProps) {
         >
           Kit
         </button>
-        <button type="button" title={titleWithShortcut("Command Palette", "tools.commandPalette", props.platform)} onClick={() => props.onCommandPaletteOpen()}>
+        <button
+          type="button"
+          title={titleWithShortcut("Command Palette", "tools.commandPalette", props.platform)}
+          data-testid="command-palette-open"
+          onClick={() => props.onCommandPaletteOpen()}
+        >
           Cmd
         </button>
         <button type="button" title={titleWithShortcut("Score Stylesheet", "view.stylesheet", props.platform)} onClick={props.onStylesheetPanelOpen}>
@@ -431,7 +437,12 @@ function Toolbar(props: EditorShellProps) {
         <button type="button" title="Previous bar Ctrl+Left" onClick={() => props.dispatchCommand("playback.previousBar")}>
           &lt;
         </button>
-        <button type="button" title="Play / stop Space" onClick={() => props.dispatchCommand("playback.toggle")}>
+        <button
+          type="button"
+          title="Play / stop Space"
+          data-testid="transport-play-stop"
+          onClick={() => props.dispatchCommand("playback.toggle")}
+        >
           {props.playbackStatus === "playing" ? "Stop" : "Play"}
         </button>
         <button type="button" title="Next bar Ctrl+Right" onClick={() => props.dispatchCommand("playback.nextBar")}>
@@ -506,15 +517,20 @@ function TabBar({
   activeId
 }: Pick<EditorShellProps, "documents" | "activeId">) {
   return (
-    <div className="tabBar" aria-label="Open documents">
+    <div className="tabBar" aria-label="Open documents" data-testid="tab-bar">
       {documents.map((document) => (
-        <button key={document.id} type="button" className={document.id === activeId ? "activeTab" : ""}>
+        <button
+          key={document.id}
+          type="button"
+          className={document.id === activeId ? "activeTab" : ""}
+          data-testid="document-tab"
+        >
           {document.locked ? "L " : ""}
           {document.title}
           {document.dirty ? " ●" : ""}
         </button>
       ))}
-      <button type="button" className="tabAdd">
+      <button type="button" className="tabAdd" data-testid="tab-add">
         +
       </button>
     </div>
@@ -529,7 +545,7 @@ function EditionPalette({
   onToggleMultiVoice
 }: Pick<EditorShellProps, "dispatchCommand" | "cursor" | "multiVoiceEdit" | "onVoiceSelect" | "onToggleMultiVoice">) {
   return (
-    <aside className="palettePanel" aria-label="Edition palette">
+    <aside className="palettePanel" aria-label="Edition palette" data-testid="palette-panel">
       <PaletteGroup title="Voices">
         {[1, 2, 3, 4].map((voice) => (
           <button
@@ -641,7 +657,7 @@ function InspectorPanel(props: EditorShellProps) {
   const currentMixer = currentTrack ? props.mixer.tracks[currentTrack.id] : null;
 
   return (
-    <aside className="inspectorPanel" aria-label="Inspector">
+    <aside className="inspectorPanel" aria-label="Inspector" data-testid="inspector-panel">
       {props.panelVisibility.songInspector ? (
         <section>
           <h2>Song</h2>

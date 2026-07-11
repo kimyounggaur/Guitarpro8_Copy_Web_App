@@ -161,11 +161,12 @@ export function CommandPalette({
   }
 
   return (
-    <section className="commandPalette" aria-label="Command palette">
+    <section className="commandPalette" aria-label="Command palette" data-testid="command-palette">
       <div className="commandPaletteInputRow">
         <span className="commandPrompt">{parsePaletteInput(value).prefix}</span>
         <input
           ref={inputRef}
+          data-testid="command-palette-input"
           value={value}
           placeholder={COMMAND_PALETTE_PLACEHOLDER}
           onChange={(event) => setValue(event.target.value)}

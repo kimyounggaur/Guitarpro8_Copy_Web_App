@@ -7,7 +7,10 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run --config vitest.config.ts",
-    "test:watch": "vitest --config vitest.config.ts"
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:e2e": "playwright test --project=chromium",
+    "test:visual": "playwright test --project=visual-1024x768 --project=visual-1280x768 --project=visual-1440x900 --project=visual-1920x1080",
+    "test:visual:update": "playwright test --project=visual-1024x768 --project=visual-1280x768 --project=visual-1440x900 --project=visual-1920x1080 --update-snapshots"
   },
   "dependencies": {
     "immer": "^10.1.1",
@@ -16,6 +19,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",

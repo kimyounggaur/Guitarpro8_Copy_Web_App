@@ -1,0 +1,16 @@
+/**
+ * Screenshot stabilization for `?testMode=visual`. Scoped to
+ * `[data-testmode="visual"]` (set by src/test/testMode.ts) so it never
+ * affects the real product. Disables animation/transition/caret timing
+ * only — it must not hide or resize any layout, per the playbook's ban on
+ * "숨기거나 왜곡" screenshot CSS.
+ */
+[data-testmode="visual"],
+[data-testmode="visual"] * {
+  animation-duration: 0ms !important;
+  animation-delay: 0ms !important;
+  transition-duration: 0ms !important;
+  transition-delay: 0ms !important;
+  caret-color: transparent !important;
+  scroll-behavior: auto !important;
+}

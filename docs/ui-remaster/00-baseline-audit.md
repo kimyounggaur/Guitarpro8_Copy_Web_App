@@ -132,7 +132,7 @@
 - [x] 실제 검사 항목에 실제 결과 기록 (§4~9)
 - [x] `pnpm test` / `pnpm build` 결과 기록 (§3)
 - [x] git diff에 문서/설정(`.claude/launch.json`, `.gitignore`류) 외 제품 코드 변경 없음 — 확인: 이번 Phase 커밋에는 `docs/`, `.claude/launch.json`만 포함되고 `src/**`는 변경하지 않았다.
-- [ ] **4개 뷰포트 `.png` 스크린샷** — 이 세션의 Browser 도구가 `screenshot`/`zoom` 액션에서 지속적으로 타임아웃되어(다른 모든 조작은 정상) 실제 이미지 파일을 생성하지 못했다. 대신 §4의 DOM 측정치로 대체했다. Playwright 도입(Phase 1) 후 Playwright의 자체 스크린샷 캡처로 이 갭을 메운다.
+- [x] **4개 뷰포트 `.png` 스크린샷** — 이 세션의 Browser 도구는 `screenshot`/`zoom` 액션에서 지속적으로 타임아웃되었지만(다른 모든 조작은 정상), Phase 1에서 도입한 Playwright의 번들 Chromium은 정상적으로 스크린샷을 캡처했다. `docs/ui-remaster/screenshots/baseline-{1024x768,1280x768,1440x900,1920x1080}.png`로 보강 완료(Phase 1 golden `src/test/visual/editor.visual.spec.ts-snapshots/`에서 복사). 스크린샷은 §4.1에서 예측한 툴바 오버플로(콘텐츠가 뷰포트 폭을 넘어 항상 ~2310~2327px를 요구)를 육안으로도 그대로 확인시켜준다 — 1920×1080에서도 우측에 큰 빈 검정 영역이 남고 Loop/LCD 등 일부 컨트롤이 화면 밖으로 밀려난다.
 
 ## 12. 상세 참조 문서
 
