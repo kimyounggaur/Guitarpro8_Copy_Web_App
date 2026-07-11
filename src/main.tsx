@@ -1,8 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./app/App";
-import "./App.css";
-import "./test/visual/screenshot.css";
+import "./ui/styles/index.css";
 import { applyVisualTestModeMarker } from "./test/testMode";
 
 applyVisualTestModeMarker();

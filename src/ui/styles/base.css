@@ -1,0 +1,49 @@
+@font-face {
+  font-family: "Bravura";
+  src: local("Bravura");
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    color: var(--text-root);
+    background: var(--surface-root);
+    font-family: var(--font-ui);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+
+  button {
+    min-height: var(--control-height-md);
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-control);
+    color: var(--text-default);
+    background: var(--surface-button);
+    cursor: pointer;
+  }
+
+  button:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--surface-button-hover);
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: none;
+    border-color: var(--accent-strong);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+  }
+
+  button:disabled {
+    color: var(--text-button-disabled);
+    cursor: default;
+    opacity: 0.72;
+  }
+}

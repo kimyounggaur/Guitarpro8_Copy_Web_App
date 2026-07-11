@@ -1,0 +1,67 @@
+@layer layout {
+  .workspacePanel {
+    min-width: 0;
+    min-height: 0;
+    padding: 12px;
+    background: var(--surface-workspace);
+  }
+  
+  .scoreViewport {
+    overflow: auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 1px solid var(--border-score-viewport);
+    border-radius: var(--radius-panel);
+    padding: 18px;
+    background: var(--surface-score-viewport);
+    outline: none;
+  }
+  
+  .scoreViewport:focus {
+    border-color: var(--accent-strong);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+  }
+  
+  .scorePages {
+    display: grid;
+    gap: 22px;
+    justify-content: center;
+    width: max-content;
+    min-width: 100%;
+  }
+  
+  .scorePage {
+    max-width: none;
+    height: auto;
+    border-radius: var(--radius-xxs);
+    box-shadow: 0 18px 46px var(--shadow-page);
+    background: var(--surface-paper);
+    flex: 0 0 auto;
+  }
+  
+  .scorePages.display-horizontal-page,
+  .scorePages.display-horizontal-screen {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  
+  .scorePages.display-grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, max-content));
+    justify-content: start;
+  }
+  
+  .scorePages.display-parchment,
+  .scorePages.display-vertical-screen {
+    justify-content: start;
+  }
+  
+  .scorePages.display-parchment .scorePage,
+  .scorePages.display-vertical-screen .scorePage,
+  .scorePages.display-horizontal-screen .scorePage {
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+

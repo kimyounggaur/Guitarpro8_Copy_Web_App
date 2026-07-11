@@ -1,0 +1,708 @@
+@layer components {
+  .commandPalette {
+    position: absolute;
+    z-index: var(--z-command-palette);
+    top: var(--command-palette-top);
+    left: var(--overlay-left);
+    right: var(--overlay-right);
+    display: grid;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--border-command);
+    border-radius: var(--radius-panel);
+    background: var(--surface-command);
+    box-shadow: 0 18px 44px var(--shadow-overlay);
+  }
+  
+  .commandPaletteInputRow {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 58px 30px;
+    gap: 6px;
+    align-items: center;
+    border-bottom: 1px solid var(--border-command-row);
+    padding: 8px;
+    background: var(--surface-command-row);
+  }
+  
+  .commandPrompt {
+    display: grid;
+    place-items: center;
+    min-height: var(--control-height-md);
+    border: 1px solid var(--border-command-prompt);
+    border-radius: var(--radius-md);
+    color: var(--text-accent);
+    background: var(--surface-command-prompt);
+    font-size: 13px;
+    font-weight: 800;
+  }
+  
+  .commandPalette input {
+    min-width: 0;
+    height: 32px;
+    border: 1px solid var(--border-command-input);
+    border-radius: var(--radius-control);
+    padding: 0 10px;
+    color: var(--text-input);
+    background: var(--surface-command-input);
+    outline: none;
+  }
+  
+  .commandPalette input:focus {
+    border-color: var(--accent-strong);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+  }
+  
+  .commandPaletteInputRow button {
+    min-width: 0;
+    padding: 0 6px;
+  }
+  
+  .commandSuggestionList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    max-height: 250px;
+    overflow: auto;
+    background: var(--surface-command-list);
+  }
+  
+  .commandSuggestion {
+    display: grid;
+    grid-template-columns: minmax(92px, 0.46fr) minmax(0, 1fr) 24px;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: var(--control-height-lg);
+    border: 0;
+    border-radius: 0;
+    padding: 0 9px;
+    color: var(--text-default);
+    background: var(--surface-command);
+    text-align: left;
+  }
+  
+  .commandSuggestion strong,
+  .commandSuggestion span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .commandSuggestion strong {
+    color: var(--text-accent);
+    font-size: 12px;
+  }
+  
+  .commandSuggestion span {
+    color: var(--text-suggestion);
+    font-size: 12px;
+  }
+  
+  .commandSuggestion em {
+    color: var(--text-blue);
+    font-style: normal;
+    text-align: right;
+  }
+  
+  .commandSuggestion.selectedSuggestion {
+    background: var(--surface-command-selected);
+  }
+  
+  .commandSuggestion.selectedSuggestion strong {
+    color: var(--text-selected);
+  }
+  
+  .commandSuggestion.disabledSuggestion {
+    color: var(--text-disabled);
+    background: var(--surface-disabled);
+  }
+  
+  .commandUsageBar,
+  .commandPatternPreview {
+    display: grid;
+    grid-template-columns: 128px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    border-top: 1px solid var(--border-command-help);
+    padding: 7px 10px;
+    color: var(--text-panel);
+    background: var(--surface-command-help);
+    font-size: 12px;
+  }
+  
+  .commandUsageBar strong {
+    color: var(--text-accent);
+  }
+  
+  .commandPatternPreview {
+    grid-template-columns: minmax(0, 1fr);
+    border-top-color: var(--border-command-row);
+    color: var(--accent-gold);
+    background: var(--surface-input);
+  }
+  
+  .toolPanel,
+  .trackSystemPanel,
+  .stylesheetPanel,
+  .fileIoPanel {
+    position: absolute;
+    z-index: var(--z-tool-panel);
+    top: var(--tool-panel-top);
+    left: var(--overlay-left);
+    right: var(--overlay-right);
+    display: grid;
+    grid-template-rows: 34px minmax(0, 1fr);
+    max-height: min(560px, calc(100vh - 150px));
+    border: 1px solid var(--border-overlay);
+    border-radius: var(--radius-panel);
+    overflow: hidden;
+    background: var(--surface-overlay);
+    box-shadow: 0 22px 52px var(--shadow-overlay);
+  }
+  
+  .trackSystemPanel {
+    z-index: var(--z-track-panel);
+    left: var(--track-panel-left);
+    right: var(--track-panel-right);
+  }
+  
+  .stylesheetPanel {
+    z-index: var(--z-stylesheet-panel);
+    grid-template-rows: 34px 42px minmax(0, 1fr);
+    left: var(--wide-panel-left);
+    right: var(--wide-panel-right);
+  }
+  
+  .fileIoPanel {
+    z-index: var(--z-file-panel);
+    grid-template-rows: 34px minmax(0, 1fr) 34px;
+    left: var(--wide-panel-left);
+    right: var(--wide-panel-right);
+  }
+  
+  .toolPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-overlay-header);
+    padding: 0 10px;
+    color: var(--text-panel);
+    background: var(--surface-overlay-header);
+  }
+  
+  .toolPanelHeader button {
+    width: 28px;
+    min-height: var(--control-height-sm);
+    padding: 0;
+  }
+  
+  .fileIoBody {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr 1.2fr;
+    gap: 10px;
+    overflow: auto;
+    padding: 10px;
+    background: var(--surface-overlay-body);
+  }
+  
+  .fileIoColumn {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    min-width: 0;
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-panel);
+    padding: 10px;
+    background: var(--surface-card);
+  }
+  
+  .fileIoColumn h2 {
+    margin: 0;
+    color: var(--text-default);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  
+  .fileIoColumn p {
+    overflow: hidden;
+    margin: 0;
+    color: var(--text-subtle);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .fileIoColumn > button,
+  .fileButtonGrid button {
+    display: grid;
+    justify-items: start;
+    width: 100%;
+    min-height: var(--control-height-lg);
+    padding: 7px 9px;
+    text-align: left;
+  }
+  
+  .fileIoColumn button span {
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+  
+  .fileButtonGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  
+  .fileDirtyBadge,
+  .fileCleanBadge {
+    width: fit-content;
+    border: 1px solid var(--border-badge);
+    border-radius: var(--radius-pill);
+    padding: 3px 8px;
+    color: var(--text-default);
+    font-size: 11px;
+  }
+  
+  .fileDirtyBadge {
+    border-color: var(--border-dirty-badge);
+    background: var(--surface-dirty-badge);
+  }
+  
+  .fileCleanBadge {
+    background: var(--surface-clean-badge);
+  }
+  
+  .fileIoStatus {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border-top: 1px solid var(--border-overlay-header);
+    padding: 0 10px;
+    color: var(--text-subtle);
+    background: var(--surface-card);
+    font-size: 12px;
+  }
+  
+  .hiddenFileInput {
+    display: none;
+  }
+  
+  .stylesheetTabs {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    overflow: auto;
+    border-bottom: 1px solid var(--border-overlay-header);
+    padding: 6px 8px;
+    background: var(--surface-track);
+  }
+  
+  .stylesheetTabs button {
+    width: auto;
+    min-width: 72px;
+    padding: 0 10px;
+  }
+  
+  .stylesheetBody {
+    overflow: auto;
+    min-width: 0;
+    padding: 10px;
+  }
+  
+  .styleFormGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+    gap: 9px;
+    align-content: start;
+  }
+  
+  .wideStyleGrid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+  
+  .styleField {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  
+  .styleField input,
+  .styleField select {
+    min-width: 0;
+    height: var(--control-height-md);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-control);
+    padding: 0 8px;
+    color: var(--text-default);
+    background: var(--surface-input-deep);
+  }
+  
+  .styleField input[type="color"] {
+    padding: 2px;
+  }
+  
+  .styleCheck {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: var(--control-height-md);
+    color: var(--text-soft);
+    font-size: 12px;
+  }
+  
+  .styleCheck input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+  }
+  
+  .presetButtons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  
+  .presetButtons button,
+  .stylesheetBody > .styleFormGrid > button {
+    width: auto;
+    min-width: 0;
+    padding: 0 8px;
+  }
+  
+  .toolGrid {
+    display: grid;
+    grid-template-columns: minmax(160px, 0.7fr) minmax(220px, 1fr) minmax(260px, 1.2fr);
+    gap: 10px;
+    overflow: auto;
+    padding: 10px;
+  }
+  
+  .trackWizardGrid {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.75fr) minmax(210px, 0.9fr) minmax(260px, 1.1fr);
+    gap: 10px;
+    overflow: auto;
+    padding: 10px;
+  }
+  
+  .instrumentTool,
+  .tunerTool,
+  .transposeTool,
+  .cleanupTool {
+    grid-template-columns: minmax(170px, 0.6fr) minmax(0, 1.4fr);
+  }
+  
+  .toolColumn {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    min-width: 0;
+  }
+  
+  .toolColumn label {
+    display: grid;
+    gap: 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  
+  .toolColumn input,
+  .toolColumn select {
+    min-width: 0;
+    height: var(--control-height-md);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-control);
+    padding: 0 8px;
+    color: var(--text-default);
+    background: var(--surface-input-deep);
+  }
+  
+  .toolButtonRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .toolButtonRow button,
+  .toolColumn > button {
+    width: auto;
+    min-width: 58px;
+    padding: 0 8px;
+  }
+  
+  .instrumentList,
+  .drumList {
+    display: grid;
+    gap: 6px;
+    max-height: 388px;
+    overflow: auto;
+  }
+  
+  .instrumentList button,
+  .drumList button {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    min-width: 0;
+    padding: 0 8px;
+  }
+  
+  .instrumentList span,
+  .drumList span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .instrumentList em,
+  .drumList em {
+    color: var(--text-muted);
+    font-style: normal;
+    white-space: nowrap;
+  }
+  
+  .tuningEditor {
+    display: grid;
+    gap: 6px;
+  }
+  
+  .tuningEditor label {
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+    align-items: center;
+  }
+  
+  .tuningEditor em {
+    color: var(--text-track);
+    font-size: 12px;
+    font-style: normal;
+    text-align: right;
+  }
+  
+  .capoPreview {
+    display: grid;
+    gap: 4px;
+    min-height: var(--control-height-lg);
+    align-items: end;
+  }
+  
+  .capoPreview span {
+    display: grid;
+    place-items: center;
+    min-height: 28px;
+    border: 1px solid var(--border-capo);
+    border-radius: var(--radius-sm);
+    color: var(--text-panel);
+    background: var(--surface-input);
+    font-size: 12px;
+  }
+  
+  .capoPreview .partialCapo {
+    border-color: var(--accent-gold);
+    color: var(--text-gold);
+    background: var(--surface-gold-active);
+  }
+  
+  .voicePanel,
+  .drumPanel {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.6fr) minmax(260px, 1fr);
+    gap: 10px;
+    overflow: auto;
+    padding: 10px;
+  }
+  
+  .voiceGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  
+  .voiceGrid button {
+    min-width: 0;
+    padding: 0 6px;
+  }
+  
+  .drumStaffPreview {
+    display: grid;
+    grid-template-rows: repeat(18, 12px);
+    grid-auto-flow: column;
+    gap: 3px;
+    align-items: center;
+    min-height: 228px;
+    border: 1px solid var(--border-lane);
+    border-radius: var(--radius-control);
+    padding: 8px;
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 23px, var(--line-white-08) 23px 24px),
+      var(--surface-input-deep);
+  }
+  
+  .drumStaffPreview button {
+    width: 28px;
+    min-width: 28px;
+    min-height: 22px;
+    padding: 0;
+    border-radius: var(--radius-round);
+    font-size: 11px;
+  }
+  
+  .toolMeta,
+  .toolWarning {
+    margin: 0;
+    color: var(--text-warning);
+    font-size: 12px;
+  }
+  
+  .toolWarning {
+    color: var(--danger);
+  }
+  
+  .voicingList,
+  .scaleList,
+  .reportList,
+  .matchList {
+    display: grid;
+    gap: 5px;
+    max-height: 360px;
+    overflow: auto;
+  }
+  
+  .voicingList button,
+  .scaleList button {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    min-width: 0;
+    padding: 0 8px;
+  }
+  
+  .voicingList em {
+    color: var(--text-muted);
+    font-style: normal;
+  }
+  
+  .chordDiagram,
+  .fretboardGrid {
+    display: grid;
+    gap: 3px;
+    align-items: center;
+    min-width: 0;
+  }
+  
+  .chordDiagram strong,
+  .chordDiagram em,
+  .fretboardGrid strong,
+  .fretboardGrid em {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-style: normal;
+    text-align: center;
+  }
+  
+  .chordDiagram span {
+    min-height: 22px;
+    border: 1px solid var(--border-diagram);
+    border-radius: var(--radius-sm);
+    background: var(--surface-input-deep);
+  }
+  
+  .chordDiagram .diagramDot {
+    border-color: var(--accent-gold);
+    background: var(--accent);
+  }
+  
+  .fretCell {
+    min-width: 0;
+    min-height: 26px;
+    padding: 0;
+    justify-content: center;
+    color: var(--text-disabled-soft);
+    font-size: 10px;
+  }
+  
+  .fretCell.scaleCell {
+    border-color: var(--border-scale-cell);
+    color: var(--text-track);
+    background: var(--surface-scale-cell);
+  }
+  
+  .fretCell.rootCell {
+    border-color: var(--accent-gold);
+    color: var(--text-gold-strong);
+    background: var(--surface-gold-active);
+  }
+  
+  .fretCell.activeFret {
+    border-color: var(--accent-strong);
+    box-shadow: inset 0 0 0 2px var(--focus-ring-strong);
+  }
+  
+  .fretboardLefty .fretboardGrid {
+    direction: rtl;
+  }
+  
+  .fretboardLefty .fretboardGrid > * {
+    direction: ltr;
+  }
+  
+  .matchList span,
+  .reportList span {
+    min-height: var(--control-height-sm);
+    border: 1px solid var(--border-overlay-header);
+    border-radius: var(--radius-md);
+    padding: 4px 7px;
+    color: var(--text-panel);
+    background: var(--surface-list-item);
+    font-size: 12px;
+  }
+  
+  .tuningBars {
+    gap: 6px;
+  }
+  
+  .tuningTarget {
+    display: grid;
+    grid-template-columns: 28px 58px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    color: var(--text-soft);
+    font-size: 12px;
+  }
+  
+  .tuningTarget meter {
+    width: 100%;
+  }
+  
+  .activeTarget {
+    color: var(--accent-gold);
+  }
+  
+  .tunerGood {
+    color: var(--accent-strong);
+  }
+  
+  .tunerNear {
+    color: var(--accent-gold);
+  }
+  
+  .toolCheck {
+    display: flex;
+    grid-template-columns: none;
+    align-items: center;
+    gap: 7px;
+  }
+  
+  .toolCheck input {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .transposeMatrix {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+}
+

@@ -1,0 +1,40 @@
+@layer components {
+  .paletteGroup,
+  .inspectorPanel section {
+    border-bottom: 1px solid var(--border-section);
+    padding: 10px;
+  }
+  
+  .paletteGroup h2,
+  .inspectorPanel h2 {
+    margin: 0 0 8px;
+    color: var(--text-accent);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+  
+  .paletteButtons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  
+  .paletteButtons button {
+    width: 100%;
+    min-width: 0;
+    min-height: var(--control-height-md);
+    padding: 0 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.05;
+    font-size: 11px;
+  }
+  
+  .paletteButtons .modeButton {
+    border-color: var(--accent-blue);
+    background: var(--surface-mode-active);
+  }
+}
+

@@ -1,0 +1,139 @@
+@layer tokens {
+  :root {
+    --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-music: "Bravura";
+
+    --text-root: #e8edf2;
+    --text-default: #edf3f6;
+    --text-input: #f3faf7;
+    --text-active: #f6fffb;
+    --text-muted: #aab7be;
+    --text-subtle: #b8c5c1;
+    --text-tertiary: #9aa8a4;
+    --text-soft: #c6d4d1;
+    --text-suggestion: #cbd8d4;
+    --text-panel: #dbe8e4;
+    --text-cool: #cfe3dc;
+    --text-track: #d9ebe4;
+    --text-accent: #9fd9c6;
+    --text-blue: #7fbdf4;
+    --text-selected: #d7f8ff;
+    --text-warning: #d49a5d;
+    --text-gold: #fff4cf;
+    --text-gold-strong: #fff8d7;
+    --text-button-disabled: #7f8a91;
+    --text-disabled: #77817e;
+    --text-disabled-soft: #6f7f78;
+    --text-grid-header: #9fb0b9;
+
+    --accent: #6fb99f;
+    --accent-strong: #84d1b6;
+    --accent-blue: #5ca6ff;
+    --accent-gold: #f7c75f;
+    --accent-gold-strong: #facc15;
+    --danger: #f87171;
+
+    --surface-root: #151613;
+    --surface-shell: #171815;
+    --surface-panel: #20211d;
+    --surface-panel-raised: #242722;
+    --surface-button: #252923;
+    --surface-button-hover: #30382f;
+    --surface-active: #1f4a3d;
+    --surface-input: #151814;
+    --surface-input-deep: #111410;
+    --surface-disabled: #151817;
+    --surface-workspace: #11120f;
+    --surface-score-viewport: #0d0e0c;
+    --surface-paper: #fbfaf7;
+    --surface-overlay: #1d201b;
+    --surface-overlay-header: #242821;
+    --surface-overlay-body: #171a16;
+    --surface-card: #20241e;
+    --surface-track: #181b17;
+    --surface-automation: #1a1c18;
+    --surface-list-item: #141712;
+    --surface-mode-active: #1f3d54;
+    --surface-scale-cell: #20302c;
+    --surface-clean-badge: #22362e;
+    --surface-dirty-badge: #3b3020;
+    --surface-gold-soft: #2b2715;
+    --surface-gold-active: #4b3916;
+    --surface-point-border: #fbf4d0;
+    --surface-command: #171c1a;
+    --surface-command-row: #202723;
+    --surface-command-input: #0f1311;
+    --surface-command-prompt: #121715;
+    --surface-command-list: #2f3a35;
+    --surface-command-selected: #123a57;
+    --surface-command-help: #102b40;
+
+    --border-control: #4a4f47;
+    --border-menubar: #34372f;
+    --border-toolbar: #3c4037;
+    --border-section: #33372f;
+    --border-panel: #383b34;
+    --border-input: #43483f;
+    --border-score-viewport: #3b392f;
+    --border-grid: #3b4037;
+    --border-lane: #3d453c;
+    --border-overlay: #566254;
+    --border-overlay-header: #394037;
+    --border-card: #384136;
+    --border-badge: #4c584a;
+    --border-dirty-badge: #8a7047;
+    --border-capo: #465047;
+    --border-diagram: #3a4339;
+    --border-scale-cell: #526a63;
+    --border-lcd: #4b5548;
+    --border-command: #4f625d;
+    --border-command-row: #34413d;
+    --border-command-help: #23425c;
+    --border-command-prompt: #3f514b;
+    --border-command-input: #4b5c56;
+
+    --focus-ring: rgba(132, 209, 182, 0.18);
+    --focus-ring-strong: rgba(132, 209, 182, 0.45);
+    --shadow-page: rgba(0, 0, 0, 0.38);
+    --shadow-overlay: rgba(0, 0, 0, 0.42);
+    --shadow-accent-inset: rgba(111, 185, 159, 0.22);
+    --line-white-05: rgba(255, 255, 255, 0.05);
+    --line-white-06: rgba(255, 255, 255, 0.06);
+    --line-white-08: rgba(255, 255, 255, 0.08);
+
+    --radius-xxs: 2px;
+    --radius-xs: 3px;
+    --radius-sm: 4px;
+    --radius-md: 5px;
+    --radius-control: 6px;
+    --radius-panel: 8px;
+    --radius-pill: 999px;
+    --radius-round: 50%;
+
+    --control-height-sm: 24px;
+    --control-height-md: 30px;
+    --control-height-lg: 34px;
+
+    --app-menu-height: 32px;
+    --app-toolbar-height: 54px;
+    --app-tabs-height: 38px;
+    --palette-width: 214px;
+    --inspector-width: 286px;
+    --bottom-dock-min-height: 220px;
+
+    --command-palette-top: 124px;
+    --tool-panel-top: 92px;
+    --overlay-left: 226px;
+    --overlay-right: 300px;
+    --track-panel-left: 248px;
+    --track-panel-right: 324px;
+    --wide-panel-left: 220px;
+    --wide-panel-right: 280px;
+
+    --z-tool-panel: 20;
+    --z-track-panel: 22;
+    --z-stylesheet-panel: 24;
+    --z-file-panel: 26;
+    --z-command-palette: 28;
+  }
+}

@@ -401,22 +401,6 @@ function Toolbar(props: EditorShellProps) {
           </button>
         ))}
       </div>
-      <div className="toolbarGroup zoomGroup">
-        <button type="button" disabled>
-          −
-        </button>
-        <span>100%</span>
-        <button type="button" disabled>
-          +
-        </button>
-      </div>
-      <div className="toolbarGroup displayGroup">
-        {["P", "H", "G", "S"].map((mode) => (
-          <button key={mode} type="button" disabled>
-            {mode}
-          </button>
-        ))}
-      </div>
       <div className="toolbarGroup historyGroup">
         <button type="button" title="Undo Ctrl+Z" onClick={() => props.dispatchCommand("history.undo")}>
           ↶
@@ -451,13 +435,6 @@ function Toolbar(props: EditorShellProps) {
         <button type="button" title="Last bar" onClick={() => props.dispatchCommand("cursor.lastBar")}>
           &gt;|
         </button>
-      </div>
-      <div className="toolbarGroup transportGroup transportLegacy">
-        {["⏮", "◀", props.playbackStatus === "playing" ? "■" : "▶", "▶", "⏭"].map((label, index) => (
-          <button key={`${label}-${index}`} type="button" disabled>
-            {label}
-          </button>
-        ))}
       </div>
       <div className="lcd" title={lcd.title}>
         <span className="trackColor" style={{ background: currentTrack?.color ?? "#64748b" }} />
@@ -500,13 +477,6 @@ function Toolbar(props: EditorShellProps) {
             ? `Bar ${props.playbackBarIndex + 1} / ${props.playbackTimeSec.toFixed(1)}s`
             : `Bar ${props.cursor.barIndex + 1} / Ready`}
         </span>
-      </div>
-      <div className="toolbarGroup utilityGroup utilityLegacy">
-        {["Loop", "100%", "C", "Audio", "View", "Tune", "Line"].map((label) => (
-          <button key={label} type="button" disabled>
-            {label}
-          </button>
-        ))}
       </div>
     </header>
   );

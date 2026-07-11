@@ -1,0 +1,12 @@
+@import "./reset.css";
+@import "./tokens.css";
+@import "./base.css";
+@import "./shell.css";
+@import "./toolbar.css";
+@import "./palette.css";
+@import "./workspace.css";
+@import "./inspector.css";
+@import "./global-view.css";
+@import "./overlays.css";
+@import "./print.css";
+@import "../../test/visual/screenshot.css";

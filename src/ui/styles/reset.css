@@ -1,0 +1,11 @@
+@layer reset {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    min-width: 1024px;
+    min-height: 768px;
+    margin: 0;
+  }
+}

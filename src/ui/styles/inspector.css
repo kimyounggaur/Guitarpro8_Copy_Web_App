@@ -1,0 +1,68 @@
+@layer components {
+  .inspectorPanel label {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  
+  .inspectorPanel input {
+    min-width: 0;
+    height: var(--control-height-md);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-control);
+    padding: 0 8px;
+    color: var(--text-default);
+    background: var(--surface-input);
+  }
+  
+  .inspectorPanel select,
+  .mixerSelect,
+  .soundInspector select {
+    min-width: 0;
+    height: var(--control-height-md);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-control);
+    padding: 0 8px;
+    color: var(--text-default);
+    background: var(--surface-input);
+  }
+  
+  .notationChecks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 8px 0;
+  }
+  
+  .notationChecks label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+  }
+  
+  .inspectorPanel p {
+    margin: 8px 0;
+    color: var(--text-warning);
+    font-size: 13px;
+  }
+  
+  .inspectorButtonRow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    margin: 8px 0;
+  }
+  
+  .inspectorButtonRow button {
+    min-width: 0;
+    padding: 0 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+}
+
