@@ -9,6 +9,9 @@ vite.config.d.ts
 .vercel
 .env*
 
+# Claude Code harness runtime state (not project config)
+.claude/scheduled_tasks.lock
+
 # Playwright
 test-results/
 playwright-report/
