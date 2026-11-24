@@ -1,3 +1,4 @@
+import { t } from "../i18n/messages.en";
 import { useEffect, useId, useRef, useState } from "react";
 
 export interface ToolbarAction {
@@ -57,7 +58,7 @@ export function ToolbarOverflowMenu({ groups }: { groups: ToolbarGroup[] }) {
         ref={trigger}
         type="button"
         className="toolbarMore"
-        aria-label="More toolbar controls"
+        aria-label={t("toolbar.moreToolbarControls")}
         aria-controls={open ? panelId : undefined}
         aria-expanded={open}
         onClick={() => setOpen((expanded) => !expanded)}

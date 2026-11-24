@@ -1,3 +1,4 @@
+import { t } from "../i18n/messages.en";
 import { useEffect, useRef, useState } from "react";
 import { shortcutLabel, type Platform } from "../../commands/keymap";
 import { availableMenuGroups } from "../../commands/menus";
@@ -27,7 +28,7 @@ export function ApplicationMenus({
   }
 
   return (
-    <nav ref={nav} className="menuBar" aria-label="Application menus" onKeyDown={(event) => {
+    <nav ref={nav} className="menuBar" aria-label={t("navigation.applicationMenus")} onKeyDown={(event) => {
       if (event.key !== "Escape" || !open) return;
       event.preventDefault();
       event.stopPropagation();
@@ -40,7 +41,7 @@ export function ApplicationMenus({
             trigger.current = event.currentTarget;
             setOpen(open === name ? null : name);
           }}>{name}</button>
-          {open === name && <ul aria-label={`${name} actions`} className="applicationMenuList">
+          {open === name && <ul aria-label={t("navigation.menuActions", { menu: name })} className="applicationMenuList">
             {actions.map((action) => {
               const shortcut = shortcutLabel(action.commandId ?? action.appAction ?? action.id, platform);
               return <li key={action.id}><button type="button" onClick={() => activate(`@ ${name} > ${action.label}`)}>

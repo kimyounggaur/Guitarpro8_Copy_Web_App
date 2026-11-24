@@ -53,8 +53,8 @@ export function StartScreen({
       </select></label>}
       <label>{t("tempo")} <input type="number" min={20} max={400} required value={tempo} onChange={(event) => setTempo(Number(event.target.value))} /></label>
       <fieldset><legend>{t("meter")}</legend>
-        <label>Beats <input type="number" min={1} max={32} required value={beats} onChange={(event) => setBeats(Number(event.target.value))} /></label>
-        <label>Note value <select value={unit} onChange={(event) => setUnit(Number(event.target.value) as BeatDuration)}>
+        <label>{t("home.beats")} <input type="number" min={1} max={32} required value={beats} onChange={(event) => setBeats(Number(event.target.value))} /></label>
+        <label>{t("home.noteValue")} <select value={unit} onChange={(event) => setUnit(Number(event.target.value) as BeatDuration)}>
           {[1, 2, 4, 8, 16, 32, 64].map((value) => <option key={value}>{value}</option>)}
         </select></label>
       </fieldset>

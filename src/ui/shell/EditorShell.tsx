@@ -1,3 +1,4 @@
+import { t } from "../i18n/messages.en";
 import { memo, useCallback, useLayoutEffect, useRef } from "react";
 import { useDocumentStore } from "../../store/documentStore";
 import type { PngScale } from "../../io/print/imageExport";
@@ -293,7 +294,7 @@ function TabBar({
   activeId
 }: Pick<EditorShellProps, "documents" | "activeId">) {
   return (
-    <div className="tabBar" aria-label="Open documents" data-testid="tab-bar">
+    <div className="tabBar" aria-label={t("editor.openDocuments")} data-testid="tab-bar">
       {documents.map((document) => (
         <span
           key={document.id}
@@ -318,8 +319,8 @@ function EditionPalette({
   onToggleMultiVoice
 }: Pick<EditorShellProps, "dispatchCommand" | "cursor" | "multiVoiceEdit" | "onVoiceSelect" | "onToggleMultiVoice">) {
   return (
-    <aside className="palettePanel" aria-label="Edition palette" data-testid="palette-panel" onMouseDown={preserveScoreFocus}>
-      <PaletteGroup title="Voices">
+    <aside className="palettePanel" aria-label={t("editor.editionPalette")} data-testid="palette-panel" onMouseDown={preserveScoreFocus}>
+      <PaletteGroup title={t("editor.voices")}>
         {[1, 2, 3, 4].map((voice) => (
           <button
             key={voice}
@@ -331,19 +332,19 @@ function EditionPalette({
           </button>
         ))}
       </PaletteGroup>
-      <PaletteGroup title="Multivoice">
+      <PaletteGroup title={t("editor.multivoice")}>
         <button type="button" className={multiVoiceEdit ? "activeToggle" : ""} onClick={onToggleMultiVoice}>
-          {multiVoiceEdit ? "On" : "Off"}
+          {multiVoiceEdit ? t("editor.on") : t("editor.off")}
         </button>
       </PaletteGroup>
-      <PaletteGroup title="Bar symbols">
+      <PaletteGroup title={t("editor.barSymbols")}>
         {barSymbolButtons.map(([label, command]) => (
           <button key={command} type="button" onClick={() => dispatchCommand(command)}>
             {label}
           </button>
         ))}
       </PaletteGroup>
-      <PaletteGroup title="Note symbols">
+      <PaletteGroup title={t("editor.noteSymbols")}>
         {noteDurations.map((duration) => (
           <button key={duration} type="button" onClick={() => dispatchCommand(`duration.set.${duration}`)}>
             {duration}
@@ -378,21 +379,21 @@ function EditionPalette({
           </button>
         ))}
       </PaletteGroup>
-      <PaletteGroup title="Effect symbols">
+      <PaletteGroup title={t("editor.effectSymbols")}>
         {noteEffectButtons.map(([label, command]) => (
           <button key={command} type="button" onClick={() => dispatchCommand(command)}>
             {label}
           </button>
         ))}
       </PaletteGroup>
-      <PaletteGroup title="Beat effects">
+      <PaletteGroup title={t("editor.beatEffects")}>
         {beatEffectButtons.map(([label, command]) => (
           <button key={command} type="button" onClick={() => dispatchCommand(command)}>
             {label}
           </button>
         ))}
       </PaletteGroup>
-      {["Notation symbols", "Automation symbols"].map((title) => (
+      {[t("editor.notationSymbols"), t("editor.automationSymbols")].map((title) => (
         <PaletteGroup key={title} title={title} disabled />
       ))}
     </aside>
@@ -427,13 +428,13 @@ function InspectorPanel(props: EditorShellProps) {
   const currentMixer = currentTrack ? props.mixer.tracks[currentTrack.id] : null;
 
   return (
-    <aside className="inspectorPanel" aria-label="Inspector" data-testid="inspector-panel">
+    <aside className="inspectorPanel" aria-label={t("editor.inspector")} data-testid="inspector-panel">
       {props.panelVisibility.songInspector ? (
         <section>
-          <h2>Song</h2>
+          <h2>{t("editor.song")}</h2>
           {songFields.map((field) => (
             <label key={field}>
-              <span>{field}</span>
+              <span>{t(`song.${field}`)}</span>
               <input
                 value={props.score.meta[field]}
                 onChange={(event) => props.onSongInfoChange(field, event.target.value)}
@@ -447,29 +448,29 @@ function InspectorPanel(props: EditorShellProps) {
             className={props.score.documentSettings.concertTone ? "activeToggle" : ""}
             onClick={props.onConcertToneToggle}
           >
-            Concert tone
+            {t("editor.concertTone")}
           </button>
         </section>
       ) : null}
       {props.panelVisibility.trackInspector && currentTrack ? (
         <section>
-          <h2>Track</h2>
+          <h2>{t("editor.track")}</h2>
           <label>
-            <span>Name</span>
+            <span>{t("editor.name")}</span>
             <input
               value={currentTrack.name}
               onChange={(event) => props.onTrackChange(currentTrack.id, { name: event.target.value })}
             />
           </label>
           <label>
-            <span>Short</span>
+            <span>{t("editor.short")}</span>
             <input
               value={currentTrack.shortName}
               onChange={(event) => props.onTrackChange(currentTrack.id, { shortName: event.target.value })}
             />
           </label>
           <label>
-            <span>Color</span>
+            <span>{t("editor.color")}</span>
             <input
               type="color"
               value={currentTrack.color}
@@ -477,75 +478,75 @@ function InspectorPanel(props: EditorShellProps) {
             />
           </label>
           <div className="notationChecks">
-            {["standard", "tab", "slash", "numbered"].map((notation) => (
+            {(["standard", "tab", "slash", "numbered"] as const).map((notation) => (
               <label key={notation}>
                 <input
                   type="checkbox"
-                  checked={currentTrack.notationTypes.includes(notation as NotationType)}
+                  checked={currentTrack.notationTypes.includes(notation)}
                   onChange={(event) =>
                     props.onTrackSystemPatch(currentTrack.id, {
                       notationTypes: nextNotationTypes(
                         currentTrack.notationTypes,
-                        notation as NotationType,
+                        notation,
                         event.target.checked
                       )
                     })
                   }
                 />
-                <span>{notation}</span>
+                <span>{t(`notation.${notation}`)}</span>
               </label>
             ))}
           </div>
           <label>
-            <span>Staff</span>
+            <span>{t("editor.staff")}</span>
             <select
               value={currentTrack.staffConfig}
               onChange={(event) =>
                 props.onTrackSystemPatch(currentTrack.id, { staffConfig: event.target.value as StaffConfig })
               }
             >
-              <option value="single">single</option>
-              <option value="grand">grand</option>
+              <option value="single">{t("editor.single")}</option>
+              <option value="grand">{t("editor.grand")}</option>
             </select>
           </label>
           <label>
-            <span>Transposition</span>
+            <span>{t("editor.transposition")}</span>
             <select
               value={currentTrack.transpositionTonality.soundingOffset}
               onChange={(event) =>
                 props.onTrackTranspositionChange(currentTrack.id, Number(event.target.value))
               }
             >
-              <option value="0">Concert C</option>
-              <option value="-2">Bb instrument</option>
-              <option value="-9">Eb alto</option>
-              <option value="12">Octave up</option>
-              <option value="-12">Octave down</option>
+              <option value="0">{t("editor.concertC")}</option>
+              <option value="-2">{t("editor.bbInstrument")}</option>
+              <option value="-9">{t("editor.ebAlto")}</option>
+              <option value="12">{t("editor.octaveUp")}</option>
+              <option value="-12">{t("editor.octaveDown")}</option>
             </select>
           </label>
           <p>{currentTrack.tuning.label}</p>
           <div className="inspectorButtonRow">
             <button type="button" onClick={() => props.onTrackPanelOpen("tuning")}>
-              Tuning
+              {t("tuning")}
             </button>
             <button type="button" onClick={() => props.onTrackMove(currentTrack.id, -1)}>
-              Up
+              {t("editor.up")}
             </button>
             <button type="button" onClick={() => props.onTrackMove(currentTrack.id, 1)}>
-              Down
+              {t("editor.down")}
             </button>
             <button type="button" onClick={() => props.onTrackDelete(currentTrack.id)}>
-              Delete
+              {t("editor.delete")}
             </button>
           </div>
           <button type="button" onClick={() => props.onTrackPanelOpen("voices")}>
-            Interpretation
+            {t("editor.interpretation")}
           </button>
           {currentMixer ? (
             <div className="soundInspector">
-              <h2>Sound</h2>
+              <h2>{t("editor.sound")}</h2>
               <select
-                aria-label="Track sound"
+                aria-label={t("editor.trackSound")}
                 value={currentMixer.eq}
                 onChange={(event) =>
                   props.onMixerTrackChange(currentTrack.id, { eq: event.target.value as EqPreset })
@@ -553,7 +554,7 @@ function InspectorPanel(props: EditorShellProps) {
               >
                 {eqPresets.map((preset) => (
                   <option key={preset} value={preset}>
-                    {preset}
+                    {t(`eq.${preset}`)}
                   </option>
                 ))}
               </select>
@@ -566,7 +567,7 @@ function InspectorPanel(props: EditorShellProps) {
                       key={effect}
                       type="button"
                       className={active ? "activeToggle" : ""}
-                      title={effect}
+                      title={t(`effect.${effect}`)}
                       onClick={() => props.onMixerEffectToggle(currentTrack.id, effect)}
                     >
                       {label}
@@ -588,16 +589,16 @@ function GlobalView(props: EditorShellProps) {
   const jump = useCallback((id: string, bar: number) => onJump.current(id, bar), []);
   const barCount = props.score.masterBars.length;
   return (
-    <section className="globalView" aria-label="Global view">
+    <section className="globalView" aria-label={t("editor.globalView")}>
       <div className="globalTracks">
         <button type="button" onClick={() => props.onTrackPanelOpen("wizard")}>
-          + Track
+          {t("editor.addTrackButton")}
         </button>
-        <span className="globalModeBadge">{props.multiTrackView ? "F3 Multitrack" : "Single focus"}</span>
+        <span className="globalModeBadge">{props.multiTrackView ? t("editor.multiTrackShortcut") : t("editor.singleFocus")}</span>
         <div className="masterStrip">
-          <strong>Master</strong>
+          <strong>{t("editor.master")}</strong>
           <label className="mixerSlider">
-            <span>Focus</span>
+            <span>{t("editor.focus")}</span>
             <input
               type="range"
               min="-100"
@@ -633,7 +634,7 @@ const GlobalMeasureRow = memo(function GlobalMeasureRow({
 }: { id: string; name: string; color: string; count: number; selectedBar: number; onJump: (id: string, bar: number) => void }) {
   return <>{Array.from({ length: count }, (_, bar) => (
     <button key={bar} type="button" className={bar === selectedBar ? "globalCell activeCell" : "globalCell"}
-      aria-label={`${name}, measure ${bar + 1}`} onClick={() => onJump(id, bar)}>
+      aria-label={t("editor.trackMeasure", { track: name, measure: bar + 1 })} onClick={() => onJump(id, bar)}>
       <span style={{ background: color }} />
     </button>
   ))}</>;
@@ -680,7 +681,7 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
         <button
           type="button"
           className={mixer.visible ? "activeToggle" : ""}
-          title="Visible"
+          title={t("editor.visible")}
           onClick={() => props.onMixerTrackChange(track.id, { visible: !mixer.visible })}
         >
           V
@@ -688,7 +689,7 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
         <button
           type="button"
           className={mixer.mute ? "activeToggle" : ""}
-          title="Mute"
+          title={t("editor.mute")}
           onClick={() => props.onMixerTrackChange(track.id, { mute: !mixer.mute })}
         >
           M
@@ -696,7 +697,7 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
         <button
           type="button"
           className={mixer.solo ? "activeToggle" : ""}
-          title="Solo"
+          title={t("editor.solo")}
           onClick={() => props.onMixerTrackChange(track.id, { solo: !mixer.solo })}
         >
           S
@@ -704,30 +705,30 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
         <button
           type="button"
           className={mixer.volumeAutomationEnabled ? "automationActive" : ""}
-          title="Volume automation"
+          title={t("editor.volumeAutomation")}
           onClick={() =>
             props.onMixerTrackChange(track.id, {
               volumeAutomationEnabled: !mixer.volumeAutomationEnabled
             })
           }
         >
-          A Vol
+          {t("editor.aVol")}
         </button>
         <button
           type="button"
           className={mixer.panAutomationEnabled ? "automationActive" : ""}
-          title="Pan automation"
+          title={t("editor.panAutomation")}
           onClick={() =>
             props.onMixerTrackChange(track.id, {
               panAutomationEnabled: !mixer.panAutomationEnabled
             })
           }
         >
-          A Pan
+          {t("editor.aPan")}
         </button>
       </div>
       <label className="mixerSlider">
-        <span>Vol</span>
+        <span>{t("editor.vol")}</span>
         <input
           type="range"
           min="0"
@@ -739,7 +740,7 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
         <em>{Math.round(mixer.volume * 100)}</em>
       </label>
       <label className="mixerSlider">
-        <span>Pan</span>
+        <span>{t("editor.pan")}</span>
         <input
           type="range"
           min="-1"
@@ -753,13 +754,13 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
       <select
         className="mixerSelect"
         value={mixer.eq}
-        title="EQ"
-        aria-label="Equalizer"
+        title={t("editor.eQ")}
+        aria-label={t("editor.equalizer")}
         onChange={(event) => props.onMixerTrackChange(track.id, { eq: event.target.value as EqPreset })}
       >
         {eqPresets.map((preset) => (
           <option key={preset} value={preset}>
-            {preset}
+            {t(`eq.${preset}`)}
           </option>
         ))}
       </select>
@@ -772,7 +773,7 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
               key={effect}
               type="button"
               className={active ? "activeToggle" : ""}
-              title={effect}
+              title={t(`effect.${effect}`)}
               onClick={() => props.onMixerEffectToggle(track.id, effect)}
             >
               {label}
@@ -801,35 +802,35 @@ function AutomationEditor(props: EditorShellProps) {
   const lanes: AutomationLaneConfig[] = [
     {
       id: "tempo",
-      label: "Tempo",
+      label: t("tempo"),
       min: 40,
       max: 220,
       points: automationPoints(props.score.masterAutomations, "tempo", "master")
     },
     {
       id: "masterVolume",
-      label: "M Vol",
+      label: t("editor.mVol"),
       min: 0,
       max: 1,
       points: automationPoints(props.score.masterAutomations, "volume", "master")
     },
     {
       id: "masterPan",
-      label: "M Pan",
+      label: t("editor.mPan"),
       min: -1,
       max: 1,
       points: automationPoints(props.score.masterAutomations, "pan", "master")
     },
     {
       id: "trackVolume",
-      label: "T Vol",
+      label: t("editor.tVol"),
       min: 0,
       max: 1,
       points: currentTrack ? automationPoints(currentTrack.automations, "volume", "track") : []
     },
     {
       id: "trackPan",
-      label: "T Pan",
+      label: t("editor.tPan"),
       min: -1,
       max: 1,
       points: currentTrack ? automationPoints(currentTrack.automations, "pan", "track") : []
@@ -837,7 +838,7 @@ function AutomationEditor(props: EditorShellProps) {
   ];
 
   return (
-    <section className="automationEditor" aria-label="Automation editor">
+    <section className="automationEditor" aria-label={t("editor.automationEditor")}>
       {lanes.map((lane) => (
         <div key={lane.id} className="automationRow">
           <strong>{lane.label}</strong>

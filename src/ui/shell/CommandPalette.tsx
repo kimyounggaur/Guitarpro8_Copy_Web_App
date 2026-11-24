@@ -1,3 +1,4 @@
+import { t } from "../i18n/messages.en";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Command } from "../../commands/registry";
 import {
@@ -37,7 +38,7 @@ export function CommandPalette({
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const [flowMode, setFlowMode] = useState(false);
-  const [status, setStatus] = useState("Ready");
+  const [status, setStatus] = useState(t("palette.ready"));
   const dialogRef = useRef<HTMLElement>(null);
   useDialogFocus(dialogRef, open, "overlay");
   const suggestions = useMemo(
@@ -78,7 +79,7 @@ export function CommandPalette({
 
     if (trimmed === "flow") {
       setFlowMode((enabled) => !enabled);
-      setStatus(`Flow mode ${flowMode ? "off" : "on"}`);
+      setStatus(flowMode ? t("palette.flowModeOff") : t("palette.flowModeOn"));
       return;
     }
 
@@ -138,7 +139,7 @@ export function CommandPalette({
 
   return (
     <section ref={dialogRef} className="commandPalette" role="dialog" aria-modal="true"
-      aria-label="Command palette" data-testid="command-palette" tabIndex={-1}
+      aria-label={t("palette.commandPalette")} data-testid="command-palette" tabIndex={-1}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -152,16 +153,16 @@ export function CommandPalette({
         <input
           data-testid="command-palette-input"
           data-dialog-initial-focus
-          aria-label="Search commands"
+          aria-label={t("palette.searchCommands")}
           value={value}
           placeholder={COMMAND_PALETTE_PLACEHOLDER}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={handleKeyDown}
         />
         <button type="button" aria-pressed={flowMode} className={flowMode ? "activeToggle" : ""} onClick={() => setFlowMode((enabled) => !enabled)}>
-          Flow
+          {t("palette.flow")}
         </button>
-        <button type="button" onClick={onClose} title="Close command palette" aria-label="Close command palette">
+        <button type="button" onClick={onClose} title={t("palette.closeCommandPalette")} aria-label={t("palette.closeCommandPalette")}>
           <span aria-hidden="true">×</span>
         </button>
       </div>
@@ -203,6 +204,6 @@ function patternPreview(input: string): string | null {
   const [, prefix, pattern] = match;
   return `${prefix}: ${pattern
     .split("")
-    .map((char) => (char === " " ? "rest" : char))
+    .map((char) => (char === " " ? t("palette.rest") : char))
     .join(" | ")}`;
 }

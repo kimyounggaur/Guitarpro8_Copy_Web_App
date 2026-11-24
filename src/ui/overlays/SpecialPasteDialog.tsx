@@ -1,3 +1,4 @@
+import { t } from "../i18n/messages.en";
 import { useRef, useState, type FormEvent } from "react";
 import { DEFAULT_PASTE, type PasteOptions } from "../../engine/editing/clipboard";
 import { useDialogFocus } from "./useDialogFocus";
@@ -19,11 +20,11 @@ export function SpecialPasteDialog({
   }
 
   return (
-    <dialog ref={dialog} className="fileDecisionDialog" aria-label="Special paste" onCancel={onCancel}>
+    <dialog ref={dialog} className="fileDecisionDialog" aria-label={t("dialog.specialPaste")} onCancel={onCancel}>
       <form onSubmit={submit}>
-        <h2>Special paste</h2>
+        <h2>{t("dialog.specialPaste")}</h2>
         <label>
-          Repetitions
+          {t("dialog.repetitions")}
           <input
             autoFocus
             type="number"
@@ -35,16 +36,16 @@ export function SpecialPasteDialog({
           />
         </label>
         <label>
-          Paste
+          {t("dialog.paste")}
           <select value={options.content} onChange={(event) => {
             const content = event.target.value;
             if (content === "all" || content === "notes" || content === "effects") {
               setOptions({ ...options, content });
             }
           }}>
-            <option value="all">Notes and effects</option>
-            <option value="notes">Notes only</option>
-            <option value="effects">Effects only</option>
+            <option value="all">{t("dialog.notesAndEffects")}</option>
+            <option value="notes">{t("dialog.notesOnly")}</option>
+            <option value="effects">{t("dialog.effectsOnly")}</option>
           </select>
         </label>
         <label>
@@ -54,11 +55,11 @@ export function SpecialPasteDialog({
             disabled={options.content === "effects"}
             onChange={(event) => setOptions({ ...options, insert: event.target.checked })}
           />
-          Insert measures
+          {t("dialog.insertMeasures")}
         </label>
         <div className="fileDecisionActions">
-          <button type="submit">Paste</button>
-          <button type="button" onClick={onCancel}>Cancel</button>
+          <button type="submit">{t("dialog.paste")}</button>
+          <button type="button" onClick={onCancel}>{t("cancel")}</button>
         </div>
       </form>
     </dialog>

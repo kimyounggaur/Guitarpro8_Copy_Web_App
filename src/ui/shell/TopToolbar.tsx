@@ -1,3 +1,4 @@
+import { t } from "../i18n/messages.en";
 import { useViewStore } from "../../store/viewStore";
 import { useLayoutEffect, useRef, useState, type MouseEventHandler, type RefObject } from "react";
 import { beatDurationTicks, barTheoreticalTicks } from "../../model/derive";
@@ -17,12 +18,12 @@ type TopToolbarProps = Pick<EditorShellProps,
 > & { onMouseDown: MouseEventHandler<HTMLElement> };
 
 const displayModes: Array<[DisplayMode, string, string]> = [
-  ["vertical-page", "VP", "Vertical Page"],
-  ["horizontal-page", "HP", "Horizontal Page"],
-  ["grid", "Grid", "Grid"],
-  ["parchment", "Parch", "Parchment"],
-  ["vertical-screen", "VS", "Vertical Screen"],
-  ["horizontal-screen", "HS", "Horizontal Screen"]
+  ["vertical-page", t("mode.short.verticalPage"), t("mode.name.verticalPage")],
+  ["horizontal-page", t("mode.short.horizontalPage"), t("mode.name.horizontalPage")],
+  ["grid", t("mode.short.grid"), t("mode.name.grid")],
+  ["parchment", t("mode.short.parchment"), t("mode.name.parchment")],
+  ["vertical-screen", t("mode.short.verticalScreen"), t("mode.name.verticalScreen")],
+  ["horizontal-screen", t("mode.short.horizontalScreen"), t("mode.name.horizontalScreen")]
 ];
 
 export function TopToolbar(props: TopToolbarProps) {
@@ -56,11 +57,11 @@ export function TopToolbar(props: TopToolbarProps) {
   const groups: ToolbarGroup[] = [
     {
       id: "view",
-      title: "View",
+      title: t("toolbar.view"),
       className: "toolbarViewGroup",
       actions: [
-        { id: "view.zoomOut", label: "−", title: title("Zoom out", "view.zoomOut"), run: () => props.onZoomChange(zoom - 10) },
-        { id: "view.zoomIn", label: "+", title: title("Zoom in", "view.zoomIn"), run: () => props.onZoomChange(zoom + 10) },
+        { id: "view.zoomOut", label: "−", title: title(t("toolbar.zoomOut"), "view.zoomOut"), run: () => props.onZoomChange(zoom - 10) },
+        { id: "view.zoomIn", label: "+", title: title(t("toolbar.zoomIn"), "view.zoomIn"), run: () => props.onZoomChange(zoom + 10) },
         ...displayModes.map(([mode, label, name]) => ({
           id: mode,
           label,
@@ -68,40 +69,40 @@ export function TopToolbar(props: TopToolbarProps) {
           pressed: displayMode === mode,
           run: () => props.onDisplayModeChange(mode)
         })),
-        { id: "playback.speedDown", label: "−", title: "Speed down", run: () => props.dispatchCommand("playback.speedDown") },
-        { id: "playback.speedUp", label: "+", title: "Speed up", run: () => props.dispatchCommand("playback.speedUp") },
-        { id: "file.print", label: "⎙", title: title("Print", "file.print"), disabled: true }
+        { id: "playback.speedDown", label: "−", title: t("toolbar.speedDown"), run: () => props.dispatchCommand("playback.speedDown") },
+        { id: "playback.speedUp", label: "+", title: t("toolbar.speedUp"), run: () => props.dispatchCommand("playback.speedUp") },
+        { id: "file.print", label: "⎙", title: title(t("toolbar.print"), "file.print"), disabled: true }
       ]
     },
     {
       id: "panels",
-      title: "Panels",
+      title: t("toolbar.panels"),
       className: "panelGroup",
       actions: [
-        { id: "panels.palette", label: "◧", title: title("Palette", "panels.palette"), run: () => props.togglePanel("palette") },
-        { id: "panels.songInspector", label: "♫", title: title("Song Inspector", "panels.songInspector"), run: () => props.togglePanel("songInspector") },
-        { id: "panels.trackInspector", label: "⚙", title: title("Track Inspector", "panels.trackInspector"), run: () => props.togglePanel("trackInspector") },
-        { id: "panels.globalView", label: "▤", title: title("Global View", "panels.globalView"), run: () => props.togglePanel("globalView") },
-        { id: "panels.automation", label: "A", title: title("Automation", "panels.automation"), run: () => props.togglePanel("automationView") }
+        { id: "panels.palette", label: "◧", title: title(t("toolbar.palette"), "panels.palette"), run: () => props.togglePanel("palette") },
+        { id: "panels.songInspector", label: "♫", title: title(t("toolbar.songInspector"), "panels.songInspector"), run: () => props.togglePanel("songInspector") },
+        { id: "panels.trackInspector", label: "⚙", title: title(t("toolbar.trackInspector"), "panels.trackInspector"), run: () => props.togglePanel("trackInspector") },
+        { id: "panels.globalView", label: "▤", title: title(t("toolbar.globalView"), "panels.globalView"), run: () => props.togglePanel("globalView") },
+        { id: "panels.automation", label: "A", title: title(t("toolbar.automation"), "panels.automation"), run: () => props.togglePanel("automationView") }
       ]
     },
     {
       id: "tools",
-      title: "Tools",
+      title: t("toolbar.tools"),
       className: "toolLaunchGroup",
       actions: [
-        { id: "track.add", label: "+Trk", title: title("Add Track", "track.add"), run: () => props.onTrackPanelOpen("wizard") },
-        { id: "track.tuning", label: "Tune", title: "Tuning", disabled: !currentTrack, run: () => props.onTrackPanelOpen("tuning") },
-        { id: "track.voices", label: "Vox", title: title("Voices", "voice.toggleMulti"), pressed: props.multiVoiceEdit, run: () => props.onTrackPanelOpen("voices") },
-        { id: "track.drums", label: "Kit", title: "Drum kit", disabled: currentTrack?.icon !== "drums", run: () => props.onTrackPanelOpen("drums") },
-        { id: "tools.commandPalette", label: "Cmd", title: title("Command Palette", "tools.commandPalette"), testId: "command-palette-open", run: () => props.onCommandPaletteOpen() },
-        { id: "view.stylesheet", label: "Style", title: title("Score Stylesheet", "view.stylesheet"), run: props.onStylesheetPanelOpen },
-        { id: "tools.chords", label: "Chord", title: title("Chord tool", "tools.chords"), run: () => props.onToolOpen("chords") },
-        { id: "tools.scales", label: "Scale", title: title("Scale tool", "tools.scales"), run: () => props.onToolOpen("scales") },
-        { id: "tools.instrument", label: "Fret", title: title("Instrument view", "tools.instrument"), run: () => props.onToolOpen("instrument") },
-        { id: "tools.tuner", label: "Tune", title: "Tuner", run: () => props.onToolOpen("tuner") },
-        { id: "tools.transpose", label: "Trans", title: "Transpose", run: () => props.onToolOpen("transpose") },
-        { id: "tools.cleanup", label: "Check", title: title("Check bar duration", "tools.cleanup"), run: () => props.onToolOpen("cleanup") }
+        { id: "track.add", label: t("toolbar.short.trk"), title: title(t("toolbar.addTrack"), "track.add"), run: () => props.onTrackPanelOpen("wizard") },
+        { id: "track.tuning", label: t("toolbar.short.tune"), title: t("tuning"), disabled: !currentTrack, run: () => props.onTrackPanelOpen("tuning") },
+        { id: "track.voices", label: t("toolbar.short.vox"), title: title(t("toolbar.voices"), "voice.toggleMulti"), pressed: props.multiVoiceEdit, run: () => props.onTrackPanelOpen("voices") },
+        { id: "track.drums", label: t("toolbar.short.kit"), title: t("toolbar.drumKit"), disabled: currentTrack?.icon !== "drums", run: () => props.onTrackPanelOpen("drums") },
+        { id: "tools.commandPalette", label: t("toolbar.short.cmd"), title: title(t("toolbar.commandPalette"), "tools.commandPalette"), testId: "command-palette-open", run: () => props.onCommandPaletteOpen() },
+        { id: "view.stylesheet", label: t("toolbar.short.style"), title: title(t("toolbar.scoreStylesheet"), "view.stylesheet"), run: props.onStylesheetPanelOpen },
+        { id: "tools.chords", label: t("toolbar.short.chord"), title: title(t("toolbar.chordTool"), "tools.chords"), run: () => props.onToolOpen("chords") },
+        { id: "tools.scales", label: t("toolbar.short.scale"), title: title(t("toolbar.scaleTool"), "tools.scales"), run: () => props.onToolOpen("scales") },
+        { id: "tools.instrument", label: t("toolbar.short.fret"), title: title(t("toolbar.instrumentView"), "tools.instrument"), run: () => props.onToolOpen("instrument") },
+        { id: "tools.tuner", label: t("toolbar.short.tune"), title: t("toolbar.tuner"), run: () => props.onToolOpen("tuner") },
+        { id: "tools.transpose", label: t("toolbar.short.trans"), title: t("toolbar.transpose"), run: () => props.onToolOpen("transpose") },
+        { id: "tools.cleanup", label: t("toolbar.short.check"), title: title(t("toolbar.checkBarDuration"), "tools.cleanup"), run: () => props.onToolOpen("cleanup") }
       ]
     }
   ];
@@ -114,29 +115,29 @@ export function TopToolbar(props: TopToolbarProps) {
 
   return (
     <div className="toolbarShell">
-      <header ref={toolbarRef} className="toolbar" aria-label="Toolbar" onMouseDown={props.onMouseDown}>
+      <header ref={toolbarRef} className="toolbar" aria-label={t("toolbar.toolbar")} onMouseDown={props.onMouseDown}>
         <div ref={requiredRef} className="toolbarRequired">
           <div className="toolbarGroup homeGroup">
-            <button type="button" title="File I/O" onClick={props.onFileIoPanelOpen}>File</button>
+            <button type="button" title={t("toolbar.fileIO")} onClick={props.onFileIoPanelOpen}>{t("toolbar.file")}</button>
           </div>
           <div className="toolbarGroup historyGroup">
-            <button type="button" aria-label="Undo" title={title("Undo", "history.undo")} onClick={() => props.dispatchCommand("history.undo")}>↶</button>
-            <button type="button" aria-label="Redo" title={title("Redo", "history.redo")} onClick={() => props.dispatchCommand("history.redo")}>↷</button>
+            <button type="button" aria-label={t("toolbar.undo")} title={title(t("toolbar.undo"), "history.undo")} onClick={() => props.dispatchCommand("history.undo")}>↶</button>
+            <button type="button" aria-label={t("toolbar.redo")} title={title(t("toolbar.redo"), "history.redo")} onClick={() => props.dispatchCommand("history.redo")}>↷</button>
           </div>
           <div className="toolbarGroup transportGroup">
-            <button type="button" aria-label="First bar" title="First bar" onClick={() => props.dispatchCommand("cursor.firstBar")}>|&lt;</button>
-            <button type="button" aria-label="Previous bar" title={title("Previous bar", "playback.previousBar")} onClick={() => props.dispatchCommand("playback.previousBar")}>&lt;</button>
-            <button type="button" title="Play / stop Space" data-testid="transport-play-stop" onClick={() => props.dispatchCommand("playback.toggle")}>
-              {(props.playbackStatus === "playing" || props.playbackStatus === "starting") ? "Stop" : "Play"}
+            <button type="button" aria-label={t("toolbar.firstBar")} title={t("toolbar.firstBar")} onClick={() => props.dispatchCommand("cursor.firstBar")}>|&lt;</button>
+            <button type="button" aria-label={t("toolbar.previousBar")} title={title(t("toolbar.previousBar"), "playback.previousBar")} onClick={() => props.dispatchCommand("playback.previousBar")}>&lt;</button>
+            <button type="button" title={t("toolbar.playStopSpace")} data-testid="transport-play-stop" onClick={() => props.dispatchCommand("playback.toggle")}>
+              {(props.playbackStatus === "playing" || props.playbackStatus === "starting") ? t("toolbar.stop") : t("toolbar.play")}
             </button>
-            <button type="button" aria-label="Next bar" title={title("Next bar", "playback.nextBar")} onClick={() => props.dispatchCommand("playback.nextBar")}>&gt;</button>
-            <button type="button" aria-label="Last bar" title="Last bar" onClick={() => props.dispatchCommand("cursor.lastBar")}>&gt;|</button>
+            <button type="button" aria-label={t("toolbar.nextBar")} title={title(t("toolbar.nextBar"), "playback.nextBar")} onClick={() => props.dispatchCommand("playback.nextBar")}>&gt;</button>
+            <button type="button" aria-label={t("toolbar.lastBar")} title={t("toolbar.lastBar")} onClick={() => props.dispatchCommand("cursor.lastBar")}>&gt;|</button>
           </div>
-          <div className="lcd" title={issue ? `Voice ${cursor.voiceIndex + 1}: ${actual}/${expected}` : "Bar duration ok"}>
+          <div className="lcd" title={issue ? t("toolbar.voiceDuration", { voice: cursor.voiceIndex + 1, actual, expected }) : t("toolbar.barDurationOk")}>
             <span aria-hidden="true" className="trackColor" style={{ background: currentTrack?.color ?? "#64748b" }} />
-            <strong>{currentTrack?.shortName ?? "Track"}</strong>
+            <strong>{currentTrack?.shortName ?? t("toolbar.track")}</strong>
             {tempoDraft === null ? (
-              <button ref={tempoButton} type="button" className="lcdTempo" title="Edit measure tempo" data-testid="lcd-tempo" onClick={() => {
+              <button ref={tempoButton} type="button" className="lcdTempo" title={t("toolbar.editMeasureTempo")} data-testid="lcd-tempo" onClick={() => {
                 tempoEditing.current = true;
                 setTempoDraft(String(Math.round(props.currentTempo)));
               }}>
@@ -145,7 +146,7 @@ export function TopToolbar(props: TopToolbarProps) {
             ) : (
               <input
                 className="lcdTempoInput"
-                aria-label="Tempo BPM"
+                aria-label={t("toolbar.tempoBPM")}
                 type="number"
                 min={10}
                 max={300}
@@ -166,20 +167,20 @@ export function TopToolbar(props: TopToolbarProps) {
               />
             )}
             <span className={issue ? "lcdWarning" : ""}>{Math.round(actual)}/{Math.round(expected)}</span>
-            <button type="button" aria-label={props.multiTrackView ? "Multi track view" : "1 track view"} aria-pressed={props.multiTrackView} className={props.multiTrackView ? "activeToggle" : ""} title={title("Multitrack view", "view.multitrack")} onClick={props.onToggleMultiTrackView}>
-              {props.multiTrackView ? "Multi" : "1"}
+            <button type="button" aria-label={props.multiTrackView ? t("toolbar.multiTrackView") : t("toolbar.singleTrackView")} aria-pressed={props.multiTrackView} className={props.multiTrackView ? "activeToggle" : ""} title={title(t("toolbar.multitrackView"), "view.multitrack")} onClick={props.onToggleMultiTrackView}>
+              {props.multiTrackView ? t("toolbar.multi") : "1"}
             </button>
             <button type="button" disabled>♫</button>
             <button type="button" disabled>⚙</button>
           </div>
           <div className="toolbarGroup playbackTools">
-            <button type="button" aria-label="Count-in" aria-pressed={props.countInEnabled} className={props.countInEnabled ? "activeToggle" : ""} title="Count-in" onClick={() => props.dispatchCommand("playback.countIn")}>C</button>
-            <button type="button" aria-label="Metronome" aria-pressed={props.metronomeEnabled} className={props.metronomeEnabled ? "activeToggle" : ""} title="Metronome" onClick={() => props.dispatchCommand("playback.metronome")}>M</button>
-            <button type="button" aria-label="Loop" aria-pressed={props.loopEnabled} className={props.loopEnabled ? "activeToggle" : ""} title={title("Loop", "playback.loop")} onClick={() => props.dispatchCommand("playback.loop")}>Loop</button>
+            <button type="button" aria-label={t("toolbar.countIn")} aria-pressed={props.countInEnabled} className={props.countInEnabled ? "activeToggle" : ""} title={t("toolbar.countIn")} onClick={() => props.dispatchCommand("playback.countIn")}>C</button>
+            <button type="button" aria-label={t("toolbar.metronome")} aria-pressed={props.metronomeEnabled} className={props.metronomeEnabled ? "activeToggle" : ""} title={t("toolbar.metronome")} onClick={() => props.dispatchCommand("playback.metronome")}>M</button>
+            <button type="button" aria-label={t("toolbar.loop")} aria-pressed={props.loopEnabled} className={props.loopEnabled ? "activeToggle" : ""} title={title(t("toolbar.loop"), "playback.loop")} onClick={() => props.dispatchCommand("playback.loop")}>{t("toolbar.loop")}</button>
             {props.playbackStatus === "playing" ? (
               <PlaybackReadout barIndex={props.playbackBarIndex} />
             ) : (
-              <span className="playbackReadout">Bar {cursor.barIndex + 1} / Ready</span>
+              <span className="playbackReadout">{t("toolbar.readyAtBar", { bar: cursor.barIndex + 1 })}</span>
             )}
           </div>
         </div>
@@ -196,14 +197,14 @@ export function TopToolbar(props: TopToolbarProps) {
           </div>
         </div>
       </header>
-      <p className="toolbarNarrowNotice">편집 기능은 가로 1024px 이상 화면에서 지원합니다</p>
+      <p className="toolbarNarrowNotice">{t("toolbar.minimumWidthNotice")}</p>
     </div>
   );
 }
 
 function PlaybackReadout({ barIndex }: { barIndex: number }) {
   const seconds = usePlaybackStore((state) => state.currentTimeSec.toFixed(1));
-  return <span className="playbackReadout">Bar {barIndex + 1} / {seconds}s</span>;
+  return <span className="playbackReadout">{t("toolbar.playingAtBar", { bar: barIndex + 1, seconds })}</span>;
 }
 
 function ToolbarGroupContent({
