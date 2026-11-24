@@ -24,7 +24,29 @@ test("[B12] the physical X key toggles a dead note in a Korean input layout", as
     }));
   });
 
-  test.fail(true, "R2 resolves letter shortcuts by physical key in the score viewport.");
   const { score } = await state(page);
   expect(score.tracks[0].bars[0].voices[0].beats[0].notes[0].deadNote).toBe(true);
+});
+
+test("[B12] the toolbar keeps the score focused and the palette restores focus", async ({ page }) => {
+  await openApp(page, { fixture: guitarWithBars([[5]]) });
+  const scoreViewport = page.getByRole("application", { name: "Editable score" });
+  await expect(scoreViewport).toBeFocused();
+
+  await page.getByTitle("Zoom in Ctrl+=").click();
+  await expect(scoreViewport).toBeFocused();
+
+  await page.keyboard.press("7");
+  await page.keyboard.press("Control+E");
+  const paletteInput = page.getByTestId("command-palette-input");
+  await expect(paletteInput).toBeFocused();
+
+  await page.keyboard.type("text");
+  await page.keyboard.press("Control+Z");
+  expect((await state(page)).score.tracks[0].bars[0].voices[0].beats[0].notes[0].fret).toBe(7);
+  await page.keyboard.press("Escape");
+  await expect(scoreViewport).toBeFocused();
+
+  await page.keyboard.press("Control+Z");
+  expect((await state(page)).score.tracks[0].bars[0].voices[0].beats[0].notes[0].fret).toBe(5);
 });

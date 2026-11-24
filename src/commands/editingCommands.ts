@@ -1,3 +1,4 @@
+import type { TransportStatus } from "../engine/audio/transport";
 import type { CursorMove } from "../engine/editing/types";
 import type {
   BarSymbolCommand,
@@ -5,15 +6,17 @@ import type {
   NoteEffectCommand
 } from "../engine/editing/operations";
 import type { BeatDuration, Note } from "../model/types";
-import { getCommand, registerCommand } from "./registry";
+import { getCommand, registerCommand, type Command } from "./registry";
+import type { EditorCommandId } from "./commandIds";
 
 export interface EditorCommandContext {
   staffKind: "tab" | "standard";
-  playbackStatus: "stopped" | "playing" | "paused";
+  playbackStatus: TransportStatus;
   moveCursor: (move: CursorMove, extendSelection?: boolean) => void;
   moveBarSelection: (direction: -1 | 1) => void;
   toggleStaffKind: () => void;
-  inputFret: (fret: number) => void;
+  inputFretDigit: (digit: number) => void;
+  endFretInput: () => void;
   inputStandardString: (stringNumber: number) => void;
   changeDuration: (direction: "longer" | "shorter") => void;
   setDuration: (duration: BeatDuration) => void;
@@ -51,48 +54,49 @@ export interface EditorCommandContext {
   redo: () => void;
 }
 
+function registerEditorCommand(command: Command<EditorCommandContext> & { id: EditorCommandId }): void {
+  registerCommand(command);
+}
+
 export function ensureEditingCommandsRegistered(): void {
   if (getCommand("cursor.moveLeft")) {
     return;
   }
 
-  registerMove("cursor.moveLeft", "Move left", "ArrowLeft", "left");
-  registerMove("cursor.moveRight", "Move right", "ArrowRight", "right");
-  registerMove("cursor.moveUp", "Move up", "ArrowUp", "up");
-  registerMove("cursor.moveDown", "Move down", "ArrowDown", "down");
-  registerMove("cursor.home", "Bar start", "Home", "home");
-  registerMove("cursor.end", "Bar end", "End", "end");
-  registerMove("cursor.firstBar", "First bar", "Ctrl+Home", "firstBar");
-  registerMove("cursor.lastBar", "Last bar", "Ctrl+End", "lastBar");
-  registerMove("cursor.previousTrack", "Previous track", "Ctrl+ArrowUp", "previousTrack");
-  registerMove("cursor.nextTrack", "Next track", "Ctrl+ArrowDown", "nextTrack");
+  registerMove("cursor.moveLeft", "Move left", "left");
+  registerMove("cursor.moveRight", "Move right", "right");
+  registerMove("cursor.moveUp", "Move up", "up");
+  registerMove("cursor.moveDown", "Move down", "down");
+  registerMove("cursor.home", "Bar start", "home");
+  registerMove("cursor.end", "Bar end", "end");
+  registerMove("cursor.firstBar", "First bar", "firstBar");
+  registerMove("cursor.lastBar", "Last bar", "lastBar");
+  registerMove("cursor.previousTrack", "Previous track", "previousTrack");
+  registerMove("cursor.nextTrack", "Next track", "nextTrack");
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "cursor.toggleStaff",
     label: "Switch staff",
     category: "Cursor",
-    shortcut: { win: "Tab", mac: "Tab" },
     execute: (context) => context.toggleStaffKind()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "duration.longer",
     label: "Longer duration",
     category: "Note",
-    shortcut: { win: "-", mac: "-" },
     execute: (context) => context.changeDuration("longer")
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "duration.shorter",
     label: "Shorter duration",
     category: "Note",
-    shortcut: { win: "+", mac: "+" },
     execute: (context) => context.changeDuration("shorter")
   });
 
   ([1, 2, 4, 8, 16, 32, 64] as BeatDuration[]).forEach((duration) => {
-    registerCommand<EditorCommandContext>({
+    registerEditorCommand({
       id: `duration.set.${duration}`,
       label: `${duration} note`,
       category: "Note",
@@ -100,219 +104,192 @@ export function ensureEditingCommandsRegistered(): void {
     });
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.rest",
     label: "Rest",
     category: "Note",
-    shortcut: { win: "R", mac: "R" },
     execute: (context) => context.toggleRest()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.tie",
     label: "Tie",
     category: "Note",
-    shortcut: { win: "L", mac: "L" },
     execute: (context) => context.toggleTie(false)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.tieBeat",
     label: "Tie beat",
     category: "Note",
-    shortcut: { win: "Shift+L", mac: "Shift+L" },
     execute: (context) => context.toggleTie(true)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.dot",
     label: "Dotted",
     category: "Note",
-    shortcut: { win: "Shift+.", mac: "Shift+." },
     execute: (context) => context.setDots(1)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.doubleDot",
     label: "Double dotted",
     category: "Note",
-    shortcut: { win: "Ctrl+.", mac: "Cmd+." },
     execute: (context) => context.setDots(2)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.triplet",
     label: "Triplet",
     category: "Note",
-    shortcut: { win: "Shift+/", mac: "Shift+/" },
     execute: (context) => context.toggleTriplet()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.delete",
     label: "Delete note",
     category: "Edit",
-    shortcut: { win: "Backspace", mac: "Backspace" },
     execute: (context) => context.deleteNote()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "beat.delete",
     label: "Delete beat",
     category: "Edit",
-    shortcut: { win: "Shift+Delete", mac: "Shift+Backspace" },
     execute: (context) => context.deleteBeat()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "bar.delete",
     label: "Delete bar",
     category: "Edit",
-    shortcut: { win: "Ctrl+Delete", mac: "Cmd+Backspace" },
     execute: (context) => context.deleteBar()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "bar.insert",
     label: "Insert bar",
     category: "Edit",
-    shortcut: { win: "Insert", mac: "Insert" },
     execute: (context) => context.insertBar()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "beat.insert",
     label: "Insert beat",
     category: "Edit",
-    shortcut: { win: "Ctrl+Insert", mac: "Cmd+Insert" },
     execute: (context) => context.insertBeat()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "beat.copyPrevious",
     label: "Copy previous beat",
     category: "Edit",
-    shortcut: { win: "C", mac: "C" },
     execute: (context) => context.copyPreviousBeat()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.moveStringUp",
     label: "Move note to upper string",
     category: "Note",
-    shortcut: { win: "Alt+ArrowUp", mac: "Alt+ArrowUp" },
     execute: (context) => context.moveNoteString(-1)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.moveStringDown",
     label: "Move note to lower string",
     category: "Note",
-    shortcut: { win: "Alt+ArrowDown", mac: "Alt+ArrowDown" },
     execute: (context) => context.moveNoteString(1)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.transposeUp",
     label: "Transpose note up",
     category: "Note",
-    shortcut: { win: "Alt+Shift+ArrowUp", mac: "Alt+Shift+ArrowUp" },
     execute: (context) => context.transposeNote(1)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "note.transposeDown",
     label: "Transpose note down",
     category: "Note",
-    shortcut: { win: "Alt+Shift+ArrowDown", mac: "Alt+Shift+ArrowDown" },
     execute: (context) => context.transposeNote(-1)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "selection.extendBarRight",
     label: "Extend selection right",
     category: "Selection",
-    shortcut: { win: "Ctrl+Shift+ArrowRight", mac: "Cmd+Shift+ArrowRight" },
     execute: (context) => context.moveBarSelection(1)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "selection.extendBarLeft",
     label: "Extend selection left",
     category: "Selection",
-    shortcut: { win: "Ctrl+Shift+ArrowLeft", mac: "Cmd+Shift+ArrowLeft" },
     execute: (context) => context.moveBarSelection(-1)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "selection.selectTrack",
     label: "Select track",
     category: "Selection",
-    shortcut: { win: "Ctrl+A", mac: "Cmd+A" },
     execute: (context) => context.selectAllTrack()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "clipboard.copy",
     label: "Copy",
     category: "Clipboard",
-    shortcut: { win: "Ctrl+C", mac: "Cmd+C" },
     execute: (context) => context.copy("single", false)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "clipboard.cut",
     label: "Cut",
     category: "Clipboard",
-    shortcut: { win: "Ctrl+X", mac: "Cmd+X" },
     execute: (context) => context.copy("single", true)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "clipboard.paste",
     label: "Paste",
     category: "Clipboard",
-    shortcut: { win: "Ctrl+V", mac: "Cmd+V" },
     execute: (context) => context.paste(false)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "clipboard.copyMultitrack",
     label: "Copy all tracks",
     category: "Clipboard",
-    shortcut: { win: "Ctrl+Shift+C", mac: "Cmd+Shift+C" },
     execute: (context) => context.copy("multitrack", false)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "clipboard.cutMultitrack",
     label: "Cut all tracks",
     category: "Clipboard",
-    shortcut: { win: "Ctrl+Shift+X", mac: "Cmd+Shift+X" },
     execute: (context) => context.copy("multitrack", true)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "clipboard.specialPaste",
     label: "Special paste",
     category: "Clipboard",
-    shortcut: { win: "Ctrl+Shift+V", mac: "Cmd+Shift+V" },
     execute: (context) => context.paste(true)
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "history.undo",
     label: "Undo",
     category: "Edit",
-    shortcut: { win: "Ctrl+Z", mac: "Cmd+Z" },
     execute: (context) => context.undo()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "history.redo",
     label: "Redo",
     category: "Edit",
-    shortcut: { win: "Ctrl+Y", mac: "Shift+Cmd+Z" },
     execute: (context) => context.redo()
   });
 
@@ -323,12 +300,11 @@ export function ensureEditingCommandsRegistered(): void {
   registerPlaybackCommands();
 }
 
-function registerMove(id: string, label: string, win: string, move: CursorMove): void {
-  registerCommand<EditorCommandContext>({
+function registerMove(id: EditorCommandId, label: string, move: CursorMove): void {
+  registerEditorCommand({
     id,
     label,
     category: "Cursor",
-    shortcut: { win, mac: win.replace("Ctrl", "Cmd") },
     execute: (context, args) => {
       const event = (args as { event?: KeyboardEvent } | undefined)?.event;
       context.moveCursor(move, event?.shiftKey ?? false);
@@ -337,28 +313,27 @@ function registerMove(id: string, label: string, win: string, move: CursorMove):
 }
 
 function registerAccidentalCommands(): void {
-  const accidentals: Array<[string, string, string, Note["accidental"]]> = [
-    ["note.sharp", "Sharp", "Ctrl+9", "sharp"],
-    ["note.flat", "Flat", "Ctrl+7", "flat"],
-    ["note.natural", "Natural", "Ctrl+8", "natural"],
-    ["note.doubleSharp", "Double sharp", "Ctrl+Alt+9", "doubleSharp"],
-    ["note.doubleFlat", "Double flat", "Ctrl+Alt+7", "doubleFlat"],
-    ["note.enharmonic", "Enharmonic", "Ctrl+Alt+8", "none"]
+  const accidentals: Array<[EditorCommandId, string, Note["accidental"]]> = [
+    ["note.sharp", "Sharp", "sharp"],
+    ["note.flat", "Flat", "flat"],
+    ["note.natural", "Natural", "natural"],
+    ["note.doubleSharp", "Double sharp", "doubleSharp"],
+    ["note.doubleFlat", "Double flat", "doubleFlat"],
+    ["note.enharmonic", "Enharmonic", "none"]
   ];
 
-  accidentals.forEach(([id, label, win, accidental]) => {
-    registerCommand<EditorCommandContext>({
+  accidentals.forEach(([id, label, accidental]) => {
+    registerEditorCommand({
       id,
       label,
       category: "Accidentals",
-      shortcut: { win, mac: win.replace("Ctrl", "Cmd") },
       execute: (context) => context.setAccidental(accidental)
     });
   });
 }
 
 function registerDynamicCommands(): void {
-  const dynamics: Array<[string, string, Note["dynamic"]]> = [
+  const dynamics: Array<[EditorCommandId, string, Note["dynamic"]]> = [
     ["note.dynamic.0", "ppp", 0],
     ["note.dynamic.1", "pp", 1],
     ["note.dynamic.2", "p", 2],
@@ -370,7 +345,7 @@ function registerDynamicCommands(): void {
   ];
 
   dynamics.forEach(([id, label, dynamic]) => {
-    registerCommand<EditorCommandContext>({
+    registerEditorCommand({
       id,
       label,
       category: "Dynamics",
@@ -380,7 +355,7 @@ function registerDynamicCommands(): void {
 }
 
 function registerBarSymbolCommands(): void {
-  const symbols: Array<[string, string, BarSymbolCommand]> = [
+  const symbols: Array<[EditorCommandId, string, BarSymbolCommand]> = [
     ["bar.symbol.repeatOpen", "Repeat open", "repeatOpen"],
     ["bar.symbol.repeatClose", "Repeat close", "repeatClose"],
     ["bar.symbol.doubleBar", "Double barline", "doubleBar"],
@@ -395,14 +370,14 @@ function registerBarSymbolCommands(): void {
     ["bar.symbol.anacrusis", "Anacrusis", "anacrusis"]
   ];
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "bar.symbol.timeSignature",
     label: "Time signature",
     category: "Bar symbols",
     execute: (context) => context.cycleTimeSignature()
   });
 
-  registerCommand<EditorCommandContext>({
+  registerEditorCommand({
     id: "bar.symbol.keySignature",
     label: "Key signature",
     category: "Bar symbols",
@@ -410,7 +385,7 @@ function registerBarSymbolCommands(): void {
   });
 
   symbols.forEach(([id, label, symbol]) => {
-    registerCommand<EditorCommandContext>({
+    registerEditorCommand({
       id,
       label,
       category: "Bar symbols",
@@ -420,7 +395,7 @@ function registerBarSymbolCommands(): void {
 }
 
 function registerEffectCommands(): void {
-  const noteEffects: Array<[string, string, NoteEffectCommand]> = [
+  const noteEffects: Array<[EditorCommandId, string, NoteEffectCommand]> = [
     ["note.effect.ghost", "Ghost note", "ghost"],
     ["note.effect.dead", "Dead note", "dead"],
     ["note.effect.accent", "Accent", "accent"],
@@ -445,7 +420,7 @@ function registerEffectCommands(): void {
     ["note.effect.deadSlapped", "Dead slapped", "deadSlapped"],
     ["note.effect.stringNumber", "String number", "stringNumber"]
   ];
-  const beatEffects: Array<[string, string, BeatEffectCommand]> = [
+  const beatEffects: Array<[EditorCommandId, string, BeatEffectCommand]> = [
     ["beat.effect.brushDown", "Brush down", "brushDown"],
     ["beat.effect.brushUp", "Brush up", "brushUp"],
     ["beat.effect.arpeggioDown", "Arpeggio down", "arpeggioDown"],
@@ -460,7 +435,7 @@ function registerEffectCommands(): void {
   ];
 
   noteEffects.forEach(([id, label, effect]) => {
-    registerCommand<EditorCommandContext>({
+    registerEditorCommand({
       id,
       label,
       category: "Effects",
@@ -469,7 +444,7 @@ function registerEffectCommands(): void {
   });
 
   beatEffects.forEach(([id, label, effect]) => {
-    registerCommand<EditorCommandContext>({
+    registerEditorCommand({
       id,
       label,
       category: "Effects",
@@ -479,27 +454,26 @@ function registerEffectCommands(): void {
 }
 
 function registerPlaybackCommands(): void {
-  const commands: Array<[string, string, string | undefined, (context: EditorCommandContext) => void]> = [
-    ["playback.toggle", "Play or stop", "Space", (context) => context.togglePlayback(false)],
-    ["playback.fromStart", "Play from beginning", "Ctrl+Space", (context) => context.togglePlayback(true)],
-    ["playback.stop", "Stop", undefined, (context) => context.stopPlayback()],
-    ["playback.previousBar", "Previous bar", "Ctrl+ArrowLeft", (context) => context.movePlaybackBar(-1)],
-    ["playback.nextBar", "Next bar", "Ctrl+ArrowRight", (context) => context.movePlaybackBar(1)],
-    ["playback.previousBeat", "Previous beat", "Alt+ArrowLeft", (context) => context.stepPlaybackBeat(-1)],
-    ["playback.nextBeat", "Next beat", "Alt+ArrowRight", (context) => context.stepPlaybackBeat(1)],
-    ["playback.loop", "Loop", "F9", (context) => context.toggleLoop()],
-    ["playback.metronome", "Metronome", undefined, (context) => context.toggleMetronome()],
-    ["playback.countIn", "Count-in", undefined, (context) => context.toggleCountIn()],
-    ["playback.speedUp", "Speed up", "+", (context) => context.changePlaybackSpeed(1)],
-    ["playback.speedDown", "Speed down", "-", (context) => context.changePlaybackSpeed(-1)]
+  const commands: Array<[EditorCommandId, string, (context: EditorCommandContext) => void]> = [
+    ["playback.toggle", "Play or stop", (context) => context.togglePlayback(false)],
+    ["playback.fromStart", "Play from beginning", (context) => context.togglePlayback(true)],
+    ["playback.stop", "Stop", (context) => context.stopPlayback()],
+    ["playback.previousBar", "Previous bar", (context) => context.movePlaybackBar(-1)],
+    ["playback.nextBar", "Next bar", (context) => context.movePlaybackBar(1)],
+    ["playback.previousBeat", "Previous beat", (context) => context.stepPlaybackBeat(-1)],
+    ["playback.nextBeat", "Next beat", (context) => context.stepPlaybackBeat(1)],
+    ["playback.loop", "Loop", (context) => context.toggleLoop()],
+    ["playback.metronome", "Metronome", (context) => context.toggleMetronome()],
+    ["playback.countIn", "Count-in", (context) => context.toggleCountIn()],
+    ["playback.speedUp", "Speed up", (context) => context.changePlaybackSpeed(1)],
+    ["playback.speedDown", "Speed down", (context) => context.changePlaybackSpeed(-1)]
   ];
 
-  commands.forEach(([id, label, shortcut, execute]) => {
-    registerCommand<EditorCommandContext>({
+  commands.forEach(([id, label, execute]) => {
+    registerEditorCommand({
       id,
       label,
       category: "Playback",
-      shortcut: shortcut ? { win: shortcut, mac: shortcut.replace("Ctrl", "Cmd") } : undefined,
       execute
     });
   });

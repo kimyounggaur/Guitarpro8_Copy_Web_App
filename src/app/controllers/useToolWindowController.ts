@@ -1,24 +1,5 @@
-// Tool/Track/Stylesheet/File/Command-Palette overlay visibility controller.
-//
-// Extracted from src/App.tsx local useState calls (see
-// docs/ui-remaster/00-component-map.md §1, row App.tsx:134-143, and §2's
-// "도구 패널/트랙 패널/..." state-ownership row) as part of Phase 2's
-// structural-only refactor. Behavior is unchanged from the original.
-//
-// The state is deliberately kept as a single object (rather than five
-// independent useState calls) so that swapping this hook's internals for a
-// zustand `overlayStore` in a later phase (see the master prompt's target
-// state-ownership table, "열려 있는 팝오버/모달") is a mechanical change: only
-// this file's `useState`/`setState` calls need to become store `set` calls,
-// the public ToolWindowController contract below does not need to change.
-// commandPalette is modeled as a discriminated union because its
-// `initialValue` is only meaningful while open — the other panels stay
-// plain booleans because, unlike a future single-active-overlay design,
-// today's app allows several of them to be visible at once (see
-// component-map §5, the floating panels share overlapping z-index layers),
-// so collapsing them into one mutually-exclusive union here would silently
-// change behavior, which this phase must not do.
-import { useState } from "react";
+// Tracks the editor panels and restores focus to the control that opened each one.
+import { useRef, useState } from "react";
 import type { ToolPanelId } from "../../ui/shell/ToolPanels";
 import type { TrackPanelId } from "../../ui/shell/TrackSystemPanels";
 
@@ -54,16 +35,8 @@ export interface ToolWindowController {
   closeToolPanel: () => void;
   setActiveTrackPanel: (panel: TrackPanelId | null) => void;
   closeTrackPanel: () => void;
-  /** Force-opens the Stylesheet panel only — cannot close it. Mirrors the
-   * Style toolbar button and the `view.stylesheet` command today
-   * (component-map.md §3 row 1). Kept distinct from
-   * `toggleStylesheetPanel` on purpose: unifying the two would change F7's
-   * observable behavior relative to the Style button, which this phase
-   * must not do. */
   openStylesheetPanel: () => void;
   closeStylesheetPanel: () => void;
-  /** Toggles the Stylesheet panel — this is F7's current behavior. See the
-   * `openStylesheetPanel` note above for why this stays separate. */
   toggleStylesheetPanel: () => void;
   openFileIoPanel: () => void;
   closeFileIoPanel: () => void;
@@ -77,7 +50,30 @@ export interface ToolWindowController {
 export function useToolWindowController(): ToolWindowController {
   const [state, setState] = useState<ToolWindowState>(initialState);
 
+  const openers = useRef(new Map<keyof ToolWindowState, HTMLElement>());
+
+  function rememberFocus(overlay: keyof ToolWindowState): void {
+    const activeElement = document.activeElement;
+    if (!openers.current.has(overlay) && activeElement instanceof HTMLElement) {
+      openers.current.set(overlay, activeElement);
+    }
+  }
+
+  function restoreFocus(overlay: keyof ToolWindowState): void {
+    const opener = openers.current.get(overlay);
+    if (!opener) return;
+    openers.current.delete(overlay);
+    requestAnimationFrame(() => {
+      const target = opener.isConnected && opener !== document.body
+        ? opener
+        : document.querySelector<HTMLElement>(".scoreViewport");
+      target?.focus({ preventScroll: true });
+    });
+  }
+
   function setActiveToolPanel(tool: ToolPanelId | null): void {
+    if (tool) rememberFocus("activeToolPanel");
+    else restoreFocus("activeToolPanel");
     setState((previous) => ({ ...previous, activeToolPanel: tool }));
   }
 
@@ -86,6 +82,8 @@ export function useToolWindowController(): ToolWindowController {
   }
 
   function setActiveTrackPanel(panel: TrackPanelId | null): void {
+    if (panel) rememberFocus("activeTrackPanel");
+    else restoreFocus("activeTrackPanel");
     setState((previous) => ({ ...previous, activeTrackPanel: panel }));
   }
 
@@ -94,34 +92,44 @@ export function useToolWindowController(): ToolWindowController {
   }
 
   function openStylesheetPanel(): void {
+    rememberFocus("stylesheetPanelOpen");
     setState((previous) => ({ ...previous, stylesheetPanelOpen: true }));
   }
 
   function closeStylesheetPanel(): void {
+    restoreFocus("stylesheetPanelOpen");
     setState((previous) => ({ ...previous, stylesheetPanelOpen: false }));
   }
 
   function toggleStylesheetPanel(): void {
-    setState((previous) => ({ ...previous, stylesheetPanelOpen: !previous.stylesheetPanelOpen }));
+    if (state.stylesheetPanelOpen) closeStylesheetPanel();
+    else openStylesheetPanel();
   }
 
   function openFileIoPanel(): void {
+    rememberFocus("fileIoPanelOpen");
     setState((previous) => ({ ...previous, fileIoPanelOpen: true }));
   }
 
   function closeFileIoPanel(): void {
+    restoreFocus("fileIoPanelOpen");
     setState((previous) => ({ ...previous, fileIoPanelOpen: false }));
   }
 
   function openCommandPalette(initialValue = ""): void {
+    rememberFocus("commandPalette");
     setState((previous) => ({ ...previous, commandPalette: { open: true, initialValue } }));
   }
 
   function closeCommandPalette(): void {
+    restoreFocus("commandPalette");
     setState((previous) => ({ ...previous, commandPalette: { open: false } }));
   }
 
   function closeAllOverlays(): void {
+    const firstOverlay = openers.current.keys().next().value;
+    if (firstOverlay) restoreFocus(firstOverlay);
+    openers.current.clear();
     setState((previous) => ({
       ...previous,
       activeToolPanel: null,

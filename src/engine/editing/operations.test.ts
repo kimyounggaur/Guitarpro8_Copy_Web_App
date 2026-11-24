@@ -7,7 +7,7 @@ import {
   moveRightWithScoreMutation,
   setDynamicAtCursor,
   shouldMutateOnMoveRight,
-  tieCurrentNoteToNext,
+  tieCurrentNoteFromPrevious,
   toggleBarSymbolAtCursor,
   toggleBeatEffectAtCursor,
   toggleNoteEffectAtCursor,
@@ -60,17 +60,20 @@ describe("Phase 3 editing operations", () => {
     expect(next).toMatchObject({ barIndex: 1, beatIndex: 0 });
   });
 
-  it("creates tie references between adjacent beats", () => {
+  it("[B1] toggles a tie from the previous beat's matching string", () => {
     const score = scoreWithTrack();
     const cursor = defaultCursor(score);
     const first = createBeat({ duration: 2, rest: false, notes: [createNote(2, 5)] });
-    const second = createBeat({ duration: 2, rest: false, notes: [createNote(2, 5)] });
+    const second = createBeat({ duration: 2, rest: false, notes: [createNote(2, 7)] });
     score.tracks[0].bars[0].voices[0].beats = [first, second];
 
-    tieCurrentNoteToNext(score, { ...cursor, string: 2 });
+    const destination = { ...cursor, beatIndex: 1, string: 2 };
+    tieCurrentNoteFromPrevious(score, destination);
 
-    expect(first.notes[0].tieDestination).toMatchObject({ beatIndex: 1, noteIndex: 0 });
-    expect(second.notes[0].tieOrigin).toMatchObject({ beatIndex: 0, noteIndex: 0 });
+    expect(first.notes[0].tiedFromPrevious).toBeUndefined();
+    expect(second.notes[0]).toMatchObject({ fret: 5, tiedFromPrevious: true });
+    tieCurrentNoteFromPrevious(score, destination);
+    expect(second.notes[0].tiedFromPrevious).toBeUndefined();
   });
 
   it("keeps undo and redo as score transactions", () => {

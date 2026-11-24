@@ -9,16 +9,20 @@ import {
   createMasterBar,
   createNote
 } from "../../model/factory";
+import { previousTieBeat } from "../../model/ties";
 import type {
+  AutomationPoint,
   Bar,
   Beat,
   BeatDuration,
   DirectionJump,
   DirectionTarget,
   Dynamic,
+  KeySignature,
+  MasterBar,
   Note,
-  NoteRef,
   Score,
+  TimeSignature,
   Track
 } from "../../model/types";
 import type { CursorMove, CursorPosition } from "./types";
@@ -32,6 +36,8 @@ const timeSignatureCycle = [
   { numerator: 12, denominator: 8 as BeatDuration }
 ];
 const keySignatureCycle = ["C", "G", "D", "A", "E", "F", "Bb", "Eb", "Am", "Em", "Bm"];
+
+export type SignatureScope = "untilNextChange" | "thisBarOnly" | "toEnd";
 
 export type BarSymbolCommand =
   | "repeatOpen"
@@ -291,9 +297,31 @@ export function insertBeatAtCursor(score: Score, cursor: CursorPosition): Cursor
 
 export function insertBarAtCursor(score: Score, cursor: CursorPosition): CursorPosition {
   const current = normaliseCursor(score, cursor);
-  score.masterBars.splice(current.barIndex, 0, createMasterBar());
-  score.tracks.forEach((track) => track.bars.splice(current.barIndex, 0, createBar()));
-  return current;
+  insertBarsAt(score, current.barIndex);
+  return { ...current, beatIndex: 0 };
+}
+
+export function insertBarsAt(score: Score, barIndex: number, count = 1): void {
+  const preceding = score.masterBars[barIndex - 1] ?? score.masterBars[barIndex];
+  const masterBars = Array.from({ length: count }, () => {
+    const masterBar = createMasterBar();
+    if (preceding) {
+      masterBar.timeSignature = { ...preceding.timeSignature };
+      masterBar.keySignature = { ...preceding.keySignature };
+      masterBar.tripletFeel = preceding.tripletFeel;
+    }
+    return masterBar;
+  });
+  insertBars(score, barIndex, masterBars, (_track, offset) => createRestBar(masterBars[offset].timeSignature));
+}
+
+export function repeatBarAt(score: Score, barIndex: number, count: number): void {
+  const masterBar = score.masterBars[barIndex];
+  if (!masterBar) {
+    return;
+  }
+  const copies = Array.from({ length: count }, () => structuredClone(masterBar));
+  insertBars(score, barIndex + 1, copies, (track) => structuredClone(track.bars[barIndex] ?? createBar()));
 }
 
 export function deleteBarAtCursor(score: Score, cursor: CursorPosition): CursorPosition {
@@ -303,6 +331,11 @@ export function deleteBarAtCursor(score: Score, cursor: CursorPosition): CursorP
     return current;
   }
 
+  const fromTick = barStartTick(score, current.barIndex);
+  const length = barTheoreticalTicks(score.masterBars[current.barIndex]);
+  for (const automation of scoreAutomations(score)) {
+    automation.points = removeAutomationRange(automation.points, fromTick, length);
+  }
   score.masterBars.splice(current.barIndex, 1);
   score.tracks.forEach((track) => track.bars.splice(current.barIndex, 1));
 
@@ -347,46 +380,41 @@ export function toggleTripletAtCursor(score: Score, cursor: CursorPosition): Cur
   return current;
 }
 
-export function tieCurrentNoteToNext(score: Score, cursor: CursorPosition, wholeBeat = false): CursorPosition {
+export function canTieFromPrevious(score: Score, cursor: CursorPosition, wholeBeat = false): boolean {
+  return tieTargets(score, normaliseCursor(score, cursor), wholeBeat).length > 0;
+}
+
+export function tieCurrentNoteFromPrevious(score: Score, cursor: CursorPosition, wholeBeat = false): CursorPosition {
   const current = normaliseCursor(score, cursor);
-  const beat = beatForCursor(score, current);
-  const next = nextBeatRef(score, current);
-
-  if (!beat || !next.beat) {
-    return current;
-  }
-
-  const nextBeat = next.beat;
-  const notes = wholeBeat ? beat.notes : beat.notes.filter((note) => note.string === current.string);
-
-  notes.forEach((note) => {
-    const destinationIndex = nextBeat.notes.findIndex((candidate) => candidate.string === note.string);
-    const destination =
-      destinationIndex >= 0 ? nextBeat.notes[destinationIndex] : createNote(note.string, note.fret);
-
-    destination.fret = note.fret;
-    destination.tieOrigin = {
-      trackId: current.trackId ?? "",
-      barIndex: current.barIndex,
-      voiceIndex: current.voiceIndex,
-      beatIndex: current.beatIndex,
-      noteIndex: beat.notes.indexOf(note)
-    };
-    note.tieDestination = {
-      trackId: current.trackId ?? "",
-      barIndex: next.cursor.barIndex,
-      voiceIndex: next.cursor.voiceIndex,
-      beatIndex: next.cursor.beatIndex,
-      noteIndex: destinationIndex >= 0 ? destinationIndex : nextBeat.notes.length
-    };
-
-    if (destinationIndex < 0) {
-      nextBeat.rest = false;
-      nextBeat.notes.push(destination);
+  const targets = tieTargets(score, current, wholeBeat);
+  const beat = targets.length ? ensureBeat(score, current) : null;
+  if (!beat) return current;
+  for (const { source, destination } of targets) {
+    if (destination?.tiedFromPrevious) {
+      delete destination.tiedFromPrevious;
+    } else if (destination) {
+      destination.fret = source.fret;
+      destination.tiedFromPrevious = true;
+    } else {
+      beat.rest = false;
+      beat.notes.push({ ...structuredClone(source), tiedFromPrevious: true });
     }
-  });
-
+  }
   return current;
+}
+
+function tieTargets(score: Score, cursor: CursorPosition, wholeBeat: boolean): Array<{ source: Note; destination?: Note }> {
+  const track = trackForCursor(score, cursor);
+  const previous = track && previousTieBeat(track, cursor);
+  if (!previous) return [];
+
+  const beat = beatForCursor(score, cursor);
+  const currentNotes = beat?.rest ? [] : (beat?.notes ?? []);
+  const sourceNotes = wholeBeat ? previous.beat.notes : previous.beat.notes.filter(({ string }) => string === cursor.string);
+  return sourceNotes.flatMap((source) => {
+    const destination = currentNotes.find(({ string }) => string === source.string);
+    return destination || currentNotes.length === 0 ? [{ source, destination }] : [];
+  });
 }
 
 export function copyPreviousBeat(score: Score, cursor: CursorPosition): CursorPosition {
@@ -500,11 +528,11 @@ export function cycleTimeSignatureAtCursor(score: Score, cursor: CursorPosition)
       signature.denominator === masterBar.timeSignature.denominator
   );
   const next = timeSignatureCycle[(currentIndex + 1) % timeSignatureCycle.length];
-  masterBar.timeSignature = {
+  setTimeSignature(score, current.barIndex, {
     ...masterBar.timeSignature,
     numerator: next.numerator,
     denominator: next.denominator
-  };
+  });
 
   return current;
 }
@@ -519,12 +547,64 @@ export function cycleKeySignatureAtCursor(score: Score, cursor: CursorPosition):
 
   const currentIndex = keySignatureCycle.indexOf(masterBar.keySignature.key);
   const next = keySignatureCycle[(currentIndex + 1) % keySignatureCycle.length];
-  masterBar.keySignature = {
+  setKeySignature(score, current.barIndex, {
     key: next,
     mode: next.endsWith("m") ? "minor" : "major"
-  };
+  });
 
   return current;
+}
+
+export function setTimeSignature(
+  score: Score,
+  fromBar: number,
+  signature: TimeSignature,
+  scope: SignatureScope = "untilNextChange"
+): void {
+  const original = score.masterBars[fromBar]?.timeSignature;
+  if (!original) {
+    return;
+  }
+  for (const bar of barsInSignatureScope(score, fromBar, scope, (bar) =>
+    bar.timeSignature.numerator === original.numerator &&
+    bar.timeSignature.denominator === original.denominator &&
+    bar.timeSignature.beamingPreset === original.beamingPreset
+  )) {
+    bar.timeSignature = { ...signature };
+  }
+}
+
+export function setKeySignature(
+  score: Score,
+  fromBar: number,
+  signature: KeySignature,
+  scope: SignatureScope = "untilNextChange"
+): void {
+  const original = score.masterBars[fromBar]?.keySignature;
+  if (!original) {
+    return;
+  }
+  for (const bar of barsInSignatureScope(score, fromBar, scope, (bar) =>
+    bar.keySignature.key === original.key && bar.keySignature.mode === original.mode
+  )) {
+    bar.keySignature = { ...signature };
+  }
+}
+
+function* barsInSignatureScope(
+  score: Score,
+  fromBar: number,
+  scope: SignatureScope,
+  matches: (masterBar: MasterBar) => boolean
+): Generator<MasterBar> {
+  const limit = scope === "thisBarOnly" ? fromBar + 1 : score.masterBars.length;
+  for (let index = fromBar; index < limit; index += 1) {
+    const bar = score.masterBars[index];
+    if (scope === "untilNextChange" && !matches(bar)) {
+      break;
+    }
+    yield bar;
+  }
 }
 
 export function toggleBarSymbolAtCursor(
@@ -830,8 +910,72 @@ function moveTrack(score: Score, cursor: CursorPosition, direction: -1 | 1): Cur
 }
 
 function appendBarToAllTracks(score: Score): void {
-  score.masterBars.push(createMasterBar());
-  score.tracks.forEach((track) => track.bars.push(createBar()));
+  insertBarsAt(score, score.masterBars.length);
+}
+
+function createRestBar(signature: TimeSignature): Bar {
+  const bar = createBar();
+  bar.voices[0].beats = Array.from({ length: signature.numerator }, () => createBeat({
+    duration: signature.denominator
+  }));
+  return bar;
+}
+
+function insertBars(
+  score: Score,
+  barIndex: number,
+  masterBars: MasterBar[],
+  createTrackBar: (track: Track, offset: number) => Bar
+): void {
+  const fromTick = barStartTick(score, barIndex);
+  const length = masterBars.reduce((ticks, bar) => ticks + barTheoreticalTicks(bar), 0);
+  for (const automation of scoreAutomations(score)) {
+    for (const point of automation.points) {
+      if (point.tick >= fromTick) {
+        point.tick += length;
+      }
+    }
+  }
+  score.masterBars.splice(barIndex, 0, ...masterBars);
+  for (const track of score.tracks) {
+    track.bars.splice(barIndex, 0, ...masterBars.map((_, offset) => createTrackBar(track, offset)));
+  }
+}
+
+function barStartTick(score: Score, barIndex: number): number {
+  return score.masterBars.slice(0, barIndex).reduce((ticks, bar) => ticks + barTheoreticalTicks(bar), 0);
+}
+
+function scoreAutomations(score: Score) {
+  return [...score.masterAutomations, ...score.tracks.flatMap((track) => track.automations)];
+}
+
+function removeAutomationRange(points: AutomationPoint[], fromTick: number, length: number): AutomationPoint[] {
+  const endTick = fromTick + length;
+  const remaining = points.flatMap((point) => {
+    if (point.tick < fromTick) {
+      return [point];
+    }
+    return point.tick < endTick ? [] : [{ ...point, tick: point.tick - length }];
+  });
+
+  if (remaining.some((point) => point.tick === fromTick)) {
+    return remaining;
+  }
+
+  const sorted = [...points].sort((a, b) => a.tick - b.tick);
+  const nextIndex = sorted.findIndex((point) => point.tick >= fromTick);
+  const previous = sorted[nextIndex - 1];
+  if (previous?.transition === "progressive") {
+    // Anchor the end of the retained ramp so shortening it does not change
+    // the values before the cut.
+    const next = sorted[nextIndex];
+    const fraction = (fromTick - previous.tick) / (next.tick - previous.tick);
+    const value = previous.value + fraction * (next.value - previous.value);
+    remaining.push({ tick: fromTick, value, transition: previous.transition });
+    remaining.sort((a, b) => a.tick - b.tick);
+  }
+  return remaining;
 }
 
 function ensureBeat(score: Score, cursor: CursorPosition): Beat | null {
@@ -846,14 +990,6 @@ function ensureBeat(score: Score, cursor: CursorPosition): Beat | null {
   }
 
   return voice.beats[cursor.beatIndex];
-}
-
-function nextBeatRef(
-  score: Score,
-  cursor: CursorPosition
-): { cursor: CursorPosition; beat: Beat | null } {
-  const nextCursor = moveCursor(score, cursor, "right");
-  return { cursor: nextCursor, beat: ensureBeat(score, nextCursor) };
 }
 
 function beatForCursor(score: Score, cursor: CursorPosition): Beat | null {

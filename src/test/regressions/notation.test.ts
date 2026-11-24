@@ -63,7 +63,7 @@ it.fails("[B4] the drum kit uses a percussion staff without a string TAB band", 
   expect(primitives.some((primitive) => primitive.id.startsWith(`${track.id}-tab-line-`))).toBe(false);
 });
 
-it.fails("[B10] an inserted bar inherits the surrounding 3/4 meter and G key", () => {
+it("[B10] an inserted bar inherits the surrounding 3/4 meter and G key", () => {
   const score = createEmptyScore();
   const master = createMasterBar();
   master.timeSignature.numerator = 3;

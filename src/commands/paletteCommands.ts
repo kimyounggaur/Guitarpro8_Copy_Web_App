@@ -1,3 +1,4 @@
+import { shortcutLabel } from "./keymap";
 import type { Command } from "./registry";
 
 export type PaletteEntryKind = "quick" | "advanced" | "registered" | "action" | "expression";
@@ -358,7 +359,7 @@ export function suggestPaletteEntries(
     description: command.category,
     kind: "registered" as const,
     commandId: command.id,
-    aliases: [command.id, command.shortcut?.win, command.shortcut?.mac].filter(Boolean) as string[]
+    aliases: [command.id, shortcutLabel(command.id, "win"), shortcutLabel(command.id, "mac")].filter(Boolean) as string[]
   }));
 
   return filterEntries([...QUICK_COMMANDS, ...ADVANCED_COMMANDS, ...registeredEntries], input).sort(byPrefix);

@@ -13,9 +13,15 @@
 // interpreter — see docs/ui-remaster/00-component-map.md §1) as part of
 // Phase 2's structural-only refactor. Behavior is unchanged from the
 // original.
-import { normaliseCursor, setDynamicAtCursor } from "../../engine/editing/operations";
+import {
+  insertBarsAt,
+  normaliseCursor,
+  repeatBarAt,
+  setDynamicAtCursor,
+  setKeySignature,
+  setTimeSignature
+} from "../../engine/editing/operations";
 import type { CursorPosition } from "../../engine/editing/types";
-import { createBar, createMasterBar } from "../../model/factory";
 import type { Beat, BeatDuration, DisplayMode, Dynamic, Track } from "../../model/types";
 import type { CommandPaletteResult } from "../../ui/shell/CommandPalette";
 import { exportFormatFromText, formatLabel, importFormatFromText } from "./useFileController";
@@ -55,11 +61,7 @@ export function runExpressionText(deps: CommandControllerDeps, expression: strin
 
   if (/^[A-G](#|b)?m?$/.test(value)) {
     const nextScore = deps.transact("Expression key signature", (draft) => {
-      const masterBar = draft.masterBars[deps.cursor.barIndex];
-
-      if (masterBar) {
-        masterBar.keySignature = { key: value, mode: value.endsWith("m") ? "minor" : "major" };
-      }
+      setKeySignature(draft, deps.cursor.barIndex, { key: value, mode: value.endsWith("m") ? "minor" : "major" });
     });
     deps.setCursor(normaliseCursor(nextScore, deps.cursor));
     return { handled: true, message: `Key ${value}` };
@@ -129,11 +131,7 @@ export function setTimeSignatureFromPalette(
   denominator: BeatDuration
 ): CommandPaletteResult {
   const nextScore = deps.transact("Command palette time signature", (draft) => {
-    const masterBar = draft.masterBars[deps.cursor.barIndex];
-
-    if (masterBar) {
-      masterBar.timeSignature = { numerator, denominator, beamingPreset: "default" };
-    }
+    setTimeSignature(draft, deps.cursor.barIndex, { numerator, denominator, beamingPreset: "default" });
   });
   deps.setCursor(normaliseCursor(nextScore, deps.cursor));
   return { handled: true, message: `${numerator}/${denominator}` };
@@ -144,7 +142,7 @@ export function addBarsFromPalette(
   countText: string,
   insertAtCursor: boolean
 ): CommandPaletteResult {
-  const count = Math.min(128, Math.max(1, Number(countText.trim() || "1")));
+  const count = Math.ceil(Math.min(128, Math.max(1, Number(countText.trim() || "1"))));
 
   if (!Number.isFinite(count)) {
     return { handled: false, message: "Bar count must be a number.", keepOpen: true };
@@ -153,31 +151,21 @@ export function addBarsFromPalette(
   const nextScore = deps.transact(insertAtCursor ? "Insert bars" : "Add bars", (draft) => {
     const index = insertAtCursor ? deps.cursor.barIndex : deps.cursor.barIndex + 1;
 
-    for (let i = 0; i < count; i += 1) {
-      draft.masterBars.splice(index + i, 0, createMasterBar());
-      draft.tracks.forEach((track) => track.bars.splice(index + i, 0, createBar()));
-    }
+    insertBarsAt(draft, index, count);
   });
   deps.setCursor(normaliseCursor(nextScore, deps.cursor));
   return { handled: true, message: `${insertAtCursor ? "Inserted" : "Added"} ${count} bar(s)` };
 }
 
 export function repeatBarsFromPalette(deps: CommandControllerDeps, countText: string): CommandPaletteResult {
-  const count = Math.min(32, Math.max(1, Number(countText.trim() || "1")));
+  const count = Math.ceil(Math.min(32, Math.max(1, Number(countText.trim() || "1"))));
 
   if (!Number.isFinite(count)) {
     return { handled: false, message: "Repeat count must be a number.", keepOpen: true };
   }
 
   const nextScore = deps.transact("Repeat bars", (draft) => {
-    const sourceMaster = structuredClone(draft.masterBars[deps.cursor.barIndex] ?? createMasterBar());
-    const sourceBars = draft.tracks.map((track) => structuredClone(track.bars[deps.cursor.barIndex] ?? createBar()));
-
-    for (let i = 0; i < count; i += 1) {
-      const index = deps.cursor.barIndex + 1 + i;
-      draft.masterBars.splice(index, 0, structuredClone(sourceMaster));
-      draft.tracks.forEach((track, trackIndex) => track.bars.splice(index, 0, structuredClone(sourceBars[trackIndex])));
-    }
+    repeatBarAt(draft, deps.cursor.barIndex, count);
   });
   deps.setCursor(normaliseCursor(nextScore, deps.cursor));
   return { handled: true, message: `Repeated ${count} bar(s)` };
@@ -247,8 +235,7 @@ export function unsetPaletteEffect(deps: CommandControllerDeps, effect: string):
         voice.beats.forEach((beat) => {
           beat.notes.forEach((note) => {
             if (key.includes("tie")) {
-              note.tieOrigin = undefined;
-              note.tieDestination = undefined;
+              delete note.tiedFromPrevious;
             }
             if (key.includes("palm")) note.palmMute = false;
             if (key.includes("let")) note.letRing = false;

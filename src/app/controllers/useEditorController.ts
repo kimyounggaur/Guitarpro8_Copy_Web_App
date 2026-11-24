@@ -18,9 +18,10 @@ import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { PlaybackCompilation } from "../../engine/audio/compile";
 import type { EffectSlotType, TrackMixerState } from "../../engine/audio/mixer";
 import type { EditorCommandContext } from "../../commands/editingCommands";
-import { handleEditorKeyDown, type FretInputBuffer } from "../../commands/editorKeymap";
+import { handleEditorKeyDown } from "../../commands/editorKeymap";
 import { cursorFromHit } from "../../engine/editing/hitTest";
 import {
+  canTieFromPrevious,
   changeDurationAtCursor,
   cloneCurrentBar,
   copyPreviousBeat,
@@ -43,7 +44,7 @@ import {
   setDurationAtCursor,
   setDotsAtCursor,
   shouldMutateOnMoveRight,
-  tieCurrentNoteToNext,
+  tieCurrentNoteFromPrevious,
   toggleBarSymbolAtCursor,
   toggleBeatEffectAtCursor,
   toggleNoteEffectAtCursor,
@@ -53,11 +54,14 @@ import {
 } from "../../engine/editing/operations";
 import type { ClipboardPayload, CursorPosition, SelectionRange } from "../../engine/editing/types";
 import { createBar } from "../../model/factory";
+import { DEFAULT_MAX_FRET } from "../../model/invariants";
 import type { DisplayMode, Score, SongInfo, Stylesheet, StylesheetPresetName, Track } from "../../model/types";
 import type { TransposeOptions } from "../../engine/tools/transpose";
 import type { ChordVoicing } from "../../model/chords";
 import type { RetuneMode } from "../../model/instruments";
-import type { PlaybackStatus } from "../../store/playbackStore";
+import { usePlaybackStore, type PlaybackStatus } from "../../store/playbackStore";
+import { useDocumentStore, type EditTransactionOptions } from "../../store/documentStore";
+import { useViewStore } from "../../store/viewStore";
 import type { AutomationLaneId } from "../../ui/shell/EditorShell";
 import type { CleanupRequest } from "../../ui/shell/ToolPanels";
 import type { TrackCreateOptions, TrackPanelId } from "../../ui/shell/TrackSystemPanels";
@@ -65,7 +69,7 @@ import { createScoreCrudHandlers } from "./scoreCrudHandlers";
 
 export interface UseEditorControllerParams {
   score: Score;
-  transact: (label: string, recipe: (draft: Score) => void) => Score;
+  transact: (label: string, recipe: (draft: Score) => void, options?: EditTransactionOptions) => Score;
   undoDocument: () => Score;
   redoDocument: () => Score;
   cursor: CursorPosition;
@@ -93,6 +97,7 @@ export interface UseEditorControllerParams {
 
 export interface EditorController {
   editorContext: EditorCommandContext;
+  editNotice: string;
   multiVoiceEdit: boolean;
   multiTrackView: boolean;
   /** Raw setters, exposed alongside the `handleToggleMulti*` wrappers below
@@ -136,6 +141,13 @@ export interface EditorController {
   handleCleanupRequest: (request: CleanupRequest) => void;
 }
 
+interface FretEntry {
+  digit: number;
+  enteredAt: number;
+  cursor: CursorPosition;
+  revision: number;
+}
+
 export function useEditorController(params: UseEditorControllerParams): EditorController {
   const {
     score,
@@ -147,7 +159,6 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     setCursor,
     setSelection,
     invertPlusMinus,
-    playbackStatus,
     playbackCompilation,
     startPlayback,
     stopPlayback,
@@ -164,35 +175,71 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
 
   const [multiVoiceEdit, setMultiVoiceEdit] = useState(false);
   const [multiTrackView, setMultiTrackView] = useState(true);
-  const fretBufferRef = useRef<FretInputBuffer>({ digits: "", timer: null });
+  const [editNotice, setEditNotice] = useState("");
+  const fretEntry = useRef<FretEntry | null>(null);
   const clipboardRef = useRef<ClipboardPayload | null>(null);
 
-  function editWithCursor(label: string, recipe: (scoreDraft: Score) => CursorPosition): void {
-    let nextCursor = cursor;
-    const nextScore = transact(label, (draft) => {
-      nextCursor = recipe(draft);
+  function editWithCursor(
+    label: string,
+    recipe: (scoreDraft: Score, current: CursorPosition) => CursorPosition,
+    options: { extendSelection?: boolean; coalesceRevision?: number } = {}
+  ): boolean {
+    setEditNotice("");
+    const document = useDocumentStore.getState();
+    const view = useViewStore.getState();
+    let nextCursor = view.cursor;
+    transact(label, (draft) => {
+      nextCursor = recipe(draft, view.cursor);
+    }, {
+      cursorAfter: () => nextCursor,
+      coalesceRevision: options.coalesceRevision
     });
-    setSelection(null);
-    setCursor(normaliseCursor(nextScore, nextCursor));
+    if (useDocumentStore.getState().revision === document.revision) return false;
+
+    const current = useViewStore.getState().cursor;
+    setSelection(options.extendSelection ? { anchor: view.selection?.anchor ?? view.cursor, head: current } : null);
+    return true;
   }
 
   function updateCursorSelection(nextCursor: CursorPosition, extendSelection: boolean): void {
-    const normalised = normaliseCursor(score, nextCursor);
-    setCursor(normalised);
+    const view = useViewStore.getState();
+    setCursor(nextCursor);
+    setSelection(extendSelection ? { anchor: view.selection?.anchor ?? view.cursor, head: nextCursor } : null);
+  }
 
-    if (extendSelection) {
-      setSelection({ anchor: selection?.anchor ?? cursor, head: normalised });
-    } else {
-      setSelection(null);
+  function endFretInput(): void {
+    fretEntry.current = null;
+  }
+
+  function inputFretDigit(digit: number): void {
+    const enteredAt = performance.now();
+    const previous = fretEntry.current;
+    const revision = useDocumentStore.getState().revision;
+    const current = useViewStore.getState().cursor;
+    const twoDigits = previous ? previous.digit * 10 + digit : digit;
+    const combine = !!previous
+      && previous.revision === revision
+      && previous.cursor === current
+      && enteredAt - previous.enteredAt <= 300
+      && twoDigits <= DEFAULT_MAX_FRET;
+
+    endFretInput();
+    const committed = editWithCursor("Input note", (draft, position) => inputFret(draft, position, combine ? twoDigits : digit), {
+      coalesceRevision: combine ? revision : undefined
+    });
+    if (committed && !combine) {
+      fretEntry.current = { digit, enteredAt, cursor: useViewStore.getState().cursor, revision: useDocumentStore.getState().revision };
     }
   }
 
   function copySelection(mode: "single" | "multitrack", cut: boolean): void {
-    const activeTrackIndex = score.tracks.findIndex((track) => track.id === cursor.trackId);
-    const barIndex = cursor.barIndex;
+    const currentScore = useDocumentStore.getState().score;
+    const current = useViewStore.getState().cursor;
+    const activeTrackIndex = currentScore.tracks.findIndex((track) => track.id === current.trackId);
+    const barIndex = current.barIndex;
 
     if (mode === "single") {
-      const track = score.tracks[activeTrackIndex];
+      const track = currentScore.tracks[activeTrackIndex];
 
       if (!track) {
         return;
@@ -219,8 +266,8 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       mode,
       source: null,
       barsJson: JSON.stringify({
-        masterBars: [score.masterBars[barIndex]],
-        trackBars: score.tracks.map((track) => cloneCurrentBar(track, barIndex))
+        masterBars: [currentScore.masterBars[barIndex]],
+        trackBars: currentScore.tracks.map((track) => cloneCurrentBar(track, barIndex))
       })
     };
 
@@ -241,9 +288,10 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     }
 
     const repeatCount = special ? 2 : 1;
-    const activeTrackIndex = score.tracks.findIndex((track) => track.id === cursor.trackId);
+    const current = useViewStore.getState().cursor;
 
     transact(special ? "Special paste" : "Paste", (draft) => {
+      const activeTrackIndex = draft.tracks.findIndex((track) => track.id === current.trackId);
       const data = JSON.parse(payload.barsJson) as {
         bars?: ReturnType<typeof createBar>[];
         masterBars?: typeof score.masterBars;
@@ -251,7 +299,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       };
 
       for (let repeat = 0; repeat < repeatCount; repeat += 1) {
-        const targetBar = cursor.barIndex + repeat;
+        const targetBar = current.barIndex + repeat;
 
         if (payload.mode === "single" && data.bars) {
           const track = draft.tracks[activeTrackIndex];
@@ -276,50 +324,43 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
   }
 
   const editorContext: EditorCommandContext = {
-    staffKind: cursor.staffKind,
-    playbackStatus,
+    get staffKind() { return useViewStore.getState().cursor.staffKind; },
+    get playbackStatus() { return usePlaybackStore.getState().status; },
     moveCursor: (move, extendSelection) => {
-      if (move === "right" && shouldMutateOnMoveRight(score, cursor)) {
-        let nextCursor = cursor;
-        const nextScore = transact("Move right and extend score", (draft) => {
-          nextCursor = moveRightWithScoreMutation(draft, cursor);
-        });
-        updateCursorSelection(normaliseCursor(nextScore, nextCursor), Boolean(extendSelection));
+      endFretInput();
+      const currentScore = useDocumentStore.getState().score;
+      const current = useViewStore.getState().cursor;
+      if (move === "right" && shouldMutateOnMoveRight(currentScore, current)) {
+        editWithCursor("Move right and extend score", moveRightWithScoreMutation, { extendSelection });
         return;
       }
 
-      updateCursorSelection(moveCursor(score, cursor, move), Boolean(extendSelection));
+      updateCursorSelection(moveCursor(currentScore, current, move), Boolean(extendSelection));
     },
     moveBarSelection: (direction) => {
-      const next = normaliseCursor(score, {
-        ...cursor,
-        barIndex: cursor.barIndex + direction,
+      endFretInput();
+      const current = useViewStore.getState().cursor;
+      const next = normaliseCursor(useDocumentStore.getState().score, {
+        ...current,
+        barIndex: current.barIndex + direction,
         beatIndex: 0
       });
-      setSelection({ anchor: selection?.anchor ?? cursor, head: next });
-      setCursor(next);
+      updateCursorSelection(next, true);
     },
     toggleStaffKind: () => {
-      if (fretBufferRef.current.timer !== null) {
-        window.clearTimeout(fretBufferRef.current.timer);
-      }
-      fretBufferRef.current = { digits: "", timer: null };
+      endFretInput();
+      const current = useViewStore.getState().cursor;
       setSelection(null);
       setCursor({
-        ...cursor,
-        staffKind: cursor.staffKind === "tab" ? "standard" : "tab"
+        ...current,
+        staffKind: current.staffKind === "tab" ? "standard" : "tab"
       });
     },
-    inputFret: (value) => {
-      editWithCursor("Input note", (draft) =>
-        cursor.staffKind === "tab"
-          ? inputFret(draft, cursor, value)
-          : inputStandardString(draft, cursor, value)
-      );
-    },
+    inputFretDigit,
+    endFretInput,
     inputStandardString: (stringNumber) => {
-      editWithCursor("Input standard note", (draft) =>
-        inputStandardString(draft, cursor, stringNumber)
+      editWithCursor("Input standard note", (draft, current) =>
+        inputStandardString(draft, current, stringNumber)
       );
     },
     changeDuration: (direction) => {
@@ -328,66 +369,69 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
           ? "shorter"
           : "longer"
         : direction;
-      editWithCursor("Change duration", (draft) =>
-        changeDurationAtCursor(draft, cursor, effective)
+      editWithCursor("Change duration", (draft, current) =>
+        changeDurationAtCursor(draft, current, effective)
       );
     },
     setDuration: (duration) =>
-      editWithCursor("Set duration", (draft) => setDurationAtCursor(draft, cursor, duration)),
-    toggleRest: () => editWithCursor("Set rest", (draft) => toggleRestAtCursor(draft, cursor)),
-    toggleTie: (wholeBeat) =>
-      editWithCursor("Tie note", (draft) => tieCurrentNoteToNext(draft, cursor, wholeBeat)),
-    setDots: (dots) => editWithCursor("Set dots", (draft) => setDotsAtCursor(draft, cursor, dots)),
-    toggleTriplet: () =>
-      editWithCursor("Toggle triplet", (draft) => toggleTripletAtCursor(draft, cursor)),
-    cycleTimeSignature: () =>
-      editWithCursor("Cycle time signature", (draft) =>
-        cycleTimeSignatureAtCursor(draft, cursor)
-      ),
-    cycleKeySignature: () =>
-      editWithCursor("Cycle key signature", (draft) =>
-        cycleKeySignatureAtCursor(draft, cursor)
-      ),
+      editWithCursor("Set duration", (draft, current) => setDurationAtCursor(draft, current, duration)),
+    toggleRest: () => editWithCursor("Set rest", toggleRestAtCursor),
+    toggleTie: (wholeBeat) => {
+      const current = useViewStore.getState().cursor;
+      if (!canTieFromPrevious(useDocumentStore.getState().score, current, wholeBeat)) {
+        setEditNotice("There is no preceding note on the same string to tie.");
+        return;
+      }
+      editWithCursor("Tie note", (draft, cursor) => tieCurrentNoteFromPrevious(draft, cursor, wholeBeat));
+    },
+    setDots: (dots) => editWithCursor("Set dots", (draft, current) => setDotsAtCursor(draft, current, dots)),
+    toggleTriplet: () => editWithCursor("Toggle triplet", toggleTripletAtCursor),
+    cycleTimeSignature: () => editWithCursor("Cycle time signature", cycleTimeSignatureAtCursor),
+    cycleKeySignature: () => editWithCursor("Cycle key signature", cycleKeySignatureAtCursor),
     toggleBarSymbol: (symbol) =>
-      editWithCursor("Toggle bar symbol", (draft) =>
-        toggleBarSymbolAtCursor(draft, cursor, symbol)
+      editWithCursor("Toggle bar symbol", (draft, current) =>
+        toggleBarSymbolAtCursor(draft, current, symbol)
       ),
     setDynamic: (dynamic) =>
-      editWithCursor("Set dynamic", (draft) => setDynamicAtCursor(draft, cursor, dynamic)),
+      editWithCursor("Set dynamic", (draft, current) => setDynamicAtCursor(draft, current, dynamic)),
     toggleNoteEffect: (effect) =>
-      editWithCursor("Toggle note effect", (draft) =>
-        toggleNoteEffectAtCursor(draft, cursor, effect)
+      editWithCursor("Toggle note effect", (draft, current) =>
+        toggleNoteEffectAtCursor(draft, current, effect)
       ),
     toggleBeatEffect: (effect) =>
-      editWithCursor("Toggle beat effect", (draft) =>
-        toggleBeatEffectAtCursor(draft, cursor, effect)
+      editWithCursor("Toggle beat effect", (draft, current) =>
+        toggleBeatEffectAtCursor(draft, current, effect)
       ),
     togglePlayback: (fromStart) => {
-      if (playbackStatus === "playing" && !fromStart) {
+      const { status } = usePlaybackStore.getState();
+      if ((status === "playing" || status === "starting") && !fromStart) {
         stopPlayback();
         return;
       }
 
-      void startPlayback(fromStart ? 0 : playbackCompilation.secondAtBar(cursor.barIndex));
+      void startPlayback(fromStart ? 0 : playbackCompilation.secondAtBar(useViewStore.getState().cursor.barIndex));
     },
     stopPlayback,
     movePlaybackBar: (direction) => {
-      const next = normaliseCursor(score, {
-        ...cursor,
-        barIndex: cursor.barIndex + direction,
+      const current = useViewStore.getState().cursor;
+      const next = normaliseCursor(useDocumentStore.getState().score, {
+        ...current,
+        barIndex: current.barIndex + direction,
         beatIndex: 0
       });
       setCursor(next);
 
-      if (playbackStatus === "playing") {
+      const { status } = usePlaybackStore.getState();
+      if (status === "playing" || status === "starting") {
         seekPlayback(playbackCompilation.secondAtBar(next.barIndex));
       }
     },
     stepPlaybackBeat: (direction) => {
-      const next = moveCursor(score, cursor, direction === 1 ? "right" : "left");
+      const next = moveCursor(useDocumentStore.getState().score, useViewStore.getState().cursor, direction === 1 ? "right" : "left");
       setCursor(next);
 
-      if (playbackStatus === "playing") {
+      const { status } = usePlaybackStore.getState();
+      if (status === "playing" || status === "starting") {
         seekPlayback(playbackCompilation.secondAtBar(next.barIndex));
       }
     },
@@ -397,26 +441,27 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     changePlaybackSpeed: (direction) => {
       setPlaybackSpeedPercent(speedPercent + direction * 5);
     },
-    deleteNote: () => editWithCursor("Delete note", (draft) => deleteNoteAtCursor(draft, cursor)),
-    deleteBeat: () => editWithCursor("Delete beat", (draft) => deleteBeatAtCursor(draft, cursor)),
-    deleteBar: () => editWithCursor("Delete bar", (draft) => deleteBarAtCursor(draft, cursor)),
-    insertBeat: () => editWithCursor("Insert beat", (draft) => insertBeatAtCursor(draft, cursor)),
-    insertBar: () => editWithCursor("Insert bar", (draft) => insertBarAtCursor(draft, cursor)),
-    copyPreviousBeat: () =>
-      editWithCursor("Copy previous beat", (draft) => copyPreviousBeat(draft, cursor)),
+    deleteNote: () => editWithCursor("Delete note", deleteNoteAtCursor),
+    deleteBeat: () => editWithCursor("Delete beat", deleteBeatAtCursor),
+    deleteBar: () => editWithCursor("Delete bar", deleteBarAtCursor),
+    insertBeat: () => editWithCursor("Insert beat", insertBeatAtCursor),
+    insertBar: () => editWithCursor("Insert bar", insertBarAtCursor),
+    copyPreviousBeat: () => editWithCursor("Copy previous beat", copyPreviousBeat),
     moveNoteString: (direction) =>
-      editWithCursor("Move note string", (draft) => moveNoteString(draft, cursor, direction)),
+      editWithCursor("Move note string", (draft, current) => moveNoteString(draft, current, direction)),
     transposeNote: (semitones) =>
-      editWithCursor("Transpose note", (draft) => transposeNoteAtCursor(draft, cursor, semitones)),
+      editWithCursor("Transpose note", (draft, current) => transposeNoteAtCursor(draft, current, semitones)),
     setAccidental: (accidental) =>
-      editWithCursor("Set accidental", (draft) =>
-        setAccidentalAtCursor(draft, cursor, accidental)
+      editWithCursor("Set accidental", (draft, current) =>
+        setAccidentalAtCursor(draft, current, accidental)
       ),
     selectAllTrack: () => {
-      const anchor = normaliseCursor(score, { ...cursor, barIndex: 0, beatIndex: 0 });
-      const head = normaliseCursor(score, {
-        ...cursor,
-        barIndex: Math.max(0, score.masterBars.length - 1),
+      const currentScore = useDocumentStore.getState().score;
+      const current = useViewStore.getState().cursor;
+      const anchor = normaliseCursor(currentScore, { ...current, barIndex: 0, beatIndex: 0 });
+      const head = normaliseCursor(currentScore, {
+        ...current,
+        barIndex: Math.max(0, currentScore.masterBars.length - 1),
         beatIndex: 0
       });
       setSelection({ anchor, head });
@@ -425,16 +470,17 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     copy: (mode, cut) => copySelection(mode, cut),
     paste: (special) => pasteClipboard(special),
     undo: () => {
-      const nextScore = undoDocument();
-      setCursor(normaliseCursor(nextScore, cursor));
+      endFretInput();
+      undoDocument();
     },
     redo: () => {
-      const nextScore = redoDocument();
-      setCursor(normaliseCursor(nextScore, cursor));
+      endFretInput();
+      redoDocument();
     }
   };
 
   function handleScoreClick(event: React.MouseEvent<HTMLElement>) {
+    endFretInput();
     const target = (event.target as Element).closest("[data-hit-ref]") as SVGElement | null;
 
     if (!target) {
@@ -443,18 +489,20 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
 
     const ref = JSON.parse(target.dataset.hitRef ?? "{}") as Record<string, unknown>;
     const kind = target.dataset.hitKind as Parameters<typeof cursorFromHit>[2];
+    const currentScore = useDocumentStore.getState().score;
+    const current = useViewStore.getState().cursor;
     const staffKind = target.id.endsWith("-head")
       ? "standard"
       : target.id.endsWith("-tab")
         ? "tab"
-        : cursor.staffKind;
-    const nextCursor = cursorFromHit(score, cursor, kind, ref);
+        : current.staffKind;
+    const nextCursor = cursorFromHit(currentScore, current, kind, ref);
     setSelection(null);
-    setCursor(normaliseCursor(score, { ...nextCursor, staffKind }));
+    setCursor(normaliseCursor(currentScore, { ...nextCursor, staffKind }));
   }
 
   function handleScoreKeyDown(event: React.KeyboardEvent<HTMLElement>) {
-    handleEditorKeyDown(event.nativeEvent, editorContext, fretBufferRef.current);
+    handleEditorKeyDown(event.nativeEvent, editorContext);
   }
 
   function handleToggleMultiVoice() {
@@ -480,6 +528,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
 
   return {
     editorContext,
+    editNotice,
     multiVoiceEdit,
     multiTrackView,
     setMultiVoiceEdit,

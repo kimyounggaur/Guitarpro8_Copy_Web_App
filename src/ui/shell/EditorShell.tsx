@@ -303,7 +303,7 @@ function Toolbar(props: EditorShellProps) {
   const lcd = currentLcdStatus(props.score, props.cursor);
 
   return (
-    <header className="toolbar" aria-label="Toolbar">
+    <header className="toolbar" aria-label="Toolbar" onMouseDown={preserveScoreFocus}>
       <div className="toolbarGroup homeGroup">
         <button type="button" title="File I/O" onClick={props.onFileIoPanelOpen}>
           ⌂
@@ -482,6 +482,12 @@ function Toolbar(props: EditorShellProps) {
   );
 }
 
+function preserveScoreFocus(event: React.MouseEvent<HTMLElement>): void {
+  if (event.button === 0 && event.target instanceof Element && event.target.closest("button")) {
+    event.preventDefault();
+  }
+}
+
 function TabBar({
   documents,
   activeId
@@ -515,7 +521,7 @@ function EditionPalette({
   onToggleMultiVoice
 }: Pick<EditorShellProps, "dispatchCommand" | "cursor" | "multiVoiceEdit" | "onVoiceSelect" | "onToggleMultiVoice">) {
   return (
-    <aside className="palettePanel" aria-label="Edition palette" data-testid="palette-panel">
+    <aside className="palettePanel" aria-label="Edition palette" data-testid="palette-panel" onMouseDown={preserveScoreFocus}>
       <PaletteGroup title="Voices">
         {[1, 2, 3, 4].map((voice) => (
           <button

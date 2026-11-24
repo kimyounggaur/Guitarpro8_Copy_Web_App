@@ -4,6 +4,7 @@ import type { CursorPosition } from "../engine/editing/types";
 import { createEmptyScore } from "../model/factory";
 import { checkInvariants, type InvariantIssue } from "../model/invariants";
 import { newId } from "../model/ids";
+import { normalizeTies } from "../model/ties";
 import type { Score } from "../model/types";
 import { useViewStore } from "./viewStore";
 
@@ -91,7 +92,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     const before = cloneScore(state.score);
     const after = cloneScore(before);
     recipe(after);
-    const issues = checkInvariants(after);
+    const issues = [...normalizeTies(after), ...checkInvariants(after)];
     if (issues.some(({ severity }) => severity === "fatal")) {
       set({ lastRejection: { label, issues } });
       return state.score;

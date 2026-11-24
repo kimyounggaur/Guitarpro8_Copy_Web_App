@@ -1,5 +1,6 @@
 import { beatDurationTicks, tryWrittenPitch } from "../../model/derive";
 import { normalizeStylesheet } from "../../model/stylesheet";
+import { findTrackTieOrigin } from "../../model/ties";
 import type {
   Beat,
   BeatDuration,
@@ -1342,38 +1343,34 @@ function tiePrimitivesForSystem(
   const systemStartX = staffX + firstMeasure.x + 8;
   const systemEndX = staffX + lastMeasure.x + lastMeasure.width - 8;
 
-  measures.forEach((measure) => {
-    const bar = track.bars[measure.content.barIndex];
+  const drawnBars = measures.map((measure) => measure.content.barIndex);
+  const nextBar = lastMeasure.content.barIndex + 1;
+  [...drawnBars, nextBar].forEach((barIndex) => {
+    const bar = track.bars[barIndex];
 
     bar?.voices.forEach((voice, voiceIndex) => {
       voice.beats.forEach((beat, beatIndex) => {
+        if (barIndex === nextBar && beatIndex > 0) return;
         beat.notes.forEach((note, noteIndex) => {
+          if (!note.tiedFromPrevious) return;
           const currentRef = {
             trackId: track.id,
-            barIndex: measure.content.barIndex,
+            barIndex,
             voiceIndex,
             beatIndex,
             noteIndex
           };
+          const origin = findTrackTieOrigin(track, currentRef);
+          if (!origin) return;
 
-          if (note.tieDestination) {
-            const source = anchors.get(noteRefKey(currentRef));
-            const destination = anchors.get(noteRefKey(note.tieDestination));
-
-            if (source && destination) {
-              primitives.push(tiePrimitive(source, destination));
-            } else if (source) {
-              primitives.push(tieToEdgePrimitive(source, systemEndX, "end"));
-            }
-          }
-
-          if (note.tieOrigin) {
-            const destination = anchors.get(noteRefKey(currentRef));
-            const origin = anchors.get(noteRefKey(note.tieOrigin));
-
-            if (!origin && destination) {
-              primitives.push(tieToEdgePrimitive(destination, systemStartX, "start"));
-            }
+          const source = anchors.get(noteRefKey(origin));
+          const destination = anchors.get(noteRefKey(currentRef));
+          if (source && destination) {
+            primitives.push(tiePrimitive(source, destination));
+          } else if (source && barIndex === nextBar) {
+            primitives.push(tieToEdgePrimitive(source, systemEndX, "end"));
+          } else if (destination && origin.barIndex < firstMeasure.content.barIndex) {
+            primitives.push(tieToEdgePrimitive(destination, systemStartX, "start"));
           }
         });
       });

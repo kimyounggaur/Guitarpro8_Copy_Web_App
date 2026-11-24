@@ -1,13 +1,7 @@
-export interface CommandShortcut {
-  win: string;
-  mac: string;
-}
-
 export interface Command<State = unknown> {
   id: string;
   label: string;
   category: string;
-  shortcut?: CommandShortcut;
   contextPredicate?: (state: Readonly<State>) => boolean;
   execute: (state: State, args?: unknown) => void;
 }

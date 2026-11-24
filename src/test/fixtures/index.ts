@@ -52,15 +52,9 @@ export function tieAcrossBarline(): Score {
 function tiedQuarters(destinationBar: number, destinationBeat: number): Score {
   const score = emptyGuitar(destinationBar + 1);
   const track = score.tracks[0];
-  const originBeat = destinationBar === 0 ? 0 : 3;
   const origin = fretted(4, 5);
   const destination = fretted(4, 5);
-  origin.notes[0].tieDestination = {
-    trackId: track.id, barIndex: destinationBar, voiceIndex: 0, beatIndex: destinationBeat, noteIndex: 0
-  };
-  destination.notes[0].tieOrigin = {
-    trackId: track.id, barIndex: 0, voiceIndex: 0, beatIndex: originBeat, noteIndex: 0
-  };
+  destination.notes[0].tiedFromPrevious = true;
   track.bars[0].voices[0].beats = destinationBar === 0
     ? [origin, destination, createBeat({ duration: 2 })]
     : [createBeat(), createBeat(), createBeat(), origin];
