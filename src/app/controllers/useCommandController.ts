@@ -332,16 +332,6 @@ export function runAppAction(deps: CommandControllerDeps, action: string, label 
       deps.setCursor(normaliseCursor(nextScore, deps.cursor));
       return { handled: true, message: label };
     }
-    case "bar.symbol.multirest": {
-      const nextScore = deps.transact("Multirest", (draft) => {
-        const masterBar = draft.masterBars[deps.cursor.barIndex];
-        if (masterBar) {
-          masterBar.simileMark = masterBar.simileMark === "single" ? "none" : "single";
-        }
-      });
-      deps.setCursor(normaliseCursor(nextScore, deps.cursor));
-      return { handled: true, message: label };
-    }
     case "track.add":
       deps.setActiveTrackPanel("wizard");
       return { handled: true, message: label };

@@ -13,7 +13,8 @@ test("[C12] starts on the launcher and creates a score with the chosen meter and
   await expect(page.getByTestId("gp-shell")).toBeVisible();
   await expect(page.getByTestId("tab-bar")).toContainText("Untitled");
   await expect(page.getByTestId("lcd-tempo")).toContainText("92");
-  await expect(page.getByText("Bass", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bass, measure 1" })).toBeVisible();
+  await expect(page.locator("svg text").filter({ hasText: /^\uE083$/u })).toHaveCount(1);
 });
 
 test("[C12] opens the demo after an explicit choice", async ({ page }) => {
