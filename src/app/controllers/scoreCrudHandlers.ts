@@ -1,3 +1,4 @@
+import type { MixerEditPhase } from "../../store/playbackStore";
 // Song/Track/Voice/Mixer/Automation/Tools CRUD handlers for
 // useEditorController — split into its own "하위 utility" module per the
 // master prompt's Phase 2 rule ("각 controller도 500줄을 넘으면 하위
@@ -45,7 +46,7 @@ export interface ScoreCrudDeps {
   setCursor: (cursor: CursorPosition) => void;
   setSelection: (selection: SelectionRange | null) => void;
   setMultiVoiceEdit: (updater: boolean | ((value: boolean) => boolean)) => void;
-  setTrackMixer: (trackId: string, patch: Partial<TrackMixerState>) => void;
+  setTrackMixer: (trackId: string, patch: Partial<TrackMixerState>, phase?: MixerEditPhase) => void;
   toggleTrackEffect: (trackId: string, effect: EffectSlotType) => void;
   setActiveTrackPanel: (panel: TrackPanelId | null) => void;
 }
@@ -68,7 +69,7 @@ export interface ScoreCrudHandlers {
   handleMoveNoteToVoice: (voiceIndex: number) => void;
   handleDrumToggle: (mappingId: string, articulation: string) => void;
   handleGlobalJump: (trackId: string, barIndex: number) => void;
-  handleMixerTrackChange: (trackId: string, patch: Partial<TrackMixerState>) => void;
+  handleMixerTrackChange: (trackId: string, patch: Partial<TrackMixerState>, phase?: MixerEditPhase) => void;
   handleMixerEffectToggle: (trackId: string, effect: EffectSlotType) => void;
   handleAutomationPointSet: (lane: AutomationLaneId, tick: number, value: number) => void;
   handleAutomationPointRemove: (lane: AutomationLaneId, tick: number) => void;
@@ -351,8 +352,8 @@ export function createScoreCrudHandlers(deps: ScoreCrudDeps): ScoreCrudHandlers 
     );
   }
 
-  function handleMixerTrackChange(trackId: string, patch: Partial<TrackMixerState>) {
-    setTrackMixer(trackId, patch);
+  function handleMixerTrackChange(trackId: string, patch: Partial<TrackMixerState>, phase?: MixerEditPhase) {
+    setTrackMixer(trackId, patch, phase);
   }
 
   function handleMixerEffectToggle(trackId: string, effect: EffectSlotType) {
