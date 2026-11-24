@@ -17,7 +17,7 @@ export function buildExportFileName(
     "%t": track?.name ?? "Track",
     "%n": track ? String(Math.max(1, score.tracks.findIndex((candidate) => candidate.id === track.id) + 1)) : "1",
     "%N": String(score.tracks.length),
-    "%d": date.toISOString().slice(0, 10),
+    "%d": `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
     "%h": `${pad(date.getHours())}-${pad(date.getMinutes())}`
   };
   const replaced = Object.entries(tokens).reduce(

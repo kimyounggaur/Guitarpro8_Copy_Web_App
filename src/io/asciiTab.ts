@@ -1,42 +1,40 @@
+import { beatDurationTicks } from "../model/derive";
 import { createBar, createBeat, createEmptyScore, createMasterBar, createNote, createTrack } from "../model/factory";
 import type { Beat, Note, Score, Track } from "../model/types";
 
-const CELL_WIDTH = 4;
 const DEFAULT_GUITAR_PITCHES = [40, 45, 50, 55, 59, 64];
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
-export function exportAsciiTab(score: Score, trackId?: string): string {
+export function exportAsciiTab(score: Score, trackId?: string, options: { columns?: number } = {}): string {
   const track = score.tracks.find((candidate) => candidate.id === trackId) ?? score.tracks[0];
+  if (!track) return "# TabScore ASCII Tab\n";
+  if (track.kind !== "stringed") throw new Error("ASCII TAB requires a stringed instrument.");
 
-  if (!track) {
-    return "# GuitarPro8 Copy ASCII Tab\n";
-  }
-
-  const lines = [
-    "# GuitarPro8 Copy ASCII Tab",
-    `Title: ${score.meta.title || "Untitled Score"}`,
-    `Track: ${track.name}`,
-    ""
-  ];
+  const lines = ["# TabScore ASCII Tab", `Title: ${score.meta.title || "Untitled Score"}`, `Track: ${track.name}`, ""];
   const stringCount = track.tuning.strings.length;
-  const buffers = Array.from({ length: stringCount }, (_, index) => `${stringLabel(track, index + 1)}|`);
+  const prefixes = Array.from({ length: stringCount }, (_, index) => `${stringLabel(track, index + 1)}|`);
+  const bars = track.bars.map((bar) => bar.voices[0].beats.length ? bar.voices[0].beats : [createBeat({ duration: 1 })]);
+  const shortest = bars.flat().reduce((best, beat) => Math.min(best, beatDurationTicks(beat)), Infinity);
+  const columns = Math.max(16, Math.floor(options.columns ?? 80));
+  let system = [...prefixes];
 
-  track.bars.forEach((bar) => {
-    const beats = bar.voices[0].beats.length > 0 ? bar.voices[0].beats : [createBeat({ duration: 1 })];
-
-    beats.forEach((beat) => {
-      for (let stringNumber = 1; stringNumber <= stringCount; stringNumber += 1) {
-        const note = beat.notes.find((candidate) => candidate.string === stringNumber);
-        buffers[stringNumber - 1] += note ? noteToken(note).padEnd(CELL_WIDTH, "-").slice(0, CELL_WIDTH) : "-".repeat(CELL_WIDTH);
-      }
-    });
-
-    for (let index = 0; index < stringCount; index += 1) {
-      buffers[index] += "|";
+  for (const beats of bars) {
+    const bar = Array.from({ length: stringCount }, () => "");
+    for (const beat of beats) {
+      const tokens = bar.map((_, index) => {
+        const note = beat.rest ? undefined : beat.notes.find(({ string }) => string === index + 1);
+        return note ? noteToken(note) : "";
+      });
+      const span = Math.max(1, Math.round(beatDurationTicks(beat) / shortest), ...tokens.map((token) => token.length + 1));
+      tokens.forEach((token, index) => { bar[index] += token.padEnd(span, "-"); });
     }
-  });
-
-  lines.push(...buffers, "");
+    if (system[0].length > prefixes[0].length && system[0].length + bar[0].length + 1 > columns) {
+      lines.push(...system, "");
+      system = [...prefixes];
+    }
+    bar.forEach((line, index) => { system[index] += `${line}|`; });
+  }
+  lines.push(...system, "");
   return lines.join("\n");
 }
 
@@ -119,7 +117,7 @@ function parseBarEvents(segments: string[]): Array<{ position: number; notes: No
       if (next && next.index === 0 && next[0] !== "-" && /\d|x/.test(next[2])) {
         const fret = next[2] === "x" ? 0 : Number(next[2]);
         const note = createNote(stringNumber, fret);
-        applyAsciiEffect(note, next[1]);
+        applyAsciiEffect(note, next[2] === "x" ? "x" : next[1]);
         const notes = byPosition.get(position) ?? [];
         notes.push(note);
         byPosition.set(position, notes);
@@ -143,7 +141,7 @@ function noteToken(note: Note): string {
 function effectToken(note: Note): string {
   if (note.tiedFromPrevious) return "L";
   if (note.staccato) return ".";
-  if (note.deadNote) return "x";
+  if (note.deadNote) return "";
   if (note.hopo) return "h";
   if (note.bend) return "b";
   if (note.slide) return "s";
@@ -210,7 +208,8 @@ function applyAsciiEffect(note: Note, token: string): void {
 
 function stringLabel(track: Track, stringNumber: number): string {
   const pitch = track.tuning.strings[track.tuning.strings.length - stringNumber] ?? 64;
-  return pitchClassName(pitch).padStart(2, " ");
+  const name = pitchClassName(pitch);
+  return stringNumber === 1 ? name.toLowerCase() : name;
 }
 
 function pitchClassName(pitch: number): string {

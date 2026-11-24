@@ -1,3 +1,4 @@
+import { SpecialPasteDialog } from "../ui/overlays/SpecialPasteDialog";
 // Composition root: store subscriptions, controller composition, and the
 // route/shell render. All editing, playback, file I/O, command-palette and
 // tool-window logic now lives in src/app/controllers/* — see
@@ -244,7 +245,7 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
     "file.open": file.handleOpenNativeFile,
     "file.save": file.handleSaveNativeFile,
     "file.saveAs": file.handleSaveNativeFileAs,
-    "file.print": () => window.print(),
+    "file.print": () => file.handleExportFile("pdf"),
     "history.undo": editor.editorContext.undo,
     "history.redo": editor.editorContext.redo,
     "playback.toggle": () => editor.editorContext.togglePlayback(false),
@@ -397,7 +398,7 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
         onSaveNativeFile={() => void file.handleSaveNativeFile()}
         onSaveNativeFileAs={() => void file.handleSaveNativeFileAs()}
         onImportFile={file.handleImportFile}
-        onExportFile={(format) => void file.handleExportFile(format)}
+        onExportFile={(format, scale) => void file.handleExportFile(format, scale)}
         onStylesheetPanelOpen={toolWindow.openStylesheetPanel}
         onStylesheetPanelClose={toolWindow.closeStylesheetPanel}
         onStylesheetChange={editor.handleStylesheetChange}
@@ -426,6 +427,11 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
             role="application"
             aria-label="Editable score"
             onClick={editor.handleScoreClick}
+            onPointerDown={editor.handleScorePointerDown}
+            onPointerMove={editor.handleScorePointerMove}
+            onPointerUp={editor.handleScorePointerUp}
+            onPointerCancel={editor.handleScorePointerUp}
+            onPointerLeave={editor.handleScorePointerUp}
             onKeyDown={(event) => {
               if (event.defaultPrevented) editor.editorContext.endFretInput();
               else editor.handleScoreKeyDown(event);
@@ -442,6 +448,9 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
         }
       />
       {file.unsavedConfirmationOpen && <UnsavedChangesDialog onChoose={file.resolveUnsavedChoice} />}
+      {editor.specialPasteOpen ? (
+        <SpecialPasteDialog onApply={editor.applySpecialPaste} onCancel={editor.closeSpecialPaste} />
+      ) : null}
       <input
         ref={file.fileInputRef}
         type="file"

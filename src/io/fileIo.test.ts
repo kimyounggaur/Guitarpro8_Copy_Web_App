@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { layoutScore } from "../engine/layout/layoutScore";
 import { createDemoScore } from "../model/demoScore";
@@ -6,7 +7,6 @@ import { buildExportFileName, sanitizeFileName } from "./exportNames";
 import { exportMidi, importMidi } from "./midi";
 import { exportMusicXml, importMusicXml } from "./musicXml";
 import { parseNativeScore, serializeNativeScore } from "./nativeScore";
-import { sceneToPdf } from "./pdfExport";
 import { sceneFirstPageSvg, sceneToSvgDocument } from "./vectorExport";
 
 describe("Phase 12 file I/O", () => {
@@ -27,7 +27,7 @@ describe("Phase 12 file I/O", () => {
     const ascii = exportAsciiTab(createDemoScore());
     const imported = importAsciiTab(ascii);
 
-    expect(ascii).toContain("# GuitarPro8 Copy ASCII Tab");
+    expect(ascii).toContain("# TabScore ASCII Tab");
     expect(imported.tracks[0].name).toBe("Guitar");
     expect(imported.tracks[0].bars[0].voices[0].beats.length).toBeGreaterThan(0);
   });
@@ -51,15 +51,13 @@ describe("Phase 12 file I/O", () => {
     expect(imported.tracks[0].bars[0].voices[0].beats.length).toBeGreaterThan(0);
   });
 
-  it("exports SVG and PDF render artifacts from the scene graph", () => {
+  it("exports SVG render artifacts from the scene graph", () => {
     const scene = layoutScore(createDemoScore());
     const svg = sceneToSvgDocument(scene);
     const firstPageSvg = sceneFirstPageSvg(scene);
-    const pdf = sceneToPdf(scene);
 
     expect(svg).toContain("<svg");
     expect(firstPageSvg).toContain("viewBox");
-    expect(String.fromCharCode(...pdf.slice(0, 4))).toBe("%PDF");
   });
 
   it("builds safe export filenames with Guitar Pro-style tokens", () => {

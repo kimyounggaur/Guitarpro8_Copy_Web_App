@@ -3,6 +3,7 @@ import type { SceneGraph, ScenePage, ScenePrimitive } from "../engine/layout/sce
 export interface SvgExportOptions {
   transparentBackground?: boolean;
   gap?: number;
+  musicPath?: (primitive: Extract<ScenePrimitive, { type: "text" }>) => string | undefined;
 }
 
 export function sceneToSvgDocument(scene: SceneGraph, options: SvgExportOptions = {}): string {
@@ -19,7 +20,7 @@ export function sceneToSvgDocument(scene: SceneGraph, options: SvgExportOptions 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<svg xmlns="http://www.w3.org/2000/svg" width="${round(width)}" height="${round(height)}" viewBox="0 0 ${round(width)} ${round(height)}">`,
-    '  <title>GuitarPro8 Copy export</title>',
+    '  <title>TabScore export</title>',
     ...pages,
     '</svg>',
     ''
@@ -53,15 +54,18 @@ function pageToSvgGroup(page: ScenePage, y: number, options: SvgExportOptions): 
 function pagePrimitives(page: ScenePage, options: SvgExportOptions): string[] {
   return page.primitives
     .filter((primitive) => !(options.transparentBackground && primitive.type === "rect" && primitive.id.endsWith("background")))
-    .map(primitiveToSvg);
+    .map((primitive) => primitiveToSvg(primitive, options));
 }
 
-function primitiveToSvg(primitive: ScenePrimitive): string {
+function primitiveToSvg(primitive: ScenePrimitive, options: SvgExportOptions): string {
   switch (primitive.type) {
     case "line":
       return `<line id="${escapeXml(primitive.id)}" x1="${round(primitive.x1)}" y1="${round(primitive.y1)}" x2="${round(primitive.x2)}" y2="${round(primitive.y2)}" stroke="${escapeXml(primitive.stroke)}" stroke-width="${round(primitive.strokeWidth)}"${attr("stroke-linecap", primitive.strokeLinecap)}${attr("stroke-dasharray", primitive.strokeDasharray)} />`;
-    case "text":
+    case "text": {
+      const path = options.musicPath?.(primitive);
+      if (path) return `<path id="${escapeXml(primitive.id)}" d="${escapeXml(path)}" fill="${escapeXml(primitive.fill)}" />`;
       return `<text id="${escapeXml(primitive.id)}" x="${round(primitive.x)}" y="${round(primitive.y)}" fill="${escapeXml(primitive.fill)}" font-size="${round(primitive.fontSize)}"${attr("font-family", primitive.fontFamily)}${attr("text-anchor", primitive.anchor)}>${escapeXml(primitive.text)}</text>`;
+    }
     case "rect":
       return `<rect id="${escapeXml(primitive.id)}" x="${round(primitive.x)}" y="${round(primitive.y)}" width="${round(primitive.width)}" height="${round(primitive.height)}"${attr("rx", primitive.radius)} fill="${escapeXml(primitive.fill)}"${attr("stroke", primitive.stroke)}${attr("stroke-width", primitive.strokeWidth)} />`;
     case "ellipse":

@@ -1,3 +1,4 @@
+import type { PngScale } from "../../io/print/imageExport";
 import type { InputHTMLAttributes, MouseEvent, ReactNode } from "react";
 import { barTheoreticalTicks } from "../../model/derive";
 import { TICKS_PER_QUARTER, type AutomationPoint, type BeatDuration, type DisplayMode, type NotationType, type Score, type SongInfo, type StaffConfig, type Stylesheet, type StylesheetPresetName, type Track } from "../../model/types";
@@ -89,7 +90,7 @@ export interface EditorShellProps {
   onSaveNativeFile: () => void;
   onSaveNativeFileAs: () => void;
   onImportFile: (format: ImportFormat) => void;
-  onExportFile: (format: ExportFormat) => void;
+  onExportFile: (format: ExportFormat, scale?: PngScale) => void;
   onStylesheetPanelOpen: () => void;
   onStylesheetPanelClose: () => void;
   onStylesheetChange: (stylesheet: Stylesheet) => void;
