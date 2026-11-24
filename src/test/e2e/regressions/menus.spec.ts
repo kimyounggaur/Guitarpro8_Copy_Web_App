@@ -20,7 +20,7 @@ test("[C2] command search omits unsupported commands and executes an available o
   await page.keyboard.press("Control+e");
   const search = page.getByTestId("command-palette-input");
   await search.fill("lyrics");
-  await expect(page.getByRole("button", { name: /lyrics/i })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Command palette" }).getByRole("button", { name: /lyrics/i })).toHaveCount(0);
   const bars = (await state(page)).score.masterBars.length;
   await search.fill("add-bar 2");
   await search.press("Enter");

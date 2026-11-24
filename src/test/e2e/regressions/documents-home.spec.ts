@@ -80,7 +80,7 @@ test("Home preserves the editor and creates an independent template document", a
   await expect(page.getByRole("region", { name: "Score preview" }).getByRole("heading", { name: "Piano sketch" })).toBeVisible();
   expect((await state(page)).score).toEqual(original.score);
   await page.getByRole("button", { name: "New from template" }).click();
-  await expect(page.getByRole("tab")).toHaveCount(2);
+  await expect(page.getByTestId("tab-bar").getByRole("tab")).toHaveCount(2);
   expect((await state(page)).score.tracks[0].kind).toBe("pitched");
 });
 
@@ -160,7 +160,7 @@ test("background dirty drafts remain recoverable after reloading the page", asyn
   await expect(recover.getByText("Background draft")).toBeVisible();
   await recover.getByRole("button", { name: "Recover", exact: true }).click();
   expect(await firstFret(page)).toBe(7);
-  await expect(page.getByRole("tab")).toHaveCount(1);
+  await expect(page.getByTestId("tab-bar").getByRole("tab")).toHaveCount(1);
 });
 
 test("overflowing tabs scroll in their own strip and keep the new tab button available", async ({ page }, testInfo) => {

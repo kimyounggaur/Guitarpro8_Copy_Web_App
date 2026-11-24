@@ -195,7 +195,7 @@ export function EditionPalette(props: PaletteProps) {
       }}>
       <PaletteSection id="voices" label={t("editor.voices")}>
         {[1, 2, 3, 4].map((voice) => (
-          <button key={voice} type="button" aria-label={`Voice ${voice}`} aria-pressed={cursor.voiceIndex === voice - 1}
+          <button key={voice} type="button" aria-label={`Voice ${voice} (V${voice})`} aria-pressed={cursor.voiceIndex === voice - 1}
             onClick={() => props.onVoiceSelect(voice - 1)}><span aria-hidden="true">V{voice}</span></button>
         ))}
       </PaletteSection>
@@ -206,7 +206,7 @@ export function EditionPalette(props: PaletteProps) {
       </PaletteSection>
       {auxiliarySections.map(({ id, label, glyph, command, name, active, activate, disabledReason }) => (
         <PaletteSection key={id} id={id} label={label} defaultExpanded={false}>
-          <button type="button" aria-label={name} aria-pressed={active} disabled={Boolean(disabledReason)}
+          <button type="button" aria-label={glyphLabel(name, glyph)} aria-pressed={active} disabled={Boolean(disabledReason)}
             title={[name, shortcutLabel(command, props.platform), disabledReason].filter(Boolean).join(" · ")}
             onClick={activate}><span aria-hidden="true">{glyph}</span></button>
         </PaletteSection>
@@ -219,7 +219,7 @@ export function EditionPalette(props: PaletteProps) {
             const label = command?.label ?? id;
             const shortcut = shortcutLabel(id, props.platform);
             const disabled = !command || (id.startsWith("note.effect.") && !note) || (id.startsWith("beat.effect.") && !beat);
-            return <button key={id} type="button" aria-label={label} aria-pressed={pressed} disabled={disabled}
+            return <button key={id} type="button" aria-label={glyphLabel(label, glyph)} aria-pressed={pressed} disabled={disabled}
               title={[label, shortcut, disabled ? "Unavailable at the current position" : pressed ? "Applied" : ""].filter(Boolean).join(" · ")}
               onClick={() => props.dispatchCommand(id)}><span aria-hidden="true">{glyph}</span></button>;
           })}
@@ -259,4 +259,9 @@ function moveInGrid(event: KeyboardEvent<HTMLDivElement>, columns: number) {
   const increment = event.key === "End" ? -1 : event.key === "Home" ? 1 : step;
   while (buttons[next]?.disabled) next += increment;
   buttons[next]?.focus();
+}
+
+function glyphLabel(label: string, glyph: string): string {
+  return /[a-z0-9]/i.test(glyph) && !label.toLowerCase().includes(glyph.toLowerCase())
+    ? `${label} (${glyph})` : label;
 }
