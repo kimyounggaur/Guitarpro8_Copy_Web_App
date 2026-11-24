@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { expect } from "@playwright/test";
 import { unzipSync, strFromU8 } from "fflate";
-import { openApp, test } from "../helpers";
+import { openApp, state, test } from "../helpers";
 
 test("[B15] multi-page SVG and PNG contain every page in order", async ({ page }) => {
   await openApp(page);
@@ -30,15 +30,23 @@ test("[B15] multi-page SVG and PNG contain every page in order", async ({ page }
   expect(view.getUint32(16)).toBe(Math.round(Number(svgWidth) * 3));
 });
 
-test("[C10] browser PDF contains the full printed page count", async ({ page, browserName }) => {
+test("[C10] browser PDF prints every page and preserves a Korean score title", async ({ page, browserName }) => {
   test.skip(browserName !== "chromium", "Playwright PDF capture uses Chromium.");
   await page.addInitScript(() => { window.print = () => {}; });
   await openApp(page);
+  const title = "한글 기타 연습곡";
+  const { score } = await state(page);
+  score.meta.title = title;
+  await page.evaluate((json) => window.__GPW_TEST__!.loadScoreJson(json), JSON.stringify(score));
   await page.getByTitle("File I/O", { exact: true }).click();
   await page.getByRole("region", { name: "File import and export" }).getByRole("button", { name: /^PDF/ }).click();
   const printed = page.locator(".printScorePages > section");
   const count = await printed.count();
   expect(count).toBeGreaterThan(1);
+  await expect(printed.first().locator("svg text").filter({ hasText: title })).toHaveCount(1);
+  await page.emulateMedia({ media: "print" });
+  await expect(printed.first()).toBeVisible();
+  await expect(page.getByTestId("gp-shell")).toBeHidden();
   const buffer = await page.pdf({ preferCSSPageSize: true });
   expect(buffer.toString("ascii", 0, 4)).toBe("%PDF");
   expect(buffer.toString("latin1").match(/\/Type\s*\/Page\b/g)).toHaveLength(count);
