@@ -11,11 +11,11 @@ import { layoutScore } from "../../engine/layout/layoutScore";
 import { exportAsciiTab, importAsciiTab } from "../../io/asciiTab";
 import { defaultExportName } from "../../io/exportNames";
 import { exportMidi, importMidi } from "../../io/midi";
-import { exportMusicXml, importMusicXml } from "../../io/musicXml";
+import { exportMusicXml, readMusicXml, readCompressedMusicXml } from "../../io/musicXml";
 import { APP_NAME, LEGACY_NATIVE_EXTENSIONS, NATIVE_EXTENSION, NATIVE_FILE_ACCEPT, readScoreFile, writeScoreFile } from "../../io/fileFormat";
 import { sniffFileType, UNSUPPORTED_GUITAR_PRO_MESSAGE } from "../../io/sniffFileType";
-import { sceneToPdf } from "../../io/pdfExport";
-import { sceneFirstPageSvg, sceneToSvgDocument } from "../../io/vectorExport";
+import { printScore } from "../../io/print/PrintView";
+import { exportPageImages, type PngScale } from "../../io/print/imageExport";
 import { createEmptyScore, createTrack } from "../../model/factory";
 import type { Score } from "../../model/types";
 import { checkInvariants } from "../../model/invariants";
@@ -58,7 +58,7 @@ export interface FileController {
   handleSaveNativeFile: () => Promise<void>;
   handleSaveNativeFileAs: () => Promise<void>;
   handleImportFile: (format: ImportFormat) => void;
-  handleExportFile: (format: ExportFormat) => Promise<void>;
+  handleExportFile: (format: ExportFormat, pngScale?: PngScale) => Promise<void>;
   handleFileInputChange: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleScoreDrop: (event: DragEvent<HTMLDivElement>) => Promise<void>;
   handleScoreDragOver: (event: DragEvent<HTMLDivElement>) => void;
@@ -252,7 +252,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
     if (!pendingNavigation.current) requestFileLoad({ kind: "import", format });
   }
 
-  async function handleExportFile(format: ExportFormat): Promise<void> {
+  async function handleExportFile(format: ExportFormat, pngScale?: PngScale): Promise<void> {
     try {
       if (format === "native") {
         await handleSaveNativeFileAs();
@@ -286,42 +286,20 @@ export function useFileController(params: UseFileControllerParams): FileControll
         return;
       }
 
-      const exportScene = layoutScore(score, {
-        concertTone: score.documentSettings.concertTone,
-        multiVoiceEdit
-      });
-
-      if (format === "svg") {
-        downloadBlob(
-          new Blob([sceneToSvgDocument(exportScene)], { type: "image/svg+xml" }),
-          defaultExportName(score, ".svg")
-        );
-        setFileIoStatus("Exported the complete score as SVG.");
-        return;
-      }
+      const exportScene = layoutScore({
+        ...score,
+        documentSettings: { ...score.documentSettings, displayMode: "vertical-page", zoom: 100 }
+      }, { concertTone: score.documentSettings.concertTone, multiVoiceEdit });
 
       if (format === "pdf") {
-        downloadBlob(
-          new Blob([bytesToArrayBuffer(sceneToPdf(exportScene))], { type: "application/pdf" }),
-          defaultExportName(score, ".pdf")
-        );
-        setFileIoStatus("Exported the complete score as PDF.");
+        setFileIoStatus("Choose ‘Save as PDF’ in the printer destination.");
+        await printScore(exportScene, score.meta.title);
         return;
       }
 
-      const firstPage = exportScene.pages[0];
-
-      if (!firstPage) {
-        throw new Error("The score has no rendered page to export.");
-      }
-
-      const pngBlob = await svgToPngBlob(
-        sceneFirstPageSvg(exportScene),
-        firstPage.width,
-        firstPage.height
-      );
-      downloadBlob(pngBlob, defaultExportName(score, ".png"));
-      setFileIoStatus("Exported the first page as PNG.");
+      const { blob, extension, count } = await exportPageImages(exportScene, format, pngScale);
+      downloadBlob(blob, defaultExportName(score, extension));
+      setFileIoStatus(`Exported ${count} page(s) as ${format.toUpperCase()}.`);
     } catch (error) {
       setFileIoStatus(errorMessage(error));
     }
@@ -380,17 +358,14 @@ export function useFileController(params: UseFileControllerParams): FileControll
       if (kind === "guitar-pro") {
         throw new Error(UNSUPPORTED_GUITAR_PRO_MESSAGE);
       }
-      if (kind === "mxl") {
-        throw new Error("Compressed MusicXML is not yet supported. Import an uncompressed .musicxml file.");
-      }
       if (kind === "unknown") {
         throw new Error("This file is not a supported score, ASCII tab, MusicXML, or MIDI file.");
       }
 
-      const text = kind === "midi" ? "" : new TextDecoder().decode(bytes);
+      const text = kind === "midi" || kind === "mxl" ? "" : new TextDecoder().decode(bytes);
       const loaded = kind === "native" ? readScoreFile(text) : null;
-      const nextScore = loaded?.score
-        ?? (kind === "midi" ? importMidi(bytes) : kind === "musicxml" ? importMusicXml(text) : importAsciiTab(text));
+      const xml = kind === "mxl" ? readCompressedMusicXml(bytes) : kind === "musicxml" ? readMusicXml(text) : null;
+      const nextScore = loaded?.score ?? xml?.score ?? (kind === "midi" ? importMidi(bytes) : importAsciiTab(text));
       if (!loaded) {
         const fatal = checkInvariants(nextScore).find((issue) => issue.severity === "fatal");
         if (fatal) throw new Error(`This score cannot be opened: ${fatal.message}`);
@@ -398,7 +373,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
       if (!await confirmDiscardIfDirty()) return false;
 
       const hasCurrentExtension = file.name.toLowerCase().endsWith(NATIVE_EXTENSION);
-      const warnings = [...(loaded?.warnings ?? [])];
+      const warnings = [...(loaded?.warnings ?? []), ...(xml?.warnings ?? [])];
       if (loaded && LEGACY_NATIVE_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) {
         warnings.push(`Save this score again with the ${NATIVE_EXTENSION} extension.`);
       }
@@ -406,7 +381,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
       if (loaded?.savedAt) {
         void discardRecoverySnapshot(loaded.documentId, loaded.savedAt).catch(() => {});
       }
-      setFileIoStatus([`Loaded ${file.name} as ${formatLabel(kind)}.`, ...warnings].join(" "));
+      setFileIoStatus([`Loaded ${file.name} as ${formatLabel(kind === "mxl" ? "musicxml" : kind)}.`, ...warnings].join(" "));
       if (warnings.length) {
         openFileIoPanel();
       } else {
@@ -534,42 +509,6 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
   return copy.buffer;
-}
-
-async function svgToPngBlob(svg: string, width: number, height: number): Promise<Blob> {
-  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
-
-  try {
-    const image = new Image();
-    await new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve();
-      image.onerror = () => reject(new Error("The SVG page could not be rendered as PNG."));
-      image.src = url;
-    });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.ceil(width));
-    canvas.height = Math.max(1, Math.ceil(height));
-    const context = canvas.getContext("2d");
-
-    if (!context) {
-      throw new Error("The browser could not create a PNG export canvas.");
-    }
-
-    context.drawImage(image, 0, 0);
-
-    return await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("The PNG export failed."));
-        }
-      }, "image/png");
-    });
-  } finally {
-    URL.revokeObjectURL(url);
-  }
 }
 
 function isAbortError(error: unknown): boolean {

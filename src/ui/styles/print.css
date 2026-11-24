@@ -7,3 +7,40 @@
     }
   }
 }
+
+.printScoreRoot {
+  display: none;
+}
+
+@media print {
+  body.printScoreActive > :not(.printScoreRoot) {
+    display: none !important;
+  }
+
+  body.printScoreActive {
+    display: block;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .printScoreRoot,
+  .printScorePages,
+  .printScorePages .scorePages {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .printScorePages > section:not(:last-child) {
+    break-after: page;
+  }
+
+  .printScorePages .scorePage {
+    display: block;
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none;
+    margin: 0;
+  }
+}

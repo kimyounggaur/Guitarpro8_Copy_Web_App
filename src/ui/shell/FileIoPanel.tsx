@@ -1,3 +1,5 @@
+import { useState } from "react";
+import type { PngScale } from "../../io/print/imageExport";
 import { NATIVE_EXTENSION } from "../../io/fileFormat";
 import type { Score } from "../../model/types";
 
@@ -15,12 +17,12 @@ export interface FileIoPanelProps {
   onSaveNative: () => void;
   onSaveNativeAs: () => void;
   onImport: (format: ImportFormat) => void;
-  onExport: (format: ExportFormat) => void;
+  onExport: (format: ExportFormat, scale?: PngScale) => void;
 }
 
 const importFormats: Array<[ImportFormat, string, string]> = [
   ["ascii", "ASCII", ".txt .tab"],
-  ["musicxml", "MusicXML", ".musicxml .xml"],
+  ["musicxml", "MusicXML", ".musicxml .xml .mxl"],
   ["midi", "MIDI", ".mid .midi"]
 ];
 const exportFormats: Array<[ExportFormat, string, string]> = [
@@ -29,10 +31,11 @@ const exportFormats: Array<[ExportFormat, string, string]> = [
   ["midi", "MIDI", "SMF format 1"],
   ["svg", "SVG", "Vector score image"],
   ["png", "PNG", "Rendered page image"],
-  ["pdf", "PDF", "Vector document"]
+  ["pdf", "PDF", "Print or save as PDF"]
 ];
 
 export function FileIoPanel(props: FileIoPanelProps) {
+  const [pngScale, setPngScale] = useState<PngScale>(2);
   if (!props.open) {
     return null;
   }
@@ -81,8 +84,19 @@ export function FileIoPanel(props: FileIoPanelProps) {
         </section>
         <section className="fileIoColumn">
           <h2>Export</h2>
+          <label>
+            PNG scale
+            <select value={pngScale} onChange={(event) => {
+              const scale = Number(event.target.value);
+              if (scale === 1 || scale === 2 || scale === 3) setPngScale(scale);
+            }}>
+              <option value={1}>1×</option>
+              <option value={2}>2×</option>
+              <option value={3}>3×</option>
+            </select>
+          </label>
           {exportFormats.map(([format, label, hint]) => (
-            <button key={format} type="button" onClick={() => props.onExport(format)}>
+            <button key={format} type="button" onClick={() => props.onExport(format, format === "png" ? pngScale : undefined)}>
               <strong>{label}</strong>
               <span>{hint}</span>
             </button>

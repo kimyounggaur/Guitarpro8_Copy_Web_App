@@ -244,7 +244,7 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
     "file.open": file.handleOpenNativeFile,
     "file.save": file.handleSaveNativeFile,
     "file.saveAs": file.handleSaveNativeFileAs,
-    "file.print": () => window.print(),
+    "file.print": () => file.handleExportFile("pdf"),
     "history.undo": editor.editorContext.undo,
     "history.redo": editor.editorContext.redo,
     "playback.toggle": () => editor.editorContext.togglePlayback(false),
@@ -397,7 +397,7 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
         onSaveNativeFile={() => void file.handleSaveNativeFile()}
         onSaveNativeFileAs={() => void file.handleSaveNativeFileAs()}
         onImportFile={file.handleImportFile}
-        onExportFile={(format) => void file.handleExportFile(format)}
+        onExportFile={(format, scale) => void file.handleExportFile(format, scale)}
         onStylesheetPanelOpen={toolWindow.openStylesheetPanel}
         onStylesheetPanelClose={toolWindow.closeStylesheetPanel}
         onStylesheetChange={editor.handleStylesheetChange}

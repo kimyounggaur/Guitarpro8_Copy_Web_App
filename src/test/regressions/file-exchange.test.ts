@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { expect, it } from "vitest";
 import { exportAsciiTab } from "../../io/asciiTab";
 import { exportMidi } from "../../io/midi";
@@ -6,7 +7,7 @@ import { noteMidiPitch } from "../../model/derive";
 import { createBeat, createEmptyScore, createMasterBar, createNote, createTrack } from "../../model/factory";
 import { instrumentById } from "../../model/instruments";
 
-it.fails("[B13] MusicXML preserves the previous measure's time signature when attributes are omitted", () => {
+it("[B13] MusicXML preserves the previous measure's time signature when attributes are omitted", () => {
   const score = createEmptyScore();
   score.masterBars = [createMasterBar(), createMasterBar()];
   score.tracks = [createTrack(undefined, 2)];
@@ -19,7 +20,7 @@ it.fails("[B13] MusicXML preserves the previous measure's time signature when at
   )).toEqual([[3, 4], [3, 4]]);
 });
 
-it.fails("[B13] MusicXML imports pitched notes with attributes and groups chord members", () => {
+it("[B13] MusicXML imports pitched notes with attributes and groups chord members", () => {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
   <score-partwise version="4.0">
     <part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list>
@@ -36,7 +37,7 @@ it.fails("[B13] MusicXML imports pitched notes with attributes and groups chord 
   expect(beats[0].notes.map((note) => noteMidiPitch(note, track)).sort((a, b) => a - b)).toEqual([64, 67]);
 });
 
-it.fails("[B14] the MIDI tempo track contains structurally valid meta events", () => {
+it("[B14] the MIDI tempo track contains structurally valid meta events", () => {
   const bytes = exportMidi(createEmptyScore());
   expect(new TextDecoder().decode(bytes.slice(14, 18))).toBe("MTrk");
 
@@ -57,7 +58,7 @@ it.fails("[B14] the MIDI tempo track contains structurally valid meta events", (
   expect(types.at(-1)).toBe(0x2f);
 });
 
-it.fails("[B14] a flute's program 73 is set before its first note-on", () => {
+it("[B14] a flute's program 73 is set before its first note-on", () => {
   const score = createEmptyScore();
   const flute = instrumentById("flute");
   const track = createTrack({ ...flute, strings: flute.tuning });
@@ -91,7 +92,7 @@ function variableLength(bytes: Uint8Array, start: number): { value: number; end:
   throw new Error("Unterminated MIDI variable-length quantity");
 }
 
-it.fails("[B15] ASCII TAB default output wraps long parts to 80-column systems", () => {
+it("[B15] ASCII TAB default output wraps long parts to 80-column systems", () => {
   const score = createEmptyScore();
   const barCount = 40;
   score.masterBars = Array.from({ length: barCount }, createMasterBar);
