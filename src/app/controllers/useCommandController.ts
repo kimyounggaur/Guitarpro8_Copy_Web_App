@@ -24,7 +24,6 @@ import { isMenuAppAction } from "../../commands/menus";
 // ./paletteGrammar.ts, split out once this file crossed the master
 // prompt's ~500-line-per-controller guideline.
 import { useMemo } from "react";
-import { ensureDemoCommandsRegistered } from "../../commands/demoCommands";
 import { ensureEditingCommandsRegistered, type EditorCommandContext } from "../../commands/editingCommands";
 import { findMenuAction, paletteEntryByPrefix, parsePaletteInput } from "../../commands/paletteCommands";
 import { executeCommand, getAllCommands, type Command } from "../../commands/registry";
@@ -97,7 +96,6 @@ export interface CommandController {
 }
 
 export function useCommandController(params: UseCommandControllerParams): CommandController {
-  ensureDemoCommandsRegistered();
   ensureEditingCommandsRegistered();
 
   const dispatchEditorCommand = (commandId: string): void => {

@@ -77,10 +77,15 @@ export function jumpToSection(deps: CommandControllerDeps, query: string): Comma
     return { handled: false, message: "Type a section letter or name.", keepOpen: true };
   }
 
-  const sectionIndex = deps.score.masterBars.findIndex((bar) => {
-    const section = bar.section;
-    return section && (section.letter.toLowerCase() === normalized || section.name.toLowerCase().includes(normalized));
-  });
+  const isSection = (index: number) => Boolean(deps.score.masterBars[index]?.section);
+  const currentBar = deps.cursor.barIndex;
+  const sections = deps.score.masterBars.map((_, index) => index).filter(isSection);
+  const sectionIndex = normalized === "next"
+    ? sections.find((index) => index > currentBar) ?? -1
+    : normalized === "previous"
+      ? sections.reverse().find((index) => index < currentBar) ?? -1
+      : deps.score.masterBars.findIndex(({ section }) =>
+        section && (section.letter.toLowerCase() === normalized || section.name.toLowerCase().includes(normalized)));
 
   if (sectionIndex < 0) {
     return { handled: false, message: "Section not found.", keepOpen: true };

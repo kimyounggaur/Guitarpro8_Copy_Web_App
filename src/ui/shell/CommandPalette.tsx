@@ -4,6 +4,7 @@ import {
   COMMAND_PALETTE_PLACEHOLDER,
   commandUsage,
   parsePaletteInput,
+  paletteInputForEntry,
   suggestPaletteEntries,
   type PaletteEntry
 } from "../../commands/paletteCommands";
@@ -63,29 +64,8 @@ export function CommandPalette({
   }
 
   function completeSuggestion(entry: PaletteEntry): void {
-    const parsed = parsePaletteInput(value);
-
-    if (entry.kind === "action") {
-      setValue(`@ ${entry.prefix}`);
-      return;
-    }
-
-    if (entry.kind === "expression") {
-      setValue(`>${entry.prefix}`);
-      return;
-    }
-
-    if (parsed.mode === "action") {
-      setValue(`@ ${entry.prefix}`);
-      return;
-    }
-
-    if (parsed.mode === "expression") {
-      setValue(`>${entry.prefix}`);
-      return;
-    }
-
-    setValue(entry.requiresArgument ? `${entry.prefix} ` : entry.prefix);
+    const input = paletteInputForEntry(entry);
+    setValue(entry.requiresArgument ? `${input} ` : input);
   }
 
   function run(input: string): void {
@@ -195,7 +175,7 @@ export function CommandPalette({
               index === selectedIndex ? "selectedSuggestion" : "",
               entry.disabled ? "disabledSuggestion" : ""
             ].join(" ")}
-            onClick={() => (entry.requiresArgument ? completeSuggestion(entry) : run(entry.kind === "action" ? `@ ${entry.prefix}` : entry.prefix))}
+            onClick={() => (entry.requiresArgument ? completeSuggestion(entry) : run(paletteInputForEntry(entry)))}
           >
             <strong>{entry.prefix}</strong>
             <span>{entry.description}</span>

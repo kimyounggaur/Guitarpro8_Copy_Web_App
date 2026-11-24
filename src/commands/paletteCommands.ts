@@ -150,7 +150,7 @@ export const ADVANCED_COMMANDS: PaletteEntry[] = [
 export const EXPRESSION_ENTRIES: PaletteEntry[] = [
   expression("Cm", "Set C minor chord"),
   expression("C", "Set C major chord"),
-  expression("G", "Set G key signature or chord"),
+  expression("G", "Set G major chord"),
   expression("Am", "Set A minor chord"),
   expression("ppp", "Set dynamic ppp"),
   expression("pp", "Set dynamic pp"),
@@ -159,11 +159,7 @@ export const EXPRESSION_ENTRIES: PaletteEntry[] = [
   expression("mf", "Set dynamic mf"),
   expression("f", "Set dynamic f"),
   expression("ff", "Set dynamic ff"),
-  expression("fff", "Set dynamic fff"),
-  expression("8va", "Set octave sign 8va"),
-  expression("8vb", "Set octave sign 8vb"),
-  expression("Segno", "Set Segno direction"),
-  expression("Coda", "Set Coda direction")
+  expression("fff", "Set dynamic fff")
 ];
 
 export const MENU_TREE: MenuGroup[] = [
@@ -371,6 +367,15 @@ export function suggestPaletteEntries(
   return filterEntries([...quick, ...advanced, ...registeredEntries], input).sort(byPrefix);
 }
 
+export function paletteInputForEntry(entry: PaletteEntry): string {
+  switch (entry.kind) {
+    case "registered": return entry.commandId ?? entry.prefix;
+    case "action": return `@ ${entry.prefix}`;
+    case "expression": return `>${entry.prefix}`;
+    default: return entry.prefix;
+  }
+}
+
 export function commandUsage(input: string): string {
   const parsed = parsePaletteInput(input);
   const entry = paletteEntryByPrefix(parsed.prefix);
@@ -380,7 +385,7 @@ export function commandUsage(input: string): string {
   }
 
   if (parsed.mode === "expression") {
-    return "Expression Text: type a chord, dynamic, key, octave sign, clef, or direction.";
+    return "Expression Text: type a chord or dynamic.";
   }
 
   if (parsed.mode === "section") {
