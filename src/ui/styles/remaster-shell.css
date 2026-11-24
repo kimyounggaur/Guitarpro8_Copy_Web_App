@@ -34,6 +34,8 @@
     border: 0;
   }
 
+  .editorDockLayout > .bottomDock[hidden] { display: none; }
+
   .dockSplitter {
     position: relative;
     align-self: stretch;

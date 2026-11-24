@@ -13,9 +13,10 @@ interface DockLayoutProps {
   global?: ReactNode;
   automation?: ReactNode;
   audio?: ReactNode;
+  audioVisible?: boolean;
 }
 
-export function EditorDockLayout({ palette, inspector, workspace, global, automation, audio }: DockLayoutProps) {
+export function EditorDockLayout({ palette, inspector, workspace, global, automation, audio, audioVisible = true }: DockLayoutProps) {
   const element = useRef<HTMLDivElement>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const sizes = useLayoutStore((state) => state.sizes);
@@ -51,7 +52,7 @@ export function EditorDockLayout({ palette, inspector, workspace, global, automa
     { dock: "automation", label: "Resize automation", id: "editor-automation-dock", content: automation },
     { dock: "global", label: "Resize global view", id: "editor-global-dock", content: global }
   ];
-  const verticalDocks = candidates.filter(({ content }) => Boolean(content));
+  const verticalDocks = candidates.filter(({ dock, content }) => Boolean(content) && (dock !== "audio" || audioVisible));
   const verticalAvailable = height - CENTER_HEIGHT - SPLITTER * verticalDocks.length;
   const vertical = fitDocks(
     verticalDocks.map(({ dock }) => sizes[dock]),
@@ -89,14 +90,20 @@ export function EditorDockLayout({ palette, inspector, workspace, global, automa
         {showRight && separator("right", "Resize inspector", "editor-inspector-dock", horizontal[1], width - CENTER_WIDTH - horizontal[0] - SPLITTER * (showLeft ? 2 : 1))}
         {showRight && <div id="editor-inspector-dock" className="inspectorDockSlot">{inspector}</div>}
       </section>
-      {verticalDocks.flatMap(({ dock, label, id, content }, index) => [
-        <div key={`${dock}-splitter`} className="horizontalSplitterSlot">
-          {separator(dock, label, id, vertical[index], verticalAvailable - vertical.reduce((sum, size, position) => sum + (position === index ? 0 : size), 0), true)}
-        </div>,
-        <section key={dock} id={id} className={`bottomDock ${dock}Visible`} data-testid={dock === "global" || !global && dock === "automation" ? "bottom-dock" : undefined}>
-          {content}
-        </section>
-      ])}
+      {candidates.flatMap(({ dock, label, id, content }) => {
+        if (!content) return [];
+        const index = verticalDocks.findIndex((candidate) => candidate.dock === dock);
+        const available = verticalAvailable - vertical.reduce((sum, size, position) => sum + (position === index ? 0 : size), 0);
+        return [
+          index >= 0 ? <div key={`${dock}-splitter`} className="horizontalSplitterSlot">
+            {separator(dock, label, id, vertical[index], available, true)}
+          </div> : null,
+          <section key={dock} id={id} className={`bottomDock ${dock}Visible`} hidden={index < 0}
+            data-testid={dock === "global" || !global && dock === "automation" ? "bottom-dock" : undefined}>
+            {content}
+          </section>
+        ];
+      })}
     </div>
   );
 }

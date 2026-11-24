@@ -162,6 +162,7 @@ export function EditorShell(props: EditorShellProps) {
         inspector={props.panelVisibility.songInspector || props.panelVisibility.trackInspector ? <InspectorDock {...props} /> : null}
         workspace={<ScoreWorkspace documentId={props.activeId} onZoomChange={props.onZoomChange}>{props.workspace}</ScoreWorkspace>}
         audio={props.audioDock}
+        audioVisible={props.audioDockOpen}
         automation={props.panelVisibility.automationView ? <AutomationEditor {...props} /> : null}
         global={props.panelVisibility.globalView ? <GlobalViewDock {...props} /> : null}
       />
