@@ -9,10 +9,13 @@ import type {
   Score,
   StaffConfig,
   Track,
+  TrackClef,
+  TrackKind,
   Voice
 } from "./types";
 import { createDefaultStylesheet } from "./stylesheet";
 import { newId } from "./ids";
+import { inferTrackNotation } from "./trackKind";
 
 export function createEmptyScore(): Score {
   return {
@@ -51,6 +54,8 @@ export interface InstrumentPreset {
   notationTypes?: NotationType[];
   staffConfig?: StaffConfig;
   stringed?: boolean;
+  kind?: TrackKind;
+  clef?: TrackClef;
   soundingOffset?: number;
   gmProgram?: number;
 }
@@ -97,8 +102,11 @@ export function createTrack(
   instrumentPreset: InstrumentPreset = GUITAR_PRESET,
   masterBarCount = 1
 ): Track {
+  const { kind, clef } = inferTrackNotation(instrumentPreset);
   return {
     id: newId("trk"),
+    kind,
+    clef,
     name: instrumentPreset.name,
     shortName: instrumentPreset.shortName,
     color: instrumentPreset.color,
@@ -123,7 +131,7 @@ export function createTrack(
       accentuation: false,
       autoLetRing: false,
       autoBrush: false,
-      stringed: instrumentPreset.stringed ?? true
+      stringed: kind === "stringed"
     },
     chordLibrary: [],
     lyricsLines: [],

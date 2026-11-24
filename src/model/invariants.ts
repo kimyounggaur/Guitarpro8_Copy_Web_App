@@ -1,3 +1,4 @@
+import { isMidiPitch } from "./trackKind";
 import { validateBarDurations } from "../engine/validate/barDuration";
 import { barTheoreticalTicks } from "./derive";
 import type { Score, Tuplet } from "./types";
@@ -43,7 +44,18 @@ export function checkInvariants(score: Score): InvariantIssue[] {
             issues.push({ code: "duration-valid", severity: "fatal", message: "올바른 음 길이, 점 또는 잇단음 값이 필요합니다.", location });
           }
 
-          if (!track.interpretation.stringed) return;
+          if (track.kind !== "stringed") {
+            const isDrum = track.kind === "percussion";
+            if (beat.notes.some((note) => !isMidiPitch(isDrum ? note.midiNumber : note.midiPitch))) {
+              issues.push({
+                code: isDrum ? "drum-midi" : "pitched-midi",
+                severity: "fatal",
+                message: isDrum ? "타악기 음에 올바른 MIDI 번호가 필요합니다." : "음표에 올바른 MIDI 음높이가 필요합니다.",
+                location
+              });
+            }
+            return;
+          }
 
           const usedStrings = new Set<number>();
           for (const note of beat.notes) {

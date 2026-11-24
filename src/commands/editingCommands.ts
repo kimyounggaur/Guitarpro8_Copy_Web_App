@@ -16,7 +16,7 @@ export interface EditorCommandContext {
   toggleStaffKind: () => void;
   inputFretDigit: (digit: number) => void;
   endFretInput: () => void;
-  inputStandardString: (stringNumber: number) => void;
+  inputStandardString: (stringNumber?: number) => void;
   changeDuration: (direction: "longer" | "shorter") => void;
   setDuration: (duration: BeatDuration) => void;
   toggleRest: () => void;
@@ -122,6 +122,14 @@ export function ensureEditingCommandsRegistered(): void {
     label: "Tie beat",
     category: "Note",
     execute: (context) => context.toggleTie(true)
+  });
+
+  registerEditorCommand({
+    id: "note.inputStandard",
+    label: "Enter staff note",
+    category: "Note",
+    contextPredicate: (context) => context.staffKind === "standard",
+    execute: (context) => context.inputStandardString()
   });
 
   registerEditorCommand({

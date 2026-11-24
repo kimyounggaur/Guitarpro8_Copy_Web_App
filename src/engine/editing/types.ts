@@ -1,4 +1,5 @@
 import type { NoteRef } from "../../model/types";
+import type { Clef } from "../notation/staffPosition";
 
 export type StaffKind = "tab" | "standard";
 
@@ -9,6 +10,8 @@ export interface CursorPosition {
   beatIndex: number;
   string: number;
   staffLine: number;
+  staffClef?: Clef;
+  writtenMidi?: number;
   staffKind: StaffKind;
 }
 

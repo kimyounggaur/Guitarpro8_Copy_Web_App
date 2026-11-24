@@ -25,6 +25,8 @@ import type {
   TimeSignature,
   Track
 } from "../../model/types";
+import { moveStaffPitch, resolveStaffInput, type StaffInputNote } from "../notation/staffInput";
+import type { Clef } from "../notation/staffPosition";
 import type { CursorMove, CursorPosition } from "./types";
 
 const durationOrder: BeatDuration[] = [1, 2, 4, 8, 16, 32, 64];
@@ -103,7 +105,7 @@ export function defaultCursor(score: Score): CursorPosition {
     beatIndex: 0,
     string: 1,
     staffLine: 0,
-    staffKind: "tab"
+    staffKind: usesStandardInput(score.tracks[0]) ? "standard" : "tab"
   };
 }
 
@@ -114,7 +116,10 @@ export function normaliseCursor(score: Score, cursor: CursorPosition): CursorPos
   const voiceIndex = clamp(cursor.voiceIndex, 0, 3);
   const voice = track?.bars[barIndex]?.voices[voiceIndex];
   const beatIndex = clamp(cursor.beatIndex, 0, Math.max(0, (voice?.beats.length ?? 1) - 1));
-  const stringCount = track?.tuning.strings.length ?? 6;
+  const stringCount = Math.max(1, track?.tuning.strings.length ?? 6);
+  const staffKind = usesStandardInput(track)
+    ? "standard"
+    : track && !track.notationTypes.includes("standard") ? "tab" : cursor.staffKind;
 
   return {
     ...cursor,
@@ -123,7 +128,8 @@ export function normaliseCursor(score: Score, cursor: CursorPosition): CursorPos
     voiceIndex,
     beatIndex,
     string: clamp(cursor.string, 1, stringCount),
-    staffLine: clamp(cursor.staffLine, -12, 12)
+    staffLine: clamp(cursor.staffLine, -64, 64),
+    staffKind
   };
 }
 
@@ -143,11 +149,11 @@ export function moveCursor(score: Score, cursor: CursorPosition, move: CursorMov
     case "up":
       return current.staffKind === "tab"
         ? normaliseCursor(score, { ...current, string: current.string - 1 })
-        : normaliseCursor(score, { ...current, staffLine: current.staffLine + 1 });
+        : moveStandardCursor(score, current, 1);
     case "down":
       return current.staffKind === "tab"
         ? normaliseCursor(score, { ...current, string: current.string + 1 })
-        : normaliseCursor(score, { ...current, staffLine: current.staffLine - 1 });
+        : moveStandardCursor(score, current, -1);
     case "home":
       return { ...current, beatIndex: 0 };
     case "end":
@@ -227,7 +233,7 @@ export function inputFret(score: Score, cursor: CursorPosition, fret: number): C
   }
 
   beat.rest = false;
-  const string = current.staffKind === "tab" ? current.string : staffInputString(score, current, fret);
+  const string = current.string;
   const noteIndex = beat.notes.findIndex((note) => note.string === string);
   const note = noteIndex >= 0 ? beat.notes[noteIndex] : createNote(string, 0);
   note.string = string;
@@ -242,10 +248,84 @@ export function inputFret(score: Score, cursor: CursorPosition, fret: number): C
   return { ...current, string };
 }
 
-export function inputStandardString(score: Score, cursor: CursorPosition, stringNumber: number): CursorPosition {
+function usesStandardInput(track: Track | null | undefined): boolean {
+  return !!track && (track.kind !== "stringed" || !track.notationTypes.includes("tab"));
+}
+
+function clefForCursor(track: Track, cursor: CursorPosition): Clef {
+  if (track.clef === "grand" || track.staffConfig === "grand") {
+    return cursor.staffClef === "bass" ? "bass" : "treble";
+  }
+  return track.clef;
+}
+
+export function moveStandardCursor(
+  score: Score,
+  cursor: CursorPosition,
+  direction: -1 | 1,
+  chromatic = false
+): CursorPosition {
   const track = trackForCursor(score, cursor);
-  const string = stringNumber === 0 ? bestStringForStaffLine(track, cursor.staffLine) : stringNumber;
-  return inputFret(score, { ...cursor, string, staffKind: "standard" }, 0);
+  const key = score.masterBars[cursor.barIndex]?.keySignature;
+  if (!track || !key) return cursor;
+
+  const clef = clefForCursor(track, cursor);
+  const pitch = moveStaffPitch({ position: cursor.staffLine, key, clef, writtenMidi: cursor.writtenMidi }, direction, chromatic);
+  if (pitch.writtenMidi !== undefined && (pitch.writtenMidi < 0 || pitch.writtenMidi > 127)) return cursor;
+  return normaliseCursor(score, { ...cursor, staffLine: pitch.position, writtenMidi: pitch.writtenMidi, staffClef: clef });
+}
+
+export function standardInputPlacement(
+  score: Score,
+  cursor: CursorPosition,
+  preferredString?: number
+): StaffInputNote | null {
+  const track = trackForCursor(score, cursor);
+  const key = score.masterBars[cursor.barIndex]?.keySignature;
+  if (!track || !key) return null;
+
+  const beat = beatForCursor(score, cursor);
+  const previous = previousTieBeat(track, cursor)?.beat;
+  const previousFret = previous?.notes.find((note) => note.string === (preferredString ?? cursor.string))?.fret
+    ?? previous?.notes[0]?.fret;
+  const occupiedStrings = new Set(beat?.notes.map((note) => note.string) ?? []);
+  if (preferredString !== undefined) occupiedStrings.delete(preferredString);
+
+  return resolveStaffInput(track, {
+    position: cursor.staffLine,
+    clef: clefForCursor(track, cursor),
+    key,
+    concertTone: score.documentSettings.concertTone,
+    ottava: beat?.ottava,
+    writtenMidi: cursor.writtenMidi,
+    preferredString,
+    previousFret,
+    occupiedStrings
+  });
+}
+
+export function applyStandardInput(score: Score, cursor: CursorPosition, placement: StaffInputNote): CursorPosition {
+  const beat = ensureBeat(score, cursor);
+  if (!beat) return cursor;
+
+  beat.rest = false;
+  if (placement.kind === "stringed") {
+    const existing = beat.notes.find((note) => note.string === placement.string);
+    if (!existing) {
+      beat.notes.push(createNote(placement.string, placement.fret));
+    } else if (existing.fret !== placement.fret) {
+      existing.fret = placement.fret;
+      delete existing.tiedFromPrevious;
+    }
+    return { ...cursor, string: placement.string };
+  }
+  if (placement.kind === "pitched" && !beat.notes.some((note) => note.midiPitch === placement.midiPitch)) {
+    beat.notes.push({ ...createNote(), midiPitch: placement.midiPitch });
+  }
+  if (placement.kind === "percussion" && !beat.notes.some((note) => note.midiNumber === placement.midiNumber)) {
+    beat.notes.push({ ...createNote(), midiNumber: placement.midiNumber, articulation: placement.articulation });
+  }
+  return cursor;
 }
 
 export function deleteNoteAtCursor(score: Score, cursor: CursorPosition): CursorPosition {
@@ -905,7 +985,9 @@ function moveTrack(score: Score, cursor: CursorPosition, direction: -1 | 1): Cur
 
   return normaliseCursor(score, {
     ...cursor,
-    trackId: nextTrack?.id ?? cursor.trackId
+    trackId: nextTrack?.id ?? cursor.trackId,
+    staffClef: undefined,
+    writtenMidi: undefined
   });
 }
 
@@ -1012,20 +1094,6 @@ function noteForCursor(score: Score, cursor: CursorPosition): Note | null {
 function lastBeatIndex(track: Track, cursor: CursorPosition): number {
   const voice = track.bars[cursor.barIndex]?.voices[cursor.voiceIndex];
   return Math.max(0, (voice?.beats.length ?? 1) - 1);
-}
-
-function staffInputString(score: Score, cursor: CursorPosition, key: number): number {
-  const track = trackForCursor(score, cursor);
-  return key === 0 ? bestStringForStaffLine(track, cursor.staffLine) : key;
-}
-
-function bestStringForStaffLine(track: Track | null, staffLine: number): number {
-  if (!track) {
-    return 1;
-  }
-
-  const middle = Math.ceil(track.tuning.strings.length / 2);
-  return clamp(middle - Math.sign(staffLine), 1, track.tuning.strings.length);
 }
 
 function stringOpenPitch(track: Track, stringNumber: number): number {

@@ -1,6 +1,7 @@
 import { barTheoreticalTicks, beatDurationTicks } from "../../model/derive";
-import type { Beat, Score } from "../../model/types";
-import { FLAG_WIDTH, NOTE_DOT_RADIUS } from "./metrics";
+import type { Beat, Score, Stylesheet } from "../../model/types";
+import { layoutStaffSignature } from "../notation/signatureLayout";
+import { FLAG_WIDTH, NOTE_DOT_RADIUS, STAFF_LINE_GAP } from "./metrics";
 import type { SystemMeasure } from "./systemBreaker";
 
 export interface BeatPlacement {
@@ -17,13 +18,32 @@ export interface MeasureContent {
   preventBreak: boolean;
   beats: BeatPlacement[];
   hasSignatureChange?: boolean;
+  signatureWidths?: { system: number; change: number };
 }
 
-export function createMeasureContents(score: Score): MeasureContent[] {
+export function createMeasureContents(
+  score: Score,
+  notationStyle: Stylesheet["notation"] = score.stylesheet.notation
+): MeasureContent[] {
   return score.masterBars.map((masterBar, barIndex) => {
     const beats = collectBeatPlacements(score, barIndex);
     const expectedTicks = barTheoreticalTicks(masterBar);
     const previous = score.masterBars[barIndex - 1];
+    // Reserve the larger common fitting gutter once for all tracks so
+    // simultaneously sounding notes keep a shared horizontal axis.
+    const signature = {
+      clef: "treble8vb" as const,
+      key: masterBar.keySignature,
+      time: masterBar.timeSignature,
+      previousKey: previous?.keySignature,
+      previousTime: previous?.timeSignature,
+      style: notationStyle,
+      staffSpace: STAFF_LINE_GAP
+    };
+    const signatureWidths = {
+      system: layoutStaffSignature({ ...signature, systemStart: true }).width,
+      change: layoutStaffSignature({ ...signature, systemStart: false }).width
+    };
 
     return {
       barIndex,
@@ -35,6 +55,7 @@ export function createMeasureContents(score: Score): MeasureContent[] {
         previous.keySignature.key !== masterBar.keySignature.key ||
         previous.keySignature.mode !== masterBar.keySignature.mode
       )),
+      signatureWidths,
       forcedBreak: masterBar.layout.forcedBreak,
       preventBreak: masterBar.layout.preventBreak,
       beats

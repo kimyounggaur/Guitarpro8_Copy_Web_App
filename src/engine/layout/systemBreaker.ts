@@ -95,6 +95,6 @@ function spacingFor(measures: MeasureContent[], options: SystemSpacingOptions) {
     shortest,
     options.rhythmProportion,
     options.minMeasureWidth,
-    index === 0 || Boolean(measure.hasSignatureChange)
+    index === 0
   ));
 }

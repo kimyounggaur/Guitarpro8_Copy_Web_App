@@ -22,6 +22,8 @@ export type TabRhythmPosition = "above" | "below" | "hidden";
 export type FingeringsPosition = "left" | "right" | "above" | "below";
 export type NotationType = "standard" | "tab" | "slash" | "numbered";
 export type StaffConfig = "single" | "grand";
+export type TrackKind = "stringed" | "pitched" | "percussion";
+export type TrackClef = "treble" | "treble8vb" | "bass" | "bass8vb" | "percussion" | "grand";
 export type AccidentalPreference = "sharp" | "flat";
 export type KeyMode = "major" | "minor";
 export type BeatDuration = 1 | 2 | 4 | 8 | 16 | 32 | 64;
@@ -279,6 +281,8 @@ export interface Fermata {
 
 export interface Track {
   id: string;
+  kind: TrackKind;
+  clef: TrackClef;
   name: string;
   shortName: string;
   color: string;

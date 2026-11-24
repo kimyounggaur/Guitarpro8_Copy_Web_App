@@ -22,9 +22,11 @@ export function measureSpacing(
   shortestTicks: number,
   rhythmProportion: number,
   minMeasureWidth: number,
-  showsSignature: boolean
+  systemStart: boolean
 ) {
-  const left = MEASURE_LEFT_PADDING + (showsSignature ? SIGNATURE_WIDTH : 0);
+  const showsSignature = systemStart || Boolean(measure.hasSignatureChange);
+  const measured = systemStart ? measure.signatureWidths?.system : measure.signatureWidths?.change;
+  const left = MEASURE_LEFT_PADDING + (showsSignature ? measured ?? SIGNATURE_WIDTH : 0);
   const fixed = left + MEASURE_RIGHT_PADDING;
   const sensitivity = Math.max(0, rhythmProportion) * 0.35;
   const gaps = measure.beats.map((beat) => Math.max(

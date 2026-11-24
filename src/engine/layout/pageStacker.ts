@@ -135,6 +135,11 @@ function placePrimitive(primitive: ScenePrimitive, left: number, top: number, sc
   const size = (value: number | undefined) => value === undefined ? undefined : value * scale;
   const hit = primitive.hit && {
     ...primitive.hit,
+    ref: {
+      ...primitive.hit.ref,
+      ...(primitive.hit.ref.staffTop === undefined ? {} : { staffTop: y(primitive.hit.ref.staffTop) }),
+      ...(primitive.hit.ref.staffSpace === undefined ? {} : { staffSpace: primitive.hit.ref.staffSpace * scale })
+    },
     bbox: {
       x: x(primitive.hit.bbox.x),
       y: y(primitive.hit.bbox.y),

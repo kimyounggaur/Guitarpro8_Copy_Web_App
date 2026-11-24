@@ -126,6 +126,7 @@ export const KEYMAP_ENTRIES: KeymapEntry[] = [
   entry("note.transposeDown", "Shift note down", "Note", "workspace", ["Alt+Shift+ArrowDown"], ["Alt+Shift+ArrowDown"]),
   entry("note.transposeUp", "Shift note up", "Note", "workspace", ["Alt+Shift+ArrowUp"], ["Alt+Shift+ArrowUp"]),
 
+  entry("note.inputStandard", "Enter staff note", "Note", "workspace", ["Enter"], ["Enter"]),
   entry("note.rest", "Rest", "Note", "workspace", ["R"], ["R"]),
   entry("duration.longer", "Increase Note Duration", "Note", "workspace", ["+", "="], ["+", "="]),
   entry("duration.shorter", "Decrease Note Duration", "Note", "workspace", ["-"], ["-"]),

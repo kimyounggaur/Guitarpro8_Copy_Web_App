@@ -1,6 +1,8 @@
+import type { Clef } from "../notation/staffPosition";
 import type { NoteRef } from "../../model/types";
 
 export type HitKind =
+  | "staffInput"
   | "note"
   | "beat"
   | "bar"
@@ -26,7 +28,14 @@ export interface BoundingBox {
 
 export interface HitMetadata {
   kind: HitKind;
-  ref: Partial<NoteRef>;
+  ref: Partial<NoteRef> & {
+    staffKind?: "standard" | "tab";
+    staffClef?: Clef;
+    staffLine?: number;
+    staffTop?: number;
+    staffSpace?: number;
+    writtenMidi?: number;
+  };
   bbox: BoundingBox;
 }
 

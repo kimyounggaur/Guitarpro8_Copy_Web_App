@@ -118,7 +118,9 @@ export function createScoreCrudHandlers(deps: ScoreCrudDeps): ScoreCrudHandlers 
           staffConfig: options.staffConfig,
           stringed: preset.stringed,
           soundingOffset: preset.soundingOffset,
-          gmProgram: preset.gmProgram
+          gmProgram: preset.gmProgram,
+          clef: preset.clef,
+          kind: preset.category === "Drums" ? "percussion" : preset.stringed ? "stringed" : "pitched"
         },
         draft.masterBars.length
       );

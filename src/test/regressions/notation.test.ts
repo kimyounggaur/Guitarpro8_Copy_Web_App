@@ -5,7 +5,7 @@ import { barTheoreticalTicks, beatDurationTicks } from "../../model/derive";
 import { createBeat, createEmptyScore, createMasterBar, createNote, createTrack } from "../../model/factory";
 import { instrumentById } from "../../model/instruments";
 
-it.fails("[A4] a guitar's low open E sits three ledger lines below the treble staff", () => {
+it("[A4] a guitar's low open E sits three ledger lines below the treble staff", () => {
   const score = createEmptyScore();
   const track = createTrack();
   score.tracks = [track];
@@ -43,7 +43,7 @@ it("[A6] all eight tracks of a page system fit inside the actual page", () => {
   expect(Math.max(...trackBounds.map(({ bottom, pageHeight }) => bottom - pageHeight))).toBeLessThanOrEqual(0);
 });
 
-it.fails("[B4] the drum kit uses a percussion staff without a string TAB band", () => {
+it("[B4] the drum kit uses a percussion staff without a string TAB band", () => {
   const score = createEmptyScore();
   const drum = instrumentById("drums");
   const track = createTrack({

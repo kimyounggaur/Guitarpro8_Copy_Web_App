@@ -1,3 +1,4 @@
+import { noteTieIdentity } from "../../model/trackKind";
 import { barTheoreticalTicks, beatDurationTicks, tryNoteMidiPitch } from "../../model/derive";
 import { TICKS_PER_QUARTER, type Beat, type Note, type Score } from "../../model/types";
 import type { PlaybackSegment, UnrollResult } from "../unroll/unrollScore";
@@ -180,7 +181,7 @@ function compileSegment(
             );
             if (!event) return;
 
-            const key = JSON.stringify([track.id, voiceIndex, note.string]);
+            const key = JSON.stringify([track.id, voiceIndex, noteTieIdentity(note, track)]);
             const previous = soundingNotes.get(key);
             const endTick = startTick + durationTicks;
             if (note.tiedFromPrevious && previous

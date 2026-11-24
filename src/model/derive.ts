@@ -1,3 +1,4 @@
+import { clefPitchOffset, trackNoteMidiPitch } from "./trackKind";
 import {
   TICKS_PER_QUARTER,
   type Beat,
@@ -36,31 +37,20 @@ export function barTheoreticalTicks(masterBar: MasterBar): number {
 }
 
 export function noteMidiPitch(note: Note, track: Track): number {
-  if (note.midiPitch !== undefined) {
-    return note.midiPitch;
-  }
-
-  if (note.midiNumber !== undefined) {
-    return note.midiNumber;
-  }
-
   const pitch = tryNoteMidiPitch(note, track);
   if (pitch === null) {
-    throw new Error(`String ${note.string} is outside the track tuning`);
+    throw new Error(`The note has no valid pitch on the ${track.kind} track.`);
   }
   return pitch;
 }
 
 export function tryNoteMidiPitch(note: Note, track: Track): number | null {
-  const open = track.tuning.strings[track.tuning.strings.length - note.string];
-  const pitch = note.midiPitch ?? note.midiNumber
-    ?? (open === undefined ? NaN : open + effectiveCapoForString(note.string, track) + note.fret);
-  return Number.isFinite(pitch) ? pitch : null;
+  return trackNoteMidiPitch(note, track);
 }
 
 export function tryWrittenPitch(note: Note, track: Track, options: WrittenPitchOptions): number | null {
   const pitch = tryNoteMidiPitch(note, track);
-  return pitch === null ? null : transposeWrittenPitch(pitch, track, options);
+  return pitch === null ? null : pitch + writtenPitchOffset(track, options);
 }
 
 export function writtenPitch(
@@ -68,15 +58,12 @@ export function writtenPitch(
   track: Track,
   options: WrittenPitchOptions
 ): number {
-  return transposeWrittenPitch(noteMidiPitch(note, track), track, options);
+  return noteMidiPitch(note, track) + writtenPitchOffset(track, options);
 }
 
-function transposeWrittenPitch(soundingPitch: number, track: Track, options: WrittenPitchOptions): number {
-  const transposedPitch = options.concertTone
-    ? soundingPitch
-    : soundingPitch - track.transpositionTonality.soundingOffset;
-
-  return transposedPitch + ottavaOffsets[options.ottava ?? "none"];
+export function writtenPitchOffset(track: Track, options: WrittenPitchOptions): number {
+  const transposition = options.concertTone ? 0 : -track.transpositionTonality.soundingOffset;
+  return clefPitchOffset(track.clef) + transposition + ottavaOffsets[options.ottava ?? "none"];
 }
 
 function dotMultiplier(dots: number): number {
@@ -97,14 +84,4 @@ function tupletMultiplier(tuplet: Tuplet | undefined): number {
   }
 
   return (tuplet.m / tuplet.n) * tupletMultiplier(tuplet.parent);
-}
-
-function effectiveCapoForString(stringNumber: number, track: Track): number {
-  const partial = track.tuning.partialCapo;
-
-  if (!partial || !partial.strings.includes(stringNumber)) {
-    return track.tuning.capo;
-  }
-
-  return Math.max(track.tuning.capo, partial.fret);
 }

@@ -1,4 +1,5 @@
 import { barTheoreticalTicks, beatDurationTicks, noteMidiPitch } from "../model/derive";
+import { noteTieIdentity } from "../model/trackKind";
 import { createBar, createBeat, createEmptyScore, createMasterBar, createNote, createTrack } from "../model/factory";
 import { TICKS_PER_QUARTER, type BeatDuration, type Score, type Track } from "../model/types";
 
@@ -105,7 +106,7 @@ function trackToMidiEvents(score: Score, track: Track, trackIndex: number): Midi
             const velocity = velocityForDynamic(note.dynamic);
             const start = barStart + beatStart;
             const endTick = start + duration;
-            const key = `${voiceIndex}:${note.string}`;
+            const key = `${voiceIndex}:${noteTieIdentity(note, track)}`;
             const previous = sounding.get(key);
             if (note.tiedFromPrevious && previous?.pitch === pitch && previous.endTick === start) {
               previous.noteOff.tick = endTick;
@@ -212,6 +213,11 @@ function notesToTrack(notes: MidiNoteEvent[], masterBarCount: number, index: num
   track.id = `midi-track-${index + 1}`;
   track.name = `MIDI Track ${index + 1}`;
   track.shortName = `MIDI ${index + 1}`;
+  track.kind = "pitched";
+  track.clef = "treble";
+  track.icon = "midi";
+  track.interpretation.stringed = false;
+  track.notationTypes = ["standard"];
   track.bars = Array.from({ length: masterBarCount }, () => createBar());
 
   notes.forEach((event) => {
@@ -220,7 +226,7 @@ function notesToTrack(notes: MidiNoteEvent[], masterBarCount: number, index: num
       track.bars.push(createBar());
     }
     const voice = track.bars[barIndex].voices[0];
-    const note = createNote(1, Math.max(0, event.pitch - 64));
+    const note = createNote(0, -1);
     note.midiPitch = event.pitch;
     note.dynamic = dynamicFromVelocity(event.velocity);
     voice.beats.push(createBeat({ duration: durationFromTicks(event.duration), rest: false, notes: [note] }));
