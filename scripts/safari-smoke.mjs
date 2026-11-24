@@ -32,6 +32,16 @@ async function until(check, label) {
 }
 
 const execute = (script, args = []) => request(`/session/${sessionId}/execute/sync`, { script, args });
+async function click(selector) {
+  const element = await request(`/session/${sessionId}/element`, { using: "css selector", value: selector });
+  const id = element["element-6066-11e4-a52e-4f735466cecf"];
+  await request(`/session/${sessionId}/element/${id}/click`, {});
+}
+async function keys(values) {
+  await request(`/session/${sessionId}/actions`, { actions: [{ type: "key", id: "ui-keys", actions: values.flatMap(value => [
+    { type: "keyDown", value }, { type: "keyUp", value }
+  ]) }] });
+}
 
 try {
   await until(() => request("/status"), "SafariDriver");
@@ -51,11 +61,32 @@ try {
     const cursor = hooks.getCursor();
     const track = hooks.getScore().tracks.find(({id}) => id === cursor.trackId);
     return track.bars[cursor.barIndex].voices[cursor.voiceIndex].beats[cursor.beatIndex].notes.some(({fret}) => fret === 5);`), "a typed fret");
+  await click('[data-testid="tab-add"]');
+  await until(() => execute('return document.querySelectorAll("[data-testid=tab-bar] [role=tab]").length === 2'), "two independent documents");
+  await click('[data-testid="tab-bar"] [role="tab"]');
+  await until(() => execute("return window.__GPW_TEST__.getScore().tracks[0].bars[0].voices[0].beats[0].notes.some(note => note.fret === 5)"), "the original document's edit");
+  const separator = '[role="separator"][aria-label="Resize edition palette"]';
+  const beforeWidth = await execute("return Number(document.querySelector(arguments[0]).getAttribute('aria-valuenow'))", [separator]);
+  await click(separator);
+  await execute("document.querySelector(arguments[0]).focus()", [separator]);
+  await keys(["\uE014"]);
+  await until(() => execute("return Number(document.querySelector(arguments[0]).getAttribute('aria-valuenow')) > arguments[1]", [separator, beforeWidth]), "keyboard dock resizing");
+  await execute("document.querySelector('[role=application][aria-label=\"Editable score\"]').focus()");
+  await request(`/session/${sessionId}/actions`, { actions: [{ type: "key", id: "shortcuts", actions: [
+    { type: "keyDown", value: "\uE03D" }, { type: "keyDown", value: "e" },
+    { type: "keyUp", value: "e" }, { type: "keyUp", value: "\uE03D" }
+  ] }] });
+  await until(() => execute('return !!document.querySelector("[data-testid=command-palette-input]")'), "the command palette shortcut");
+  const bars = await execute("return window.__GPW_TEST__.getScore().masterBars.length");
+  await keys([..."add-bar 1", "\uE007"]);
+  await until(() => execute("return window.__GPW_TEST__.getScore().masterBars.length === arguments[0] + 1", [bars]), "a command palette edit");
   const invalid = await execute("return [...document.querySelectorAll('svg [id]')].some(node => [...node.attributes].some(attribute => attribute.value.includes('NaN')))");
   if (invalid) throw new Error("The score contains invalid SVG coordinates");
   const overflow = await execute("return document.documentElement.scrollWidth > innerWidth");
   if (overflow) throw new Error("The editor overflows the browser width");
-  const result = { browser: "Safari", version, launcher: true, fretInput: true, invalidSvg: false, overflow: false };
+  const result = { browser: "Safari", version, launcher: true, fretInput: true,
+    independentDocuments: true, keyboardDockResize: true, commandPaletteShortcut: true,
+    commandPaletteEditing: true, invalidSvg: false, overflow: false };
   await mkdir("test-results", { recursive: true });
   await writeFile("test-results/safari-smoke.json", JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result));

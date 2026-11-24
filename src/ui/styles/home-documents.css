@@ -86,7 +86,7 @@
   display: grid; gap: 2px; min-width: 0; text-align: left; padding: 6px 10px; flex: 1;
 }
 .homeLibraryList .homeListItem[aria-pressed="true"] { background: #405e7f; color: #fff; }
-.homeLibraryList small { color: #c4d3ea; }
+.homeLibraryList small { color: #e5effa; }
 .homePreview { display: grid; align-content: start; gap: 8px; min-width: 0; overflow: hidden; }
 .homePreview h2 { margin: 0; font-size: 19px; }
 .homePreview .homeThumbnail { border: 1px solid #697995; border-radius: 4px; overflow: auto; }
@@ -96,4 +96,13 @@
 @media (max-width: 760px) {
   .homeLibrary > header { flex-wrap: wrap; }
   .homeLibraryGrid { grid-template-columns: 1fr; }
+}
+
+.homeLibrary input:not([type="checkbox"]), .homeLibrary select {
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-control);
+  color: var(--text-input);
+  background: var(--surface-input);
 }

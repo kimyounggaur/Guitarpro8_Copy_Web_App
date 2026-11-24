@@ -28,6 +28,7 @@ import type { UnsavedChoice } from "../../ui/overlays/UnsavedChangesDialog";
 import type { ExportFormat, ImportFormat } from "../../ui/shell/FileIoPanel";
 
 export interface BrowserFileHandle {
+  isSameEntry?: (other: BrowserFileHandle) => Promise<boolean>;
   getFile: () => Promise<File>;
   createWritable: () => Promise<{ write: (blob: Blob) => Promise<void>; close: () => Promise<void>; abort?: () => Promise<void> }>;
 }
@@ -90,7 +91,26 @@ export function useFileController(params: UseFileControllerParams): FileControll
   const nativeFileHandles = useRef(new Map<string, BrowserFileHandle>());
   const unsavedChoice = useRef<((choice: UnsavedChoice) => void) | null>(null);
   const pendingNavigation = useRef(false);
-  const saving = useRef(false);
+  const saving = useRef<string | null>(null);
+  const nativeOperations = useRef(Promise.resolve());
+
+  // Binding a tab to a file and writing its contents form one operation.
+  // An overlapping open must observe either the old binding or the committed new one.
+  async function withNativeBindings<T>(action: () => Promise<T>): Promise<T> {
+    const previous = nativeOperations.current;
+    let release!: () => void;
+    nativeOperations.current = new Promise<void>(resolve => { release = resolve; });
+    await previous;
+    try { return await action(); }
+    finally { release(); }
+  }
+
+  async function ownerOf(handle: BrowserFileHandle): Promise<string | undefined> {
+    for (const [id, bound] of nativeFileHandles.current) {
+      const same = bound === handle || await bound.isSameEntry?.(handle);
+      if (same && useDocumentStore.getState().getSession(id)) return id;
+    }
+  }
   const openingError = (error: unknown) => setFileIoStatus(errorMessage(error));
 
   useEffect(() => () => {
@@ -140,7 +160,8 @@ export function useFileController(params: UseFileControllerParams): FileControll
 
   async function handleCloseDocument(id: string): Promise<boolean> {
     return navigate(async () => {
-      if (!await confirmCloseIfDirty(id)) return false;
+      if (saving.current === id) return false;
+      if (!await confirmCloseIfDirty(id) || saving.current === id) return false;
       if (useDocumentStore.getState().activeId === id) beforeDocumentSwitch?.();
       nativeFileHandles.current.delete(id);
       useDocumentStore.getState().closeDocument(id);
@@ -286,7 +307,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
     const state = useDocumentStore.getState();
     const snapshot = state.getSession(id);
     if (saving.current || !snapshot) return false;
-    saving.current = true;
+    saving.current = id;
     const view = snapshot.view;
     state.endEditGroup();
     const savedAt = new Date();
@@ -307,31 +328,38 @@ export function useFileController(params: UseFileControllerParams): FileControll
         });
       }
 
-      const payload = writeScoreFile(snapshot.score, id, savedAt, view);
-      const blob = new Blob([payload], { type: "application/json" });
-      if (handle) {
-        const writable = await handle.createWritable();
-        try {
-          await writable.write(blob);
-          await writable.close();
-        } catch (error) {
-          await writable.abort?.().catch(() => {});
-          throw error;
+      const destination = handle;
+      return await withNativeBindings(async () => {
+        if (destination) {
+          const owner = await ownerOf(destination);
+          if (owner && owner !== id) throw new Error("This file is open in another tab. Choose a different file to save to.");
         }
-      } else {
-        downloadBlob(blob, fileName);
-      }
+        const payload = writeScoreFile(snapshot.score, id, savedAt, view);
+        const blob = new Blob([payload], { type: "application/json" });
+        if (destination) {
+          const writable = await destination.createWritable();
+          try {
+            await writable.write(blob);
+            await writable.close();
+          } catch (error) {
+            await writable.abort?.().catch(() => {});
+            throw error;
+          }
+        } else {
+          downloadBlob(blob, fileName);
+        }
 
-      if (handle && useDocumentStore.getState().getSession(id)) nativeFileHandles.current.set(id, handle);
-      useDocumentStore.getState().markSaved(id, snapshot.revision);
-      const dirty = useDocumentStore.getState().documents.find((tab) => tab.id === id)?.dirty;
-      const cleanupThrough = dirty ? savedAt : new Date();
-      void discardRecoverySnapshot(id, cleanupThrough.toISOString()).catch(() => {});
-      rememberScore(id, fileName, "Saved file", payload);
-      setFileIoStatus(handle
-        ? `Saved ${snapshot.score.meta.title || "Untitled Score"} as native ${NATIVE_EXTENSION}.`
-        : `Downloaded a native ${NATIVE_EXTENSION} score.`);
-      return true;
+        if (destination && useDocumentStore.getState().getSession(id)) nativeFileHandles.current.set(id, destination);
+        useDocumentStore.getState().markSaved(id, snapshot.revision);
+        const dirty = useDocumentStore.getState().documents.find((tab) => tab.id === id)?.dirty;
+        const cleanupThrough = dirty ? savedAt : new Date();
+        void discardRecoverySnapshot(id, cleanupThrough.toISOString()).catch(() => {});
+        rememberScore(id, fileName, "Saved file", payload);
+        setFileIoStatus(destination
+          ? `Saved ${snapshot.score.meta.title || "Untitled Score"} as native ${NATIVE_EXTENSION}.`
+          : `Downloaded a native ${NATIVE_EXTENSION} score.`);
+        return true;
+      });
     } catch (error) {
       if (!isAbortError(error)) {
         setFileIoStatus(errorMessage(error));
@@ -339,7 +367,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
       }
       return false;
     } finally {
-      saving.current = false;
+      saving.current = null;
     }
   }
 
@@ -471,12 +499,26 @@ export function useFileController(params: UseFileControllerParams): FileControll
       if (loaded && LEGACY_NATIVE_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) {
         warnings.push(`Save this score again with the ${NATIVE_EXTENSION} extension.`);
       }
-      const id = openScore(nextScore, loaded ? { documentId: loaded.documentId, view: loaded.view } : {}, loaded && hasCurrentExtension ? handle : null);
-      const payload = writeScoreFile(nextScore, id, new Date(), loaded?.view);
-      rememberScore(id, file.name, "Opened file", payload);
-      if (loaded?.savedAt) {
-        void discardRecoverySnapshot(loaded.documentId, loaded.savedAt).catch(() => {});
-      }
+      const nativeHandle = loaded && hasCurrentExtension ? handle : null;
+      await withNativeBindings(async () => {
+        const existing = nativeHandle && await ownerOf(nativeHandle);
+        if (existing) {
+          if (useDocumentStore.getState().activeId !== existing) {
+            beforeDocumentSwitch?.();
+            useDocumentStore.getState().selectDocument(existing);
+          }
+          onDocumentOpened?.();
+          return;
+        }
+        // Save As and filesystem copies can have the same embedded ID at different paths.
+        const newId = loaded && !useDocumentStore.getState().getSession(loaded.documentId) ? loaded.documentId : undefined;
+        const opened = openScore(nextScore, { documentId: newId, view: loaded?.view }, nativeHandle);
+        const payload = writeScoreFile(nextScore, opened, new Date(), loaded?.view);
+        rememberScore(opened, file.name, "Opened file", payload);
+        if (loaded?.savedAt && opened === loaded.documentId) {
+          void discardRecoverySnapshot(opened, loaded.savedAt).catch(() => {});
+        }
+      });
       setFileIoStatus([`Loaded ${file.name} as ${formatLabel(kind === "mxl" ? "musicxml" : kind)}.`, ...warnings].join(" "));
       if (warnings.length) {
         openFileIoPanel();

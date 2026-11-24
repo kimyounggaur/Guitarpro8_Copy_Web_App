@@ -41,14 +41,36 @@ function App() {
   const rejection = useDocumentStore((state) => state.lastRejection);
   const [recoveryDismissed, setRecoveryDismissed] = useState(false);
   const [notice, setNotice] = useState("");
-  const [editorKey, setEditorKey] = useState(0);
+  const [recoveryVersion, setRecoveryVersion] = useState(0);
+  const [homeOpen, setHomeOpen] = useState(false);
+  const restoredSessions = useRef(new Map<string, {
+    savedAt: string; snapshotRevision: number; id: string; restoredRevision: number;
+  }>());
 
   function restore(snapshot: RecoverySnapshot) {
     try {
       const loaded = readScoreFile(snapshot.payload, { documentId: snapshot.documentId });
-      useDocumentStore.getState().loadScore(loaded.score, { documentId: loaded.documentId, recovered: true, view: loaded.view, mode: "tab" });
+      const store = useDocumentStore.getState();
+      const previous = restoredSessions.current.get(snapshot.documentId);
+      if (previous?.savedAt === snapshot.savedAt && previous.snapshotRevision === snapshot.revision &&
+          store.getSession(previous.id)?.revision === previous.restoredRevision) {
+        store.selectDocument(previous.id);
+      } else {
+        // A disk tab or an edited recovery can share the snapshot's ID.
+        // Restore an independent working copy when that session already exists.
+        store.loadScore(loaded.score, {
+          documentId: store.getSession(loaded.documentId) ? undefined : loaded.documentId,
+          recovered: true, view: loaded.view, mode: "tab"
+        });
+        const restored = useDocumentStore.getState();
+        restoredSessions.current.set(snapshot.documentId, {
+          savedAt: snapshot.savedAt, snapshotRevision: snapshot.revision,
+          id: restored.activeId, restoredRevision: restored.revision
+        });
+      }
+      setHomeOpen(false);
       setRecoveryDismissed(true);
-      setEditorKey((key) => key + 1);
+      setRecoveryVersion(version => version + 1);
       setNotice(loaded.warnings.join(" "));
     } catch (error) {
       setRecoveryDismissed(true);
@@ -85,11 +107,11 @@ function App() {
   return (
     <>
       <AppErrorBoundary
-        key={editorKey}
+        recoveryVersion={recoveryVersion}
         onUndo={() => useDocumentStore.getState().undo()}
         onRecover={openRecovery}
       >
-        <EditorApp startupReady={startupReady} onRecentFiles={openRecovery} />
+        <EditorApp startupReady={startupReady} onRecentFiles={openRecovery} homeOpen={homeOpen} setHomeOpen={setHomeOpen} />
       </AppErrorBoundary>
       {recoveryOpen && snapshots && (
         <RecoveryDialog
@@ -110,12 +132,13 @@ function App() {
   );
 }
 
-function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onRecentFiles: () => void }) {
+function EditorApp({ startupReady, onRecentFiles, homeOpen, setHomeOpen }: {
+  startupReady: boolean; onRecentFiles: () => void; homeOpen: boolean; setHomeOpen: (open: boolean) => void;
+}) {
   const score = useDocumentStore((state) => state.score);
   const dirty = useDocumentStore((state) => state.dirty);
   const documents = useDocumentStore((state) => state.documents);
   const activeId = useDocumentStore((state) => state.activeId);
-  const [homeOpen, setHomeOpen] = useState(false);
   const scoreViewportRef = useRef<HTMLDivElement>(null);
   const documentScroll = useRef(new Map<string, { left: number; top: number }>());
   const undoCount = useDocumentStore((state) => state.undoStack.length);
