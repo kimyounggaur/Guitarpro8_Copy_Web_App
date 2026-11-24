@@ -1,14 +1,24 @@
 /**
- * Visual/E2E determinism gate. Active only when the page is loaded with
- * `?testMode=visual` in the URL — every product code path that reads this
- * must be a no-op on any other URL, per docs/ui-remaster playbook §Phase 1
+ * Explicit test-mode selectors. Every product code path that reads these
+ * must be a no-op when its mode is absent, per docs/ui-remaster playbook §Phase 1
  * requirement 6 ("실제 제품 경로에서는 testMode가 동작이나 데이터를 변경하지 않아야 한다").
  */
-export function isVisualTestMode(): boolean {
+function requestedTestMode(): string | null {
   if (typeof window === "undefined") {
-    return false;
+    return null;
   }
-  return new URLSearchParams(window.location.search).get("testMode") === "visual";
+  return new URLSearchParams(window.location.search).get("testMode");
+}
+
+export function isVisualTestMode(): boolean {
+  return requestedTestMode() === "visual";
+}
+
+export async function applyE2eTestMode(): Promise<void> {
+  if (requestedTestMode() === "e2e") {
+    const { installTestHooks } = await import("./testHooks");
+    installTestHooks();
+  }
 }
 
 /**
