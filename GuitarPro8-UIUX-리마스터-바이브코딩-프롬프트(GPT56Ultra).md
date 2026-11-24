@@ -89,7 +89,9 @@
 
 ## 2.3 절대 건드리지 말아야 할 경계
 
-UI Phase 중에는 다음 코드를 “정리한다”는 이유로 재작성하지 않는다.
+리팩토링 설계서 R0~R9에서 고친 악보 모델, 입력, 기보, 재생, 파일 처리를 UI Phase의 기준선으로 삼는다. UI Phase에서는 음악 로직을 바꾸지 않는다. 도메인 회귀가 드러나면 해당 기능의 재현 테스트와 별도 수정으로 다룬다.
+
+UI Phase에서는 다음 경로의 음악 로직과 데이터 계약을 보존한다.
 
 - `src/model/**`
 - `src/engine/editing/**`
@@ -905,17 +907,17 @@ UI를 바꾸기 전에 승인된 우리 앱 화면과 핵심 동작을 자동으
 ```text
 [Phase 6: Functional Desktop Menubar]
 
-`MENU_TREE`와 command registry를 단일 소스로 사용해 실제 동작하는 메뉴바를 구현하라.
+R9-1에서 구현한 앱 메뉴와 command registry 연결은 검증만 한다. 기존 메뉴의 상태와 키보드 동작을 확인하고 이 Phase의 변경은 메뉴 표현에 한정한다.
 
 먼저 읽을 파일:
-- src/commands/paletteCommands.ts의 MENU_TREE 전체
+- src/commands/menus.ts의 메뉴 데이터와 src/ui/shell/ApplicationMenus.tsx
 - src/commands/registry.ts
 - src/commands/keymap.ts
 - src/app/controllers/useCommandController.ts
 - 현재 ApplicationMenuBar/MenuBar 구현
 
 구현 요구사항:
-1. 메뉴 구조를 UI 전용 하드코딩 배열로 다시 만들지 않는다. MENU_TREE에 필요한 group/separator/submenu/check/radio 메타데이터를 타입 안전하게 확장한다.
+1. 메뉴 구조는 src/commands/menus.ts에서 읽는다. 이미 연결된 명령, 단축키 표시, 사용 가능 조건을 검증하고 필요한 경우 표현에 필요한 메타데이터를 덧붙인다.
 2. 상단 메뉴는 File, Edit, Track, Bar, Note, Effects, Section, Tools, View, Sound, Help 순서를 보존한다.
 3. 메뉴 항목은 다음 정보를 보여준다.
    - label
@@ -968,6 +970,8 @@ UI를 바꾸기 전에 승인된 우리 앱 화면과 핵심 동작을 자동으
 
 ```text
 [Phase 7: Top Toolbar, Transport and LCD Parity]
+
+R3의 도구줄 오버플로와 R5의 LCD 실시간 템포는 검증만 한다. UI 변경 이후에도 좁은 화면에서 재생 버튼을 열 수 있는지와 실제 재생 템포 표시를 확인한다.
 
 상단 툴바를 15개 기능 그룹의 고밀도 데스크톱 툴바로 재구성하라. 기존 기능은 삭제하지 말고 icon/overflow/menu 진입점으로 보존한다.
 
@@ -1771,6 +1775,8 @@ Modal 요구사항:
 ```text
 [Phase 17: Keyboard, Focus and Accessibility Pass]
 
+R2의 단축키 범위·포커스 규칙과 R9의 대화창 포커스 복귀는 검증만 한다. 새 UI 부품의 이동과 활성화 동작에 집중한다.
+
 기존 keymap과 새 UI primitive를 기반으로 전체 앱의 keyboard/focus/a11y 계약을 완성하라.
 
 먼저 읽을 파일:
@@ -1835,6 +1841,8 @@ Modal 요구사항:
 
 ```text
 [Phase 18: Responsive Density, HiDPI and Performance]
+
+R8의 레이아웃 캐시, 페이지 가상화, 재생 Worker는 같은 성능 픽스처로 검증만 한다. 새 UI 변경 때문에 생긴 회귀는 수치와 함께 기록한다.
 
 최종 시각 polish 전에 viewport/scale/performance 행렬을 검증하고 병목을 계측하여 수정하라.
 
