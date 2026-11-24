@@ -35,5 +35,5 @@ test("[C8] planning-only features are hidden while working chords remain reachab
   const nav = page.getByRole("navigation", { name: "Application menus" });
   await nav.getByRole("button", { name: "Tools", exact: true }).click();
   await nav.getByRole("button", { name: /^Chords/ }).click();
-  await expect(page.getByRole("region", { name: "Tool window" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Tools", exact: true })).toBeVisible();
 });
