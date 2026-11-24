@@ -29,7 +29,12 @@ test("[A5] the score uses loaded Bravura glyphs for a rest and a fermata", async
 });
 
 test("[A5] a failed font request warns and leaves the score usable", async ({ page }) => {
-  await page.route("**/Bravura.woff2", (route) => route.abort());
+  await page.addInitScript(() => {
+    const load = document.fonts.load.bind(document.fonts);
+    document.fonts.load = (font, glyphs) => font.includes("Bravura")
+      ? Promise.reject(new Error("Interrupted Bravura load"))
+      : load(font, glyphs);
+  });
   await openApp(page);
   await expect(page.getByText("악보 글꼴을 불러오지 못했습니다.")).toBeVisible();
   await expect(page.getByTestId("gp-shell")).toBeVisible();
