@@ -26,13 +26,25 @@ export interface PageMetrics {
   pageStrokeWidth: number;
 }
 
+export const PAPER_SIZES = {
+  A4: { width: 794, height: 1123 },
+  Letter: { width: 816, height: 1056 },
+  Legal: { width: 816, height: 1344 },
+  A3: { width: 1123, height: 1587 }
+} as const;
+
+export function withPaperSize(page: Stylesheet["page"], paper: string): Stylesheet["page"] {
+  const size = (Object.keys(PAPER_SIZES) as Array<keyof typeof PAPER_SIZES>)
+    .find((option) => option === paper);
+  return size ? { ...page, ...PAPER_SIZES[size], paper } : { ...page, paper: "Custom" };
+}
+
 const DEFAULT_STYLESHEET: Stylesheet = {
   presetName: "Classic",
   page: {
     paper: "A4",
     orientation: "portrait",
-    width: 794,
-    height: 1123,
+    ...PAPER_SIZES.A4,
     marginLeft: 56,
     marginRight: 56,
     marginTop: 72,

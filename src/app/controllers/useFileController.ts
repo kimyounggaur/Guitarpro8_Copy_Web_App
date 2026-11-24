@@ -23,6 +23,7 @@ import { createEmptyScore, createTrack } from "../../model/factory";
 import type { Score } from "../../model/types";
 import { checkInvariants } from "../../model/invariants";
 import { discardRecoverySnapshot } from "../../store/autosave";
+import { usePreferencesStore } from "../../store/preferencesStore";
 import { useDocumentStore, type LoadScoreOptions } from "../../store/documentStore";
 import type { UnsavedChoice } from "../../ui/overlays/UnsavedChangesDialog";
 import type { ExportFormat, ImportFormat } from "../../ui/shell/FileIoPanel";
@@ -136,6 +137,8 @@ export function useFileController(params: UseFileControllerParams): FileControll
     void navigate(async () => {
       if (!await confirmDiscardIfDirty()) return false;
       const nextScore = createEmptyScore();
+      const defaultStylesheet = usePreferencesStore.getState().defaultStylesheet;
+      if (defaultStylesheet) nextScore.stylesheet = structuredClone(defaultStylesheet);
       const preset = options ? instrumentById(options.instrumentId) : undefined;
       const tuning = options && TUNING_PRESETS.find(({ id, instrumentIds }) =>
         id === options.tuningId && instrumentIds.includes(options.instrumentId));
