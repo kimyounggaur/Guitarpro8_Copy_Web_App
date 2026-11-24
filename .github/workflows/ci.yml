@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      update_visual_baselines:
+        description: Generate Linux screenshot candidates for review
+        type: boolean
+        default: true
+  schedule:
+    - cron: '0 2 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - run: pnpm audit --prod
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: chromium-test-results
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+
+  visual:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.61.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for approved Linux baselines or a candidate run
+        id: baselines
+        shell: bash
+        env:
+          UPDATE_VISUAL_BASELINES: ${{ inputs.update_visual_baselines }}
+        run: |
+          snapshot_dir=src/test/visual/editor.visual.spec.ts-snapshots
+          approved=true
+          for size in 1024x768 1280x768 1440x900 1920x1080; do
+            if [[ ! -f "$snapshot_dir/editor-shell-visual-$size-linux.png" ]]; then
+              approved=false
+            fi
+          done
+          if [[ "$UPDATE_VISUAL_BASELINES" == "true" || "$approved" == "true" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Linux screen comparison starts after the baseline candidates are reviewed and committed."
+          fi
+      - uses: pnpm/action-setup@v4
+        if: steps.baselines.outputs.run == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.baselines.outputs.run == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: steps.baselines.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Compare screenshots
+        if: steps.baselines.outputs.run == 'true' && !inputs.update_visual_baselines
+        run: pnpm test:visual --update-snapshots=none
+      - name: Generate Linux candidates
+        if: inputs.update_visual_baselines
+        run: pnpm test:visual:update
+      - uses: actions/upload-artifact@v4
+        if: inputs.update_visual_baselines
+        with:
+          name: linux-visual-baseline-candidates
+          path: src/test/visual/**/*-linux.png
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-test-results
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+
+  audit:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm audit --audit-level=high

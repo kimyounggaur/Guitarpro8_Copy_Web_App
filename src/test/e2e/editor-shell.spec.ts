@@ -1,4 +1,5 @@
-import { test as base, expect, type ConsoleMessage } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./helpers";
 
 /**
  * Behavioral regression harness for the current (pre-remaster) EditorShell.
@@ -9,25 +10,6 @@ import { test as base, expect, type ConsoleMessage } from "@playwright/test";
  * the target behavior (exclusive SONG/TRACK tabs, working menu, etc.) as
  * each phase actually implements it.
  */
-
-// Auto-fixture: every test in this file fails if the page logs a console
-// error, per the playbook's "console error가 발생하면 테스트가 실패한다" gate —
-// not just the tests that check for it explicitly.
-const test = base.extend<{ failOnConsoleError: void }>({
-  failOnConsoleError: [
-    async ({ page }, use) => {
-      const errors: ConsoleMessage[] = [];
-      page.on("console", (message) => {
-        if (message.type() === "error") {
-          errors.push(message);
-        }
-      });
-      await use();
-      expect(errors, errors.map((error) => error.text()).join("\n")).toHaveLength(0);
-    },
-    { auto: true }
-  ]
-});
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/?testMode=visual");

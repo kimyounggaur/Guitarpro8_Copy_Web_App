@@ -1,0 +1,5198 @@
+{
+  "format": "guitar-pro-clone/native-score",
+  "version": 1,
+  "createdWith": "GuitarPro8 Copy Web App",
+  "savedAt": "2026-11-23T00:00:00.000Z",
+  "score": {
+    "meta": {
+      "title": "Phase 9 Tools Demo",
+      "artist": "",
+      "subtitle": "",
+      "album": "",
+      "words": "",
+      "music": "",
+      "copyright": "",
+      "transcriber": "",
+      "notice": "",
+      "instructions": ""
+    },
+    "masterBars": [
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": "8th swing",
+        "freeTime": false,
+        "doubleBar": false,
+        "repeatOpen": true,
+        "repeatClose": 0,
+        "alternateEndings": 0,
+        "directionTargets": [],
+        "directionJumps": [],
+        "fermatas": [],
+        "anacrusis": false,
+        "simileMark": "none",
+        "layout": {
+          "forcedBreak": false,
+          "preventBreak": false
+        },
+        "section": {
+          "letter": "A",
+          "name": "Intro",
+          "boxed": true
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": false,
+        "doubleBar": false,
+        "repeatOpen": false,
+        "repeatClose": 0,
+        "alternateEndings": 1,
+        "directionTargets": [],
+        "directionJumps": [],
+        "fermatas": [
+          {
+            "beatTick": 960,
+            "glyph": "above",
+            "tempoScale": 0.75
+          }
+        ],
+        "anacrusis": false,
+        "simileMark": "none",
+        "layout": {
+          "forcedBreak": false,
+          "preventBreak": false
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": false,
+        "doubleBar": false,
+        "repeatOpen": false,
+        "repeatClose": 2,
+        "alternateEndings": 0,
+        "directionTargets": [],
+        "directionJumps": [],
+        "fermatas": [],
+        "anacrusis": false,
+        "simileMark": "none",
+        "layout": {
+          "forcedBreak": false,
+          "preventBreak": false
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": false,
+        "doubleBar": true,
+        "repeatOpen": false,
+        "repeatClose": 0,
+        "alternateEndings": 0,
+        "directionTargets": [
+          "Segno"
+        ],
+        "directionJumps": [],
+        "fermatas": [],
+        "anacrusis": false,
+        "simileMark": "none",
+        "layout": {
+          "forcedBreak": true,
+          "preventBreak": false
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": true,
+        "doubleBar": false,
+        "repeatOpen": false,
+        "repeatClose": 0,
+        "alternateEndings": 0,
+        "directionTargets": [],
+        "directionJumps": [
+          "DaCapo"
+        ],
+        "fermatas": [],
+        "anacrusis": false,
+        "simileMark": "none",
+        "layout": {
+          "forcedBreak": false,
+          "preventBreak": false
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": false,
+        "doubleBar": false,
+        "repeatOpen": false,
+        "repeatClose": 0,
+        "alternateEndings": 0,
+        "directionTargets": [],
+        "directionJumps": [],
+        "fermatas": [],
+        "anacrusis": false,
+        "simileMark": "single",
+        "layout": {
+          "forcedBreak": false,
+          "preventBreak": false
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": false,
+        "doubleBar": false,
+        "repeatOpen": false,
+        "repeatClose": 0,
+        "alternateEndings": 0,
+        "directionTargets": [
+          "Coda"
+        ],
+        "directionJumps": [],
+        "fermatas": [],
+        "anacrusis": false,
+        "simileMark": "double",
+        "layout": {
+          "forcedBreak": false,
+          "preventBreak": false
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": false,
+        "doubleBar": false,
+        "repeatOpen": false,
+        "repeatClose": 3,
+        "alternateEndings": 2,
+        "directionTargets": [],
+        "directionJumps": [],
+        "fermatas": [],
+        "anacrusis": false,
+        "simileMark": "none",
+        "layout": {
+          "forcedBreak": true,
+          "preventBreak": false
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": false,
+        "doubleBar": false,
+        "repeatOpen": false,
+        "repeatClose": 0,
+        "alternateEndings": 0,
+        "directionTargets": [],
+        "directionJumps": [
+          "AlCoda"
+        ],
+        "fermatas": [],
+        "anacrusis": false,
+        "simileMark": "none",
+        "layout": {
+          "forcedBreak": false,
+          "preventBreak": false
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": false,
+        "doubleBar": false,
+        "repeatOpen": false,
+        "repeatClose": 0,
+        "alternateEndings": 0,
+        "directionTargets": [],
+        "directionJumps": [],
+        "fermatas": [],
+        "anacrusis": true,
+        "simileMark": "none",
+        "layout": {
+          "forcedBreak": false,
+          "preventBreak": false
+        },
+        "section": {
+          "letter": "B",
+          "name": "Solo",
+          "boxed": true
+        }
+      },
+      {
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4,
+          "beamingPreset": "default"
+        },
+        "keySignature": {
+          "key": "C",
+          "mode": "major"
+        },
+        "tripletFeel": null,
+        "freeTime": false,
+        "doubleBar": false,
+        "repeatOpen": false,
+        "repeatClose": 0,
+        "alternateEndings": 0,
+        "directionTargets": [],
+        "directionJumps": [],
+        "fermatas": [
+          {
+            "beatTick": 960,
+            "glyph": "above",
+            "tempoScale": 0.65
+          }
+        ],
+        "anacrusis": false,
+        "simileMark": "none",
+        "layout": {
+          "forcedBreak": false,
+          "preventBreak": false
+        }
+      }
+    ],
+    "tracks": [
+      {
+        "id": "track-1",
+        "name": "Guitar",
+        "shortName": "Gtr.",
+        "color": "#2563eb",
+        "icon": "guitar",
+        "notationTypes": [
+          "standard",
+          "tab"
+        ],
+        "staffConfig": "single",
+        "tuning": {
+          "strings": [
+            40,
+            45,
+            50,
+            55,
+            59,
+            64
+          ],
+          "capo": 0,
+          "partialCapo": null,
+          "label": "E A D G B E",
+          "accidentalPreference": "sharp"
+        },
+        "transpositionTonality": {
+          "soundingOffset": 0
+        },
+        "sounds": [],
+        "engine": "RSE",
+        "interpretation": {
+          "playingStyle": "Pick",
+          "palmMuteIntensity": 0,
+          "accentuation": false,
+          "autoLetRing": false,
+          "autoBrush": false,
+          "stringed": true
+        },
+        "chordLibrary": [],
+        "lyricsLines": [],
+        "automations": [
+          {
+            "type": "volume",
+            "scope": "track",
+            "points": [
+              {
+                "tick": 0,
+                "value": 0.88,
+                "transition": "constant"
+              },
+              {
+                "tick": 3840,
+                "value": 1.12,
+                "transition": "progressive"
+              },
+              {
+                "tick": 7680,
+                "value": 0.82,
+                "transition": "progressive"
+              }
+            ]
+          },
+          {
+            "type": "pan",
+            "scope": "track",
+            "points": [
+              {
+                "tick": 0,
+                "value": -0.18,
+                "transition": "constant"
+              },
+              {
+                "tick": 3840,
+                "value": 0.18,
+                "transition": "progressive"
+              }
+            ]
+          }
+        ],
+        "bars": [
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 1,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 6,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 5,
+                        "ghost": true,
+                        "accent": "accent",
+                        "staccato": false,
+                        "letRing": true,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": true,
+                        "letRing": false,
+                        "palmMute": true,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false,
+                        "bend": {
+                          "points": [
+                            {
+                              "offset": 0,
+                              "value": 0
+                            },
+                            {
+                              "offset": 60,
+                              "value": 100
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "wide",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false,
+                        "harmonic": {
+                          "type": "natural",
+                          "touchFret": 12
+                        }
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 6,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": true,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 5,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": true,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false,
+                        "slide": "shift"
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false,
+                        "trill": {
+                          "secondFret": 4,
+                          "speed": 16
+                        }
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 6,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false,
+                        "tremoloPicking": 16
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 5,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": true,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false,
+                        "wah": "open"
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": true
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 4,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 3,
+                      "m": 2
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 3,
+                      "m": 2
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 3,
+                      "m": 2
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 2,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": true,
+                    "graceNotes": [],
+                    "notes": [],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 5,
+                      "m": 4,
+                      "parent": {
+                        "n": 3,
+                        "m": 2
+                      }
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "forceGroup",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 6,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 5,
+                      "m": 4,
+                      "parent": {
+                        "n": 3,
+                        "m": 2
+                      }
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 5,
+                      "m": 4,
+                      "parent": {
+                        "n": 3,
+                        "m": 2
+                      }
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 5,
+                      "m": 4,
+                      "parent": {
+                        "n": 3,
+                        "m": 2
+                      }
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 4,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 5,
+                      "m": 4,
+                      "parent": {
+                        "n": 3,
+                        "m": 2
+                      }
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 6,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 3,
+                      "m": 2
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 4,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "tuplet": {
+                      "n": 3,
+                      "m": 2
+                    },
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 1,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": true,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "text": "swell",
+                    "chordId": "Em9",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 2,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 5,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "brush": {
+                      "direction": "down",
+                      "speed": 1,
+                      "delay": 0
+                    },
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "arpeggio": {
+                      "direction": "up",
+                      "speed": 1,
+                      "delay": 0
+                    },
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "down",
+                    "dynamicHairpin": {
+                      "type": "cresc"
+                    },
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": true,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "8va"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "wide",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 32,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 6,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": true,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 32,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 5,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 32,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": true,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 32,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 1,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 6,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 1,
+                        "fret": 6,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 1,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 8,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 1,
+                        "fret": 8,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 2,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": true,
+                    "graceNotes": [],
+                    "notes": [],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": true,
+                    "graceNotes": [],
+                    "notes": [],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": true,
+                    "graceNotes": [],
+                    "notes": [],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 16,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": true,
+                    "graceNotes": [],
+                    "notes": [],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 32,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": true,
+                    "graceNotes": [],
+                    "notes": [],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": true,
+                    "graceNotes": [],
+                    "notes": [],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 64,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": true,
+                    "graceNotes": [],
+                    "notes": [],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 2,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 9,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false,
+                        "tieDestination": {
+                          "trackId": "track-1",
+                          "barIndex": 8,
+                          "voiceIndex": 0,
+                          "beatIndex": 1,
+                          "noteIndex": 0
+                        }
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 2,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 9,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false,
+                        "tieOrigin": {
+                          "trackId": "track-1",
+                          "barIndex": 8,
+                          "voiceIndex": 0,
+                          "beatIndex": 0,
+                          "noteIndex": 0
+                        }
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 6,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 5,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 5,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": [
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "down",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 8,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "down",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 1,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "down",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 8,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "down",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 1,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "down",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 8,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "down",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 1,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "down",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 2,
+                        "fret": 8,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 8,
+                    "dots": 0,
+                    "stemDirection": "down",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 1,
+                        "fret": 7,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 6,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false,
+                        "pickscrape": true
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": true,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "track-2",
+        "name": "Bass",
+        "shortName": "Bs.",
+        "color": "#c2410c",
+        "icon": "bass",
+        "notationTypes": [
+          "standard",
+          "tab"
+        ],
+        "staffConfig": "single",
+        "tuning": {
+          "strings": [
+            28,
+            33,
+            38,
+            43
+          ],
+          "capo": 0,
+          "partialCapo": null,
+          "label": "E A D G",
+          "accidentalPreference": "sharp"
+        },
+        "transpositionTonality": {
+          "soundingOffset": 0
+        },
+        "sounds": [],
+        "engine": "RSE",
+        "interpretation": {
+          "playingStyle": "Pick",
+          "palmMuteIntensity": 0,
+          "accentuation": false,
+          "autoLetRing": false,
+          "autoBrush": false,
+          "stringed": true
+        },
+        "chordLibrary": [],
+        "lyricsLines": [],
+        "automations": [
+          {
+            "type": "volume",
+            "scope": "track",
+            "points": [
+              {
+                "tick": 0,
+                "value": 0.9,
+                "transition": "constant"
+              },
+              {
+                "tick": 5760,
+                "value": 0.72,
+                "transition": "progressive"
+              },
+              {
+                "tick": 9600,
+                "value": 1.02,
+                "transition": "progressive"
+              }
+            ]
+          },
+          {
+            "type": "pan",
+            "scope": "track",
+            "points": [
+              {
+                "tick": 0,
+                "value": 0.14,
+                "transition": "constant"
+              },
+              {
+                "tick": 5760,
+                "value": -0.16,
+                "transition": "progressive"
+              }
+            ]
+          }
+        ],
+        "bars": [
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 1,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": true,
+                    "graceNotes": [],
+                    "notes": [],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 3,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 1,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          },
+          {
+            "voices": [
+              {
+                "beats": [
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  },
+                  {
+                    "duration": 4,
+                    "dots": 0,
+                    "stemDirection": "auto",
+                    "beamMode": "auto",
+                    "rest": false,
+                    "graceNotes": [],
+                    "notes": [
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "accidental": "none",
+                        "forceAccidental": false,
+                        "dynamic": 4,
+                        "ghost": false,
+                        "accent": "none",
+                        "staccato": false,
+                        "letRing": false,
+                        "palmMute": false,
+                        "deadNote": false,
+                        "hopo": false,
+                        "vibrato": "none",
+                        "fadeIn": false,
+                        "fadeOut": false,
+                        "volumeSwell": false,
+                        "slap": false,
+                        "pop": false,
+                        "deadSlapped": false,
+                        "showStringNumber": false
+                      }
+                    ],
+                    "tapping": false,
+                    "slash": false,
+                    "barVibrato": "none",
+                    "pickstroke": "none",
+                    "ottava": "none"
+                  }
+                ]
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              },
+              {
+                "beats": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "stylesheet": {
+      "presetName": "Classic",
+      "page": {
+        "paper": "A4",
+        "orientation": "portrait",
+        "width": 794,
+        "height": 1123,
+        "marginLeft": 56,
+        "marginRight": 56,
+        "marginTop": 72,
+        "marginBottom": 64,
+        "pageFill": "#fbfaf7",
+        "pageStroke": "#d8d2c5",
+        "pageStrokeWidth": 1,
+        "showPageShadow": true,
+        "justifyLastSystem": false,
+        "rhythmProportion": 1,
+        "firstSystemIndent": 0,
+        "systemScale": 1,
+        "minMeasureWidth": 86
+      },
+      "systems": {
+        "systemGap": 34,
+        "trackGap": 28,
+        "staffLineColor": "#202020",
+        "staffLineThickness": 1,
+        "barlineColor": "#111827",
+        "barlineThickness": 1,
+        "bracketThickness": 1,
+        "showTrackNames": "everySystem",
+        "useShortNames": true,
+        "hideEmptyStaves": false,
+        "hideTabForStandardOnly": false,
+        "capoShiftAffectsNotation": false,
+        "tuningNotice": true
+      },
+      "headerFooter": {
+        "headerVisibility": "firstPage",
+        "footerVisibility": "everyPage",
+        "firstPageTitle": "%TITLE%",
+        "firstPageSubtitle": "%SUBTITLE%",
+        "leftHeader": "%ARTIST%",
+        "centerHeader": "%TITLE%",
+        "rightHeader": "%ALBUM%",
+        "leftFooter": "%COPYRIGHT%",
+        "centerFooter": "Page %PAGE% / %PAGES%",
+        "rightFooter": "%TABBER%",
+        "showPageNumbers": true,
+        "showCopyright": true
+      },
+      "texts": {
+        "titleFont": "Inter, Arial, sans-serif",
+        "titleSize": 18,
+        "subtitleFont": "Inter, Arial, sans-serif",
+        "subtitleSize": 12,
+        "bodyFont": "Inter, Arial, sans-serif",
+        "bodySize": 11,
+        "chordFont": "Inter, Arial, sans-serif",
+        "chordSize": 11,
+        "lyricsFont": "Inter, Arial, sans-serif",
+        "lyricsSize": 10,
+        "lyricsPosition": "below",
+        "tempoDecimals": 0,
+        "barNumberFrequency": "everySystem",
+        "barNumberSize": 9,
+        "sectionFontSize": 11,
+        "dynamicFontSize": 12
+      },
+      "notation": {
+        "replaceCommonTime": true,
+        "replaceCutTime": true,
+        "showTabRhythm": true,
+        "tabRhythmPositionVoice1": "below",
+        "tabRhythmPositionVoice2": "above",
+        "tabRhythmPositionVoice3": "hidden",
+        "tabRhythmPositionVoice4": "hidden",
+        "colorizeTabVoices": true,
+        "showVoiceStems": true,
+        "stemDirectionVoice1": "auto",
+        "stemDirectionVoice2": "auto",
+        "restPositionVoice1": "auto",
+        "restPositionVoice2": "auto"
+      },
+      "symbols": {
+        "style": "Classic",
+        "textColor": "#1f2937",
+        "mutedTextColor": "#4b5563",
+        "effectColor": "#1d4ed8",
+        "sectionBoxFill": "#f8fafc",
+        "extendLinesOverRests": true,
+        "palmMuteText": "PM",
+        "letRingText": "let ring",
+        "harmonicText": "N.H.",
+        "tapText": "T",
+        "slapText": "S",
+        "popText": "P",
+        "pickstrokeDownText": "v",
+        "pickstrokeUpText": "^",
+        "bendText": "bend",
+        "trillText": "tr",
+        "showChordNames": true,
+        "showChordDiagrams": true,
+        "chordDiagramScale": 1,
+        "chordDiagramSpacing": 18,
+        "scaleDiagramSpacing": 14,
+        "showDirections": true,
+        "showFermatas": true,
+        "showDynamics": true,
+        "showGraceNotes": true,
+        "showTupletBrackets": true,
+        "showOttava": true,
+        "showWhammy": true,
+        "showBrush": true,
+        "showPickstroke": true,
+        "showLeftHandFingerings": true,
+        "showRightHandFingerings": true
+      },
+      "fingerings": {
+        "leftHandPosition": "left",
+        "rightHandPosition": "right",
+        "showStringNumbers": true,
+        "stringNumberCircle": true,
+        "barreDisplay": "roman",
+        "fingeringScale": 1
+      }
+    },
+    "documentSettings": {
+      "zoom": 100,
+      "displayMode": "vertical-page",
+      "engine": "RSE",
+      "concertTone": false
+    },
+    "masterAutomations": [
+      {
+        "type": "tempo",
+        "scope": "master",
+        "points": [
+          {
+            "tick": 0,
+            "value": 120,
+            "transition": "constant"
+          },
+          {
+            "tick": 3840,
+            "value": 144,
+            "transition": "progressive"
+          },
+          {
+            "tick": 7680,
+            "value": 108,
+            "transition": "constant"
+          }
+        ]
+      },
+      {
+        "type": "volume",
+        "scope": "master",
+        "points": [
+          {
+            "tick": 0,
+            "value": 0.95,
+            "transition": "constant"
+          },
+          {
+            "tick": 3840,
+            "value": 1.08,
+            "transition": "progressive"
+          },
+          {
+            "tick": 7680,
+            "value": 0.86,
+            "transition": "progressive"
+          }
+        ]
+      },
+      {
+        "type": "pan",
+        "scope": "master",
+        "points": [
+          {
+            "tick": 0,
+            "value": 0,
+            "transition": "constant"
+          },
+          {
+            "tick": 5760,
+            "value": 0.08,
+            "transition": "progressive"
+          },
+          {
+            "tick": 9600,
+            "value": -0.08,
+            "transition": "progressive"
+          }
+        ]
+      }
+    ]
+  }
+}

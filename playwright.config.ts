@@ -16,7 +16,7 @@ export default defineConfig({
     video: "off"
   },
   webServer: {
-    command: `npm run dev -- --port ${PORT} --strictPort`,
+    command: `pnpm dev --port ${PORT} --strictPort`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000
@@ -25,6 +25,16 @@ export default defineConfig({
     {
       name: "chromium",
       testDir: "./src/test/e2e",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 768 } }
+    },
+    {
+      name: "audio",
+      testDir: "./src/test/audio",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 768 } }
+    },
+    {
+      name: "perf",
+      testDir: "./src/test/perf",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 768 } }
     },
     {

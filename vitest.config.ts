@@ -4,8 +4,14 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    // Playwright owns src/test/e2e and src/test/visual (see
+    // Playwright owns browser suites (see
     // playwright.config.ts) — Vitest must not try to run those specs.
-    exclude: ["**/node_modules/**", "src/test/e2e/**", "src/test/visual/**"]
+    exclude: [
+      "**/node_modules/**",
+      "src/test/e2e/**",
+      "src/test/visual/**",
+      "src/test/audio/**",
+      "src/test/perf/**"
+    ]
   }
 });
