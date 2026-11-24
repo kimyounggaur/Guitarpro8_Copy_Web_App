@@ -1,10 +1,12 @@
 import { barTheoreticalTicks, beatDurationTicks } from "../../model/derive";
-import type { Score } from "../../model/types";
-import { BEAT_MIN_GAP, MEASURE_MIN_WIDTH } from "./metrics";
+import type { Beat, Score } from "../../model/types";
+import { FLAG_WIDTH, NOTE_DOT_RADIUS } from "./metrics";
+import type { SystemMeasure } from "./systemBreaker";
 
 export interface BeatPlacement {
   tick: number;
   durationTicks: number;
+  extraWidth?: number;
 }
 
 export interface MeasureContent {
@@ -14,18 +16,25 @@ export interface MeasureContent {
   forcedBreak: boolean;
   preventBreak: boolean;
   beats: BeatPlacement[];
+  hasSignatureChange?: boolean;
 }
 
 export function createMeasureContents(score: Score): MeasureContent[] {
   return score.masterBars.map((masterBar, barIndex) => {
     const beats = collectBeatPlacements(score, barIndex);
     const expectedTicks = barTheoreticalTicks(masterBar);
-    const beatCount = Math.max(beats.length, 1);
+    const previous = score.masterBars[barIndex - 1];
 
     return {
       barIndex,
       expectedTicks,
-      minWidth: Math.max(MEASURE_MIN_WIDTH, beatCount * BEAT_MIN_GAP + 28),
+      minWidth: 0,
+      hasSignatureChange: Boolean(previous && (
+        previous.timeSignature.numerator !== masterBar.timeSignature.numerator ||
+        previous.timeSignature.denominator !== masterBar.timeSignature.denominator ||
+        previous.keySignature.key !== masterBar.keySignature.key ||
+        previous.keySignature.mode !== masterBar.keySignature.mode
+      )),
       forcedBreak: masterBar.layout.forcedBreak,
       preventBreak: masterBar.layout.preventBreak,
       beats
@@ -33,12 +42,21 @@ export function createMeasureContents(score: Score): MeasureContent[] {
   });
 }
 
-export function tickToMeasureX(measure: MeasureContent, tick: number, width: number): number {
-  if (measure.expectedTicks <= 0) {
-    return 0;
+export function tickToMeasureX(measure: SystemMeasure, tick: number): number {
+  const positions = measure.tickPositions;
+  const nextIndex = positions.findIndex((position) => position.tick >= tick);
+  if (nextIndex <= 0) {
+    return nextIndex === 0 ? positions[0].x : positions.at(-1)?.x ?? 0;
   }
+  const first = positions[nextIndex - 1];
+  const second = positions[nextIndex];
+  const ratio = (tick - first.tick) / (second.tick - first.tick);
+  return first.x + (second.x - first.x) * ratio;
+}
 
-  return Math.max(0, Math.min(width, (tick / measure.expectedTicks) * width));
+function beatExtraWidth(beat: Beat): number {
+  const accidental = beat.notes.some((note) => note.forceAccidental || note.accidental !== "none");
+  return (accidental ? 10 : 0) + beat.dots * NOTE_DOT_RADIUS * 3 + (beat.duration >= 8 ? FLAG_WIDTH : 0);
 }
 
 function collectBeatPlacements(score: Score, barIndex: number): BeatPlacement[] {
@@ -56,7 +74,8 @@ function collectBeatPlacements(score: Score, barIndex: number): BeatPlacement[] 
 
         placementsByTick.set(tick, {
           tick,
-          durationTicks: Math.max(previous?.durationTicks ?? 0, durationTicks)
+          durationTicks: Math.min(previous?.durationTicks ?? Infinity, durationTicks),
+          extraWidth: Math.max(previous?.extraWidth ?? 0, beatExtraWidth(beat))
         });
 
         tick += durationTicks;

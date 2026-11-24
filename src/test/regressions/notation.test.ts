@@ -28,7 +28,7 @@ it.fails("[A4] a guitar's low open E sits three ledger lines below the treble st
   )).toHaveLength(3);
 });
 
-it.fails("[A6] all eight tracks of a page system fit inside the actual page", () => {
+it("[A6] all eight tracks of a page system fit inside the actual page", () => {
   const score = createEmptyScore();
   score.tracks = Array.from({ length: 8 }, () => createTrack());
   const { pages } = layoutScore(score);

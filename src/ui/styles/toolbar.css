@@ -1,129 +1,210 @@
 @layer components {
+  .toolbarShell {
+    min-width: 0;
+  }
+
   .toolbar {
+    --toolbar-group-gap: 8px;
+    --toolbar-more-width: 38px;
+
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--toolbar-group-gap);
     min-width: 0;
+    min-height: var(--app-toolbar-height);
     border-bottom: 1px solid var(--border-toolbar);
     padding: 7px 10px;
   }
-  
+
+  .toolbarRequired,
+  .toolbarMeasureRow {
+    display: flex;
+    align-items: center;
+    flex: none;
+    gap: var(--toolbar-group-gap);
+  }
+
   .toolbarGroup {
     display: flex;
     align-items: center;
+    flex: none;
     gap: 4px;
-    min-width: max-content;
     border-right: 1px solid var(--border-toolbar);
     padding-right: 8px;
   }
-  
+
   .playbackTools {
     gap: 6px;
   }
-  
+
   .playbackReadout {
     min-width: 92px;
     color: var(--text-cool);
     font-size: 12px;
+    white-space: nowrap;
   }
-  
+
   .activeToggle {
     border-color: var(--accent-strong);
     color: var(--text-active);
     background: var(--surface-active);
   }
-  
+
   .toolbarGroup button,
   .paletteButtons button {
     width: 32px;
     padding: 0;
   }
-  
+
   .homeGroup button {
     width: 42px;
-    font-size: 0;
   }
-  
-  .homeGroup button::after {
-    content: "File";
-    font-size: 13px;
-  }
-  
-  .utilityGroup button {
-    width: auto;
-    min-width: 42px;
-    padding: 0 8px;
-  }
-  
-  .toolLaunchGroup button {
-    width: auto;
-    min-width: 42px;
-    padding: 0 8px;
-  }
-  
+
+  .toolLaunchGroup button,
+  .toolbarViewGroup button,
   .playbackTools button {
     width: auto;
     min-width: 32px;
-    padding: 0 8px;
+    padding: 0 6px;
   }
-  
-  .liveZoomGroup span {
-    min-width: 48px;
+
+  .toolLaunchGroup button {
+    min-width: 42px;
+  }
+
+  .toolbarViewGroup {
+    font-size: 12px;
+  }
+
+  .toolbarViewValues {
+    min-width: 72px;
     color: var(--text-cool);
     text-align: center;
-    font-size: 13px;
+    white-space: nowrap;
   }
-  
-  .liveDisplayGroup button {
-    width: auto;
-    min-width: 34px;
-    padding: 0 7px;
-    font-size: 11px;
-  }
-  
-  .printGroup {
-    container-type: inline-size;
-  }
-  
+
   .lcd {
     display: grid;
-    grid-template-columns: 10px minmax(52px, auto) auto auto 28px 28px 28px;
+    grid-template-columns: 10px minmax(40px, 64px) auto auto 38px 28px 28px;
     align-items: center;
+    flex: none;
     gap: 8px;
-    min-width: 310px;
     border: 1px solid var(--border-lcd);
     border-radius: var(--radius-control);
     padding: 4px 8px;
     color: var(--text-panel);
     background: var(--surface-input);
     font-size: 13px;
+    white-space: nowrap;
   }
-  
+
+  .lcd strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lcd button {
+    padding: 0;
+  }
+
   .trackColor {
     width: 10px;
     height: 28px;
     border-radius: var(--radius-xs);
   }
-  
+
   .lcdWarning {
     color: var(--danger);
   }
-  
-  .utilityGroup {
-    overflow: hidden;
-    flex: 1;
+
+  .toolbarMore {
+    display: grid;
+    width: var(--toolbar-more-width);
+    flex: none;
+    place-items: center;
+    font-size: 18px;
   }
-  
-  .utilityGroup button:nth-last-child(-n + 3),
-  .printGroup {
+
+  .toolbarOverflow {
+    flex: none;
+  }
+
+  .toolbarOverflowPanel {
+    position: absolute;
+    z-index: var(--z-toolbar-overflow);
+    top: calc(100% + 4px);
+    right: 10px;
+    width: min(260px, calc(100% - 20px));
+    max-height: min(70dvh, 560px);
+    overflow: auto;
+    border: 1px solid var(--border-panel);
+    border-radius: var(--radius-control);
+    padding: 8px;
+    box-shadow: 0 12px 24px var(--shadow-overlay);
+    background: var(--surface-panel);
+  }
+
+  .toolbarOverflowPanel section {
+    display: grid;
+    gap: 4px;
+  }
+
+  .toolbarOverflowPanel h2 {
+    margin: 6px 4px 2px;
+    font-size: 12px;
+  }
+
+  .toolbarOverflowPanel button {
+    padding: 4px 8px;
+    text-align: left;
+  }
+
+  .toolbarMeasure {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .toolbarMeasureRow {
+    width: max-content;
+  }
+
+  .toolbarNarrowNotice {
     display: none;
   }
-  
-  @media (min-width: 1280px) {
-    .printGroup,
-    .utilityGroup button:nth-last-child(-n + 3) {
-      display: flex;
+
+  @media (width < 1024px) {
+    .toolbar {
+      flex-wrap: wrap;
+    }
+
+    .toolbarRequired {
+      flex-wrap: wrap;
+      max-width: 100%;
+    }
+
+    .toolbarNarrowNotice {
+      display: block;
+      margin: 0;
+      padding: 4px 10px;
+      border-bottom: 1px solid var(--border-toolbar);
+      color: var(--text-cool);
+      background: var(--surface-panel);
+      font-size: 12px;
+    }
+  }
+
+  @media (width < 400px) {
+    .lcd {
+      grid-template-columns: 10px minmax(26px, 48px) auto auto 32px 26px 26px;
+      gap: 4px;
     }
   }
 }
-

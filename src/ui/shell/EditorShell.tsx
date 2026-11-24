@@ -1,5 +1,5 @@
 import type { MouseEvent, ReactNode } from "react";
-import { beatDurationTicks, barTheoreticalTicks } from "../../model/derive";
+import { barTheoreticalTicks } from "../../model/derive";
 import { TICKS_PER_QUARTER, type AutomationPoint, type BeatDuration, type DisplayMode, type NotationType, type Score, type SongInfo, type StaffConfig, type Stylesheet, type StylesheetPresetName, type Track } from "../../model/types";
 import type { CursorPosition } from "../../engine/editing/types";
 import type { EffectSlotType, EqPreset, MixerState, TrackMixerState } from "../../engine/audio/mixer";
@@ -24,11 +24,12 @@ import type { RetuneMode } from "../../model/instruments";
 import type { Command } from "../../commands/registry";
 import type { EditorCommandContext } from "../../commands/editingCommands";
 import { MENU_TREE } from "../../commands/paletteCommands";
-import { shortcutLabel, type Platform } from "../../commands/keymap";
+import type { Platform } from "../../commands/keymap";
+import { TopToolbar } from "./TopToolbar";
 
 export type AutomationLaneId = "tempo" | "masterVolume" | "masterPan" | "trackVolume" | "trackPan";
 
-interface EditorShellProps {
+export interface EditorShellProps {
   score: Score;
   cursor: CursorPosition;
   dirty: boolean;
@@ -180,20 +181,11 @@ const effectSlotButtons: Array<[EffectSlotType, string]> = [
   ["wah", "Wah"],
   ["compressor", "Cmp"]
 ];
-const displayModeButtons: Array<[DisplayMode, string, string]> = [
-  ["vertical-page", "VP", "Vertical Page"],
-  ["horizontal-page", "HP", "Horizontal Page"],
-  ["grid", "Grid", "Grid"],
-  ["parchment", "Parch", "Parchment"],
-  ["vertical-screen", "VS", "Vertical Screen"],
-  ["horizontal-screen", "HS", "Horizontal Screen"]
-];
-
 export function EditorShell(props: EditorShellProps) {
   return (
     <main className="gpShell" data-testid="gp-shell">
       <MenuBar />
-      <Toolbar {...props} />
+      <TopToolbar {...props} onMouseDown={preserveScoreFocus} />
       <TabBar documents={props.documents} activeId={props.activeId} />
       <CommandPalette
         open={props.commandPaletteOpen}
@@ -302,190 +294,6 @@ function preserveScoreFocus(event: React.MouseEvent<HTMLElement>): void {
   if (event.button === 0 && event.target instanceof Element && event.target.closest("button")) {
     event.preventDefault();
   }
-}
-
-function Toolbar(props: EditorShellProps) {
-  const currentTrack = props.score.tracks.find((track) => track.id === props.cursor.trackId);
-  const lcd = currentLcdStatus(props.score, props.cursor);
-
-  return (
-    <header className="toolbar" aria-label="Toolbar" onMouseDown={preserveScoreFocus}>
-      <div className="toolbarGroup homeGroup">
-        <button type="button" title="File I/O" onClick={props.onFileIoPanelOpen}>
-          ⌂
-        </button>
-      </div>
-      <div className="toolbarGroup panelGroup">
-        <button type="button" title={titleWithShortcut("Palette", "panels.palette", props.platform)} onClick={() => props.togglePanel("palette")}>
-          ◧
-        </button>
-        <button type="button" title={titleWithShortcut("Song Inspector", "panels.songInspector", props.platform)} onClick={() => props.togglePanel("songInspector")}>
-          ♫
-        </button>
-        <button type="button" title={titleWithShortcut("Track Inspector", "panels.trackInspector", props.platform)} onClick={() => props.togglePanel("trackInspector")}>
-          ⚙
-        </button>
-        <button type="button" title={titleWithShortcut("Global View", "panels.globalView", props.platform)} onClick={() => props.togglePanel("globalView")}>
-          ▤
-        </button>
-        <button type="button" title={titleWithShortcut("Automation", "panels.automation", props.platform)} onClick={() => props.togglePanel("automationView")}>
-          A
-        </button>
-      </div>
-      <div className="toolbarGroup toolLaunchGroup">
-        <button type="button" title={titleWithShortcut("Add Track", "track.add", props.platform)} onClick={() => props.onTrackPanelOpen("wizard")}>
-          +Trk
-        </button>
-        <button type="button" title="Tuning" disabled={!currentTrack} onClick={() => props.onTrackPanelOpen("tuning")}>
-          Tune
-        </button>
-        <button
-          type="button"
-          className={props.multiVoiceEdit ? "activeToggle" : ""}
-          title={titleWithShortcut("Voices", "voice.toggleMulti", props.platform)}
-          onClick={() => props.onTrackPanelOpen("voices")}
-        >
-          Vox
-        </button>
-        <button
-          type="button"
-          title={titleWithShortcut("Drum kit", "tools.instrument", props.platform)}
-          disabled={currentTrack?.icon !== "drums"}
-          onClick={() => props.onTrackPanelOpen("drums")}
-        >
-          Kit
-        </button>
-        <button
-          type="button"
-          title={titleWithShortcut("Command Palette", "tools.commandPalette", props.platform)}
-          data-testid="command-palette-open"
-          onClick={() => props.onCommandPaletteOpen()}
-        >
-          Cmd
-        </button>
-        <button type="button" title={titleWithShortcut("Score Stylesheet", "view.stylesheet", props.platform)} onClick={props.onStylesheetPanelOpen}>
-          Style
-        </button>
-        <button type="button" title={titleWithShortcut("Chord tool", "tools.chords", props.platform)} onClick={() => props.onToolOpen("chords")}>
-          Chord
-        </button>
-        <button type="button" title={titleWithShortcut("Scale tool", "tools.scales", props.platform)} onClick={() => props.onToolOpen("scales")}>
-          Scale
-        </button>
-        <button type="button" title={titleWithShortcut("Instrument view", "tools.instrument", props.platform)} onClick={() => props.onToolOpen("instrument")}>
-          Fret
-        </button>
-        <button type="button" title="Tuner" onClick={() => props.onToolOpen("tuner")}>
-          Tune
-        </button>
-        <button type="button" title="Transpose" onClick={() => props.onToolOpen("transpose")}>
-          Trans
-        </button>
-        <button type="button" title={titleWithShortcut("Check bar duration", "tools.cleanup", props.platform)} onClick={() => props.onToolOpen("cleanup")}>
-          Check
-        </button>
-      </div>
-      <div className="toolbarGroup liveZoomGroup">
-        <button type="button" title={titleWithShortcut("Zoom out", "view.zoomOut", props.platform)} onClick={() => props.onZoomChange(props.score.documentSettings.zoom - 10)}>
-          -
-        </button>
-        <span>{props.score.documentSettings.zoom}%</span>
-        <button type="button" title={titleWithShortcut("Zoom in", "view.zoomIn", props.platform)} onClick={() => props.onZoomChange(props.score.documentSettings.zoom + 10)}>
-          +
-        </button>
-      </div>
-      <div className="toolbarGroup liveDisplayGroup">
-        {displayModeButtons.map(([mode, label, title]) => (
-          <button
-            key={mode}
-            type="button"
-            className={props.score.documentSettings.displayMode === mode ? "activeToggle" : ""}
-            title={title}
-            onClick={() => props.onDisplayModeChange(mode)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="toolbarGroup historyGroup">
-        <button type="button" title={titleWithShortcut("Undo", "history.undo", props.platform)} onClick={() => props.dispatchCommand("history.undo")}>
-          ↶
-        </button>
-        <button type="button" title={titleWithShortcut("Redo", "history.redo", props.platform)} onClick={() => props.dispatchCommand("history.redo")}>
-          ↷
-        </button>
-      </div>
-      <div className="toolbarGroup printGroup">
-        <button type="button" disabled title={titleWithShortcut("Print", "file.print", props.platform)}>
-          ⎙
-        </button>
-      </div>
-      <div className="toolbarGroup transportGroup">
-        <button type="button" title="First bar" onClick={() => props.dispatchCommand("cursor.firstBar")}>
-          |&lt;
-        </button>
-        <button type="button" title={titleWithShortcut("Previous bar", "playback.previousBar", props.platform)} onClick={() => props.dispatchCommand("playback.previousBar")}>
-          &lt;
-        </button>
-        <button
-          type="button"
-          title="Play / stop Space"
-          data-testid="transport-play-stop"
-          onClick={() => props.dispatchCommand("playback.toggle")}
-        >
-          {props.playbackStatus === "playing" ? "Stop" : "Play"}
-        </button>
-        <button type="button" title={titleWithShortcut("Next bar", "playback.nextBar", props.platform)} onClick={() => props.dispatchCommand("playback.nextBar")}>
-          &gt;
-        </button>
-        <button type="button" title="Last bar" onClick={() => props.dispatchCommand("cursor.lastBar")}>
-          &gt;|
-        </button>
-      </div>
-      <div className="lcd" title={lcd.title}>
-        <span className="trackColor" style={{ background: currentTrack?.color ?? "#64748b" }} />
-        <strong>{currentTrack?.shortName ?? "Track"}</strong>
-        <span>♩ 120</span>
-        <span className={lcd.issue ? "lcdWarning" : ""}>
-          {lcd.actual}/{lcd.expected}
-        </span>
-        <button type="button" className={props.multiTrackView ? "activeToggle" : ""} title={titleWithShortcut("Multitrack view", "view.multitrack", props.platform)} onClick={props.onToggleMultiTrackView}>
-          {props.multiTrackView ? "Multi" : "1"}
-        </button>
-        <button type="button" disabled>
-          ♫
-        </button>
-        <button type="button" disabled>
-          ⚙
-        </button>
-      </div>
-      <div className="toolbarGroup playbackTools">
-        <button type="button" className={props.countInEnabled ? "activeToggle" : ""} title="Count-in" onClick={() => props.dispatchCommand("playback.countIn")}>
-          C
-        </button>
-        <button type="button" className={props.metronomeEnabled ? "activeToggle" : ""} title="Metronome" onClick={() => props.dispatchCommand("playback.metronome")}>
-          M
-        </button>
-        <button type="button" className={props.loopEnabled ? "activeToggle" : ""} title={titleWithShortcut("Loop", "playback.loop", props.platform)} onClick={() => props.dispatchCommand("playback.loop")}>
-          Loop
-        </button>
-        <button type="button" title="Speed down" onClick={() => props.dispatchCommand("playback.speedDown")}>
-          -
-        </button>
-        <button type="button" title="Playback speed">
-          {props.speedPercent}%
-        </button>
-        <button type="button" title="Speed up" onClick={() => props.dispatchCommand("playback.speedUp")}>
-          +
-        </button>
-        <span className="playbackReadout">
-          {props.playbackStatus === "playing"
-            ? `Bar ${props.playbackBarIndex + 1} / ${props.playbackTimeSec.toFixed(1)}s`
-            : `Bar ${props.cursor.barIndex + 1} / Ready`}
-        </span>
-      </div>
-    </header>
-  );
 }
 
 function TabBar({
@@ -1125,23 +933,6 @@ function formatAutomationValue(lane: AutomationLaneId, value: number): string {
   return `${Math.round(normalized * 100)}`;
 }
 
-function currentLcdStatus(score: Score, cursor: CursorPosition) {
-  const track = score.tracks.find((candidate) => candidate.id === cursor.trackId);
-  const voice = track?.bars[cursor.barIndex]?.voices[cursor.voiceIndex];
-  const expected = score.masterBars[cursor.barIndex]
-    ? barTheoreticalTicks(score.masterBars[cursor.barIndex])
-    : 0;
-  const actual = voice?.beats.reduce((total, beat) => total + beatDurationTicks(beat), 0) ?? 0;
-  const issue = actual !== expected;
-
-  return {
-    actual: Math.round(actual),
-    expected: Math.round(expected),
-    issue,
-    title: issue ? `Voice ${cursor.voiceIndex + 1}: ${actual}/${expected}` : "Bar duration ok"
-  };
-}
-
 function nextNotationTypes(
   current: NotationType[],
   notation: NotationType,
@@ -1153,11 +944,6 @@ function nextNotationTypes(
 
   const next = current.filter((candidate) => candidate !== notation);
   return next.length > 0 ? next : current;
-}
-
-function titleWithShortcut(label: string, commandId: string, platform: Platform): string {
-  const shortcut = shortcutLabel(commandId, platform);
-  return shortcut ? `${label} ${shortcut}` : label;
 }
 
 function clamp(value: number, min: number, max: number): number {

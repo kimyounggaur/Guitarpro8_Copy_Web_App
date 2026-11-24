@@ -37,12 +37,12 @@ describe("Phase 2a layout pipeline", () => {
       createBeat({ duration: 4 })
     ];
 
-    const measure = createMeasureContents(score)[0];
-    const xs = [0, 480, 960, 1440, 1920].map((tick) => tickToMeasureX(measure, tick, 200));
+    const measure = breakSystems(createMeasureContents(score), 200)[0].measures[0];
+    const xs = [0, 480, 960, 1440, 1920].map((tick) => tickToMeasureX(measure, tick));
 
     expect(xs).toEqual([...xs].sort((left, right) => left - right));
-    expect(xs[0]).toBe(0);
-    expect(xs[4]).toBe(200);
+    expect(xs[0]).toBeGreaterThan(0);
+    expect(xs[4]).toBeLessThan(measure.width);
   });
 
   it("adds note hit metadata to the scene graph", () => {

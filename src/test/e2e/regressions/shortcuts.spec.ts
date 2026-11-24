@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { focusScore, openApp, state, test } from "../helpers";
+import { clickToolbarControl, focusScore, openApp, state, test } from "../helpers";
 import { guitarWithBars } from "./scoreFixtures";
 
 test("[B12] Ctrl+= changes zoom without modifying note duration", async ({ page }) => {
@@ -33,7 +33,7 @@ test("[B12] the toolbar keeps the score focused and the palette restores focus",
   const scoreViewport = page.getByRole("application", { name: "Editable score" });
   await expect(scoreViewport).toBeFocused();
 
-  await page.getByTitle("Zoom in Ctrl+=").click();
+  await clickToolbarControl(page, "Zoom in Ctrl+=");
   await expect(scoreViewport).toBeFocused();
 
   await page.keyboard.press("7");

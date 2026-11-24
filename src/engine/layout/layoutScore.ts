@@ -5,6 +5,7 @@ import { createMeasureContents } from "./measureContents";
 import { layoutPages } from "./pageLayout";
 import type { SceneGraph, ScenePrimitive } from "./sceneGraph";
 import { breakSystems } from "./systemBreaker";
+import { SYSTEM_LABEL_WIDTH } from "./metrics";
 import { systemPrimitives } from "./trackScene";
 
 export interface LayoutScoreOptions {
@@ -17,13 +18,19 @@ export interface LayoutScoreOptions {
 export function layoutScore(score: Score, options: LayoutScoreOptions = {}): SceneGraph {
   const stylesheet = normalizeStylesheet(score.stylesheet);
   const metrics = resolvePageMetrics(stylesheet, score.documentSettings.displayMode);
-  const measureContents = createMeasureContents(score).map((measure) => ({
-    ...measure,
-    minWidth: Math.max(stylesheet.page.minMeasureWidth, measure.minWidth * stylesheet.page.rhythmProportion)
-  }));
-  const systems = breakSystems(measureContents, metrics.contentWidth);
-  const pages = layoutPages(systems, score.tracks.length, metrics);
+  const measureContents = createMeasureContents(score);
+  const systems = breakSystems(measureContents, metrics.contentWidth - SYSTEM_LABEL_WIDTH, stylesheet.page);
   const durationIssues = validateBarDurations(score);
+  const pages = layoutPages(systems, score.tracks, stylesheet, metrics, (system) =>
+    systemPrimitives(score, system.measures, 0, 0, {
+      durationIssues,
+      editingBar: options.editingBar,
+      concertTone: options.concertTone ?? score.documentSettings.concertTone,
+      activeVoiceIndex: options.activeVoiceIndex,
+      multiVoiceEdit: options.multiVoiceEdit,
+      trackGap: metrics.trackGap
+    })
+  );
 
   return {
     pages: pages.map((page) => ({
@@ -33,16 +40,7 @@ export function layoutScore(score: Score, options: LayoutScoreOptions = {}): Sce
       primitives: [
         pageBackground(page.index, page.width, page.height, metrics),
         ...pageTextPrimitives(score, stylesheet, metrics, page.index, pages.length, page.height),
-        ...page.systems.flatMap((pageSystem) =>
-          systemPrimitives(score, pageSystem.system.measures, metrics.marginLeft, pageSystem.y, {
-            durationIssues,
-            editingBar: options.editingBar,
-            concertTone: options.concertTone ?? score.documentSettings.concertTone,
-            activeVoiceIndex: options.activeVoiceIndex,
-            multiVoiceEdit: options.multiVoiceEdit,
-            trackGap: metrics.trackGap
-          })
-        )
+        ...page.primitives
       ]
     }))
   };

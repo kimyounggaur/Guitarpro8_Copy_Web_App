@@ -130,6 +130,7 @@
     --wide-panel-left: 220px;
     --wide-panel-right: 280px;
 
+    --z-toolbar-overflow: 29;
     --z-tool-panel: 20;
     --z-track-panel: 22;
     --z-stylesheet-panel: 24;

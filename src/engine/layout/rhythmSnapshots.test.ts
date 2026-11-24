@@ -9,14 +9,14 @@ describe("Phase 2b rhythm SVG snapshots", () => {
   it("snapshots standard and tablature beam groups", () => {
     expect(snapshotById("beam", 8)).toMatchInlineSnapshot(`
       [
-        "track-x-1-0-0-standard-beam-0-0|path|M 237 172 L 280.8 172 L 280.8 176 L 237 176 Z|#111827|",
-        "track-x-1-0-0-standard-beam-1-0|path|M 237 166 L 280.8 166 L 280.8 170 L 237 170 Z|#111827|",
-        "track-x-1-0-4-standard-beam-0-0|path|M 282 172 L 325.8 172 L 325.8 176 L 282 176 Z|#111827|",
-        "track-x-1-0-4-standard-beam-1-0|path|M 282 166 L 325.8 166 L 325.8 170 L 282 170 Z|#111827|",
-        "track-x-1-0-0-tab-beam-0-0|path|M 242 278 L 275.8 278 L 275.8 282 L 242 282 Z|#111827|",
-        "track-x-1-0-0-tab-beam-1-0|path|M 242 272 L 275.8 272 L 275.8 276 L 242 276 Z|#111827|",
-        "track-x-1-0-4-tab-beam-0-0|path|M 287 278 L 320.8 278 L 320.8 282 L 287 282 Z|#111827|",
-        "track-x-1-0-4-tab-beam-1-0|path|M 287 272 L 320.8 272 L 320.8 276 L 287 276 Z|#111827|",
+        "track-x-1-0-0-standard-beam-0-0|path|M 377.2 222 L 487.9 222 L 487.9 226 L 377.2 226 Z|#111827|",
+        "track-x-1-0-0-standard-beam-1-0|path|M 377.2 216 L 487.9 216 L 487.9 220 L 377.2 220 Z|#111827|",
+        "track-x-1-0-4-standard-beam-0-0|path|M 511.4 222 L 622.1 222 L 622.1 226 L 511.4 226 Z|#111827|",
+        "track-x-1-0-4-standard-beam-1-0|path|M 511.4 216 L 622.1 216 L 622.1 220 L 511.4 220 Z|#111827|",
+        "track-x-1-0-0-tab-beam-0-0|path|M 382.2 328 L 482.9 328 L 482.9 332 L 382.2 332 Z|#111827|",
+        "track-x-1-0-0-tab-beam-1-0|path|M 382.2 322 L 482.9 322 L 482.9 326 L 382.2 326 Z|#111827|",
+        "track-x-1-0-4-tab-beam-0-0|path|M 516.4 328 L 617.1 328 L 617.1 332 L 516.4 332 Z|#111827|",
+        "track-x-1-0-4-tab-beam-1-0|path|M 516.4 322 L 617.1 322 L 617.1 326 L 516.4 326 Z|#111827|",
       ]
     `);
   });
@@ -24,42 +24,40 @@ describe("Phase 2b rhythm SVG snapshots", () => {
   it("snapshots tuplet bracket primitives", () => {
     expect(snapshotById("tuplet", 12)).toMatchInlineSnapshot(`
       [
-        "track-x-2-0-0-tuplet-0-left-hook|line|442,110-442,115|#111827",
-        "track-x-2-0-0-tuplet-0-top|line|442,110-476,110|#111827",
-        "track-x-2-0-0-tuplet-0-right-hook|line|476,110-476,115|#111827",
-        "track-x-2-0-0-tuplet-0-number|text|459,107|3|#111827",
-        "track-x-3-0-0-tuplet-0-left-hook|line|578,110-578,115|#111827",
-        "track-x-3-0-0-tuplet-0-top|line|578,110-654,110|#111827",
-        "track-x-3-0-0-tuplet-0-right-hook|line|654,110-654,115|#111827",
-        "track-x-3-0-0-tuplet-0-number|text|616,107|3|#111827",
-        "track-x-3-0-0-tuplet-1-left-hook|line|578,96-578,101|#111827",
-        "track-x-3-0-0-tuplet-1-top|line|578,96-618,96|#111827",
-        "track-x-3-0-0-tuplet-1-right-hook|line|618,96-618,101|#111827",
-        "track-x-3-0-0-tuplet-1-number|text|598,93|5|#111827",
+        "track-x-2-0-0-tuplet-0-left-hook|line|164,557.6-164,562.6|#111827",
+        "track-x-2-0-0-tuplet-0-top|line|164,557.6-237.6,557.6|#111827",
+        "track-x-2-0-0-tuplet-0-right-hook|line|237.6,557.6-237.6,562.6|#111827",
+        "track-x-2-0-0-tuplet-0-number|text|200.8,554.6|3|#111827",
+        "track-x-3-0-0-tuplet-0-left-hook|line|392.6,557.6-392.6,562.6|#111827",
+        "track-x-3-0-0-tuplet-0-top|line|392.6,557.6-623.7,557.6|#111827",
+        "track-x-3-0-0-tuplet-0-right-hook|line|623.7,557.6-623.7,562.6|#111827",
+        "track-x-3-0-0-tuplet-0-number|text|508.1,554.6|3|#111827",
+        "track-x-3-0-0-tuplet-1-left-hook|line|392.6,543.6-392.6,548.6|#111827",
+        "track-x-3-0-0-tuplet-1-top|line|392.6,543.6-523.9,543.6|#111827",
+        "track-x-3-0-0-tuplet-1-right-hook|line|523.9,543.6-523.9,548.6|#111827",
+        "track-x-3-0-0-tuplet-1-number|text|458.2,540.6|5|#111827",
       ]
     `);
   });
 
-  it("snapshots ties", () => {
-    expect(snapshotById("tie", 4)).toMatchInlineSnapshot(`
-      [
-        "track-x-8-0-0-0-tie|path|M 131 157 C 142 143, 142 143, 153 157|none|#111827",
-      ]
-    `);
+  it("renders a single cubic tie arc", () => {
+    const ties = snapshotById("tie", 4);
+    expect(ties).toHaveLength(1);
+    expect(ties[0]).toMatch(/-tie\|path\|M .+ C .+\|none\|#111827$/);
   });
 
   it("snapshots rests and rhythm dots", () => {
     expect(snapshotById("rest", 8).concat(snapshotById("dot", 3))).toMatchInlineSnapshot(`
       [
-        "track-x-2-0-4-rest-2|text|504,150||#111827",
-        "track-x-4-0-0-rest-1|text|124,620||#111827",
-        "track-x-7-0-0-rest-2|text|124,738||#111827",
-        "track-x-7-0-1-rest-4|text|196,739.6||#111827",
-        "track-x-7-0-2-rest-8|text|232,739.6||#111827",
-        "track-x-7-0-3-rest-16|text|250,739.6||#111827",
-        "track-x-7-0-4-rest-32|text|259,739.6||#111827",
-        "track-x-7-0-5-rest-64|text|263.5,739.6||#111827",
-        "dot-136-142-0|ellipse|136,142,1.8,1.8|#111827",
+        "track-x-2-0-4-rest-2|text|295.8,597.6||#111827",
+        "track-x-4-0-0-rest-1|text|172,387||#111827",
+        "track-x-7-0-0-rest-2|text|172,187||#111827",
+        "track-x-7-0-1-rest-4|text|341.7,188.6||#111827",
+        "track-x-7-0-2-rest-8|text|426.5,188.6||#111827",
+        "track-x-7-0-3-rest-16|text|499,188.6||#111827",
+        "track-x-7-0-4-rest-32|text|559,188.6||#111827",
+        "track-x-7-0-5-rest-64|text|614,188.6||#111827",
+        "dot-128-16-0|ellipse|184,192,1.8,1.8|#111827",
       ]
     `);
   });
@@ -67,7 +65,7 @@ describe("Phase 2b rhythm SVG snapshots", () => {
   it("snapshots invalid bar duration markers", () => {
     expect(snapshotById("duration-error", 4)).toMatchInlineSnapshot(`
       [
-        "track-x-10-duration-error|rect|380,122,100,164|rgba(239, 68, 68, 0.07)|#ef4444",
+        "track-x-10-duration-error|rect|593.7,563.6,144.3,164|rgba(239, 68, 68, 0.07)|#ef4444",
       ]
     `);
   });

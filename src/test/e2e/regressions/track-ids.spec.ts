@@ -1,7 +1,7 @@
 import { expect } from "@playwright/test";
 import { NATIVE_SCORE_FORMAT } from "../../../io/nativeScore";
 import { createTrack } from "../../../model/factory";
-import { focusScore, openApp, state, test } from "../helpers";
+import { clickToolbarControl, focusScore, openApp, state, test } from "../helpers";
 import { dropFileOnScore } from "./dropFile";
 import { guitarWithBars } from "./scoreFixtures";
 
@@ -19,7 +19,7 @@ test("[A11] adding a track after opening a legacy score preserves unique IDs", a
   await expect.poll(async () => (await state(page)).score.tracks.length).toBe(8);
 
   await page.getByTitle("Close file I/O").click();
-  await page.getByTitle(/^Add Track/).click();
+  await clickToolbarControl(page, /^Add Track/);
   await page.getByRole("region", { name: "Track system" }).getByRole("button", { name: "Create", exact: true }).click();
   const { score, cursor } = await state(page);
   expect(score.tracks).toHaveLength(9);

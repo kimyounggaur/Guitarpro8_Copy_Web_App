@@ -1,5 +1,5 @@
 import type { NoteRef, Track } from "../../model/types";
-import { MUSIC_FONT_FAMILY, SMUFL } from "../render/smufl";
+import { MUSIC_FONT_FAMILY, MUSIC_FONT_SCALE, SMUFL, musicGlyphBounds } from "../render/smufl";
 import {
   BARLINE_BOTTOM_PADDING,
   BARLINE_TOP_PADDING,
@@ -71,6 +71,7 @@ export function tabStaffLines(
 }
 
 export function clefPrimitive(trackId: string, x: number, y: number): ScenePrimitive {
+  const bounds = musicGlyphBounds("gClef", STAFF_LINE_GAP);
   return {
     id: `${trackId}-clef`,
     type: "text",
@@ -78,9 +79,9 @@ export function clefPrimitive(trackId: string, x: number, y: number): ScenePrimi
     y,
     text: SMUFL.gClef,
     fill: "#111827",
-    fontSize: 34,
+    fontSize: STAFF_LINE_GAP * MUSIC_FONT_SCALE,
     fontFamily: MUSIC_FONT_FAMILY,
-    hit: { kind: "clef", ref: { trackId }, bbox: { x, y: y - 34, width: 28, height: 40 } }
+    hit: { kind: "clef", ref: { trackId }, bbox: { x: x + bounds.left, y: y + bounds.top, width: bounds.width, height: bounds.height } }
   };
 }
 
