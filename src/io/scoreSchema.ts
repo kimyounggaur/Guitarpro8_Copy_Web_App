@@ -192,7 +192,7 @@ function primitiveShape<T extends { [Key in keyof T]: string | number | boolean 
 }
 
 // Validate supplied style fields before applying the same defaults as the editor.
-const stylesheet = z.object({
+export const stylesheetSchema = z.object({
   presetName: z.enum(["Classic", "Jazz", "Rock"]).optional(),
   placeholder: z.boolean().optional(),
   page: z.object({
@@ -240,7 +240,7 @@ export const scoreSchema: z.ZodType<Score> = z.object({
   masterBars: z.array(masterBarSchema).min(1),
   tracks: z.array(track),
   audioTrack: z.object({ id: z.string(), name: z.string(), embedded: z.boolean() }).optional(),
-  stylesheet,
+  stylesheet: stylesheetSchema,
   documentSettings: z.object({
     engine: engine.default("RSE"),
     concertTone: z.boolean().default(false)

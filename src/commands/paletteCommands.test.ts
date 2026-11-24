@@ -10,8 +10,8 @@ import {
 } from "./paletteCommands";
 
 describe("Phase 10 command palette data", () => {
-  it("registers the exact 32 quick command prefixes", () => {
-    expect(QUICK_COMMANDS).toHaveLength(32);
+  it("offers implemented quick commands", () => {
+    expect(QUICK_COMMANDS.map(({ prefix }) => prefix)).not.toContain("multirest");
     expect(QUICK_COMMANDS.map((command) => command.prefix)).toContain("palm-mute");
     expect(QUICK_COMMANDS.map((command) => command.prefix)).toContain("volume-sweel");
   });

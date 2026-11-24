@@ -179,14 +179,14 @@ function partToTrack(part: MidiPart, index: number, score: Score, starts: number
       const start = Math.max(barStart, group.start) - barStart;
       const end = Math.min(group.end - barStart, barTheoreticalTicks(score.masterBars[barIndex]));
       const voice = track.bars[barIndex].voices[voiceIndex];
-      voice.beats.push(...createSpan(start - positions[barIndex][voiceIndex], []));
-      voice.beats.push(...createSpan(end - start, group.notes, barStart > group.start));
+      voice.beats.push(...createSpan(start - positions[barIndex][voiceIndex], [], detectTriplets));
+      voice.beats.push(...createSpan(end - start, group.notes, detectTriplets, barStart > group.start));
       positions[barIndex][voiceIndex] = end;
     }
   }
   track.bars.forEach((bar, i) => bar.voices.forEach((voice, v) => {
     if (v === 0 || voice.beats.length) {
-      voice.beats.push(...createSpan(barTheoreticalTicks(score.masterBars[i]) - positions[i][v], []));
+      voice.beats.push(...createSpan(barTheoreticalTicks(score.masterBars[i]) - positions[i][v], [], detectTriplets));
     }
   }));
   return track;
@@ -211,16 +211,17 @@ function locateBar(starts: number[], tick: number): number {
 
 const durations: BeatDuration[] = [1, 2, 4, 8, 16, 32, 64];
 
-function createSpan(length: number, notes: Note[], continuation = false): Beat[] {
+function createSpan(length: number, notes: Note[], detectTriplets: boolean, continuation = false): Beat[] {
   const result: Beat[] = [];
   for (let remaining = length; remaining > 0;) {
-    const duration = durations.find((value) => 1920 / value <= remaining) ?? 64;
+    const triplet = detectTriplets ? durations.find((value) => (1920 / value) * 2 === remaining * 3) : undefined;
+    const duration = triplet ?? durations.find((value) => 1920 / value <= remaining) ?? 64;
     const base = 1920 / duration;
     const ticks = Math.min(base, remaining);
     result.push(createBeat({
       duration, rest: notes.length === 0,
       notes: notes.map((note) => ({ ...note, tiedFromPrevious: continuation || result.length > 0 || undefined })),
-      tuplet: ticks === base ? undefined : { n: base, m: ticks }
+      tuplet: triplet ? { n: 3, m: 2 } : ticks === base ? undefined : { n: base, m: ticks }
     }));
     remaining -= ticks;
   }

@@ -3,6 +3,7 @@ import type { Score } from "../../model/types";
 
 export interface BarDurationIssue {
   trackId: string;
+  trackName: string;
   barIndex: number;
   voiceIndex: number;
   actual: number;
@@ -35,6 +36,7 @@ export function validateBarDurations(score: Score): BarDurationIssue[] {
         if (!nearlyEqual(actual, expected)) {
           issues.push({
             trackId: track.id,
+            trackName: track.shortName || track.name,
             barIndex,
             voiceIndex,
             actual,

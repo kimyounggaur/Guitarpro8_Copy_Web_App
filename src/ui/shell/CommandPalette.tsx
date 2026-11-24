@@ -1,13 +1,16 @@
+import { t } from "../i18n/messages.en";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Command } from "../../commands/registry";
 import {
   COMMAND_PALETTE_PLACEHOLDER,
   commandUsage,
   parsePaletteInput,
+  paletteInputForEntry,
   suggestPaletteEntries,
   type PaletteEntry
 } from "../../commands/paletteCommands";
 import type { EditorCommandContext } from "../../commands/editingCommands";
+import { useDialogFocus } from "../overlays/useDialogFocus";
 
 export interface CommandPaletteResult {
   handled: boolean;
@@ -35,8 +38,9 @@ export function CommandPalette({
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const [flowMode, setFlowMode] = useState(false);
-  const [status, setStatus] = useState("Ready");
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [status, setStatus] = useState(t("palette.ready"));
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(dialogRef, open, "overlay");
   const suggestions = useMemo(
     () => suggestPaletteEntries(value, registeredCommands as Array<Command<unknown>>).slice(0, 12),
     [registeredCommands, value]
@@ -48,7 +52,6 @@ export function CommandPalette({
     if (open) {
       setValue(initialValue);
       setSelectedIndex(0);
-      window.setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [initialValue, open]);
 
@@ -62,29 +65,8 @@ export function CommandPalette({
   }
 
   function completeSuggestion(entry: PaletteEntry): void {
-    const parsed = parsePaletteInput(value);
-
-    if (entry.kind === "action") {
-      setValue(`@ ${entry.prefix}`);
-      return;
-    }
-
-    if (entry.kind === "expression") {
-      setValue(`>${entry.prefix}`);
-      return;
-    }
-
-    if (parsed.mode === "action") {
-      setValue(`@ ${entry.prefix}`);
-      return;
-    }
-
-    if (parsed.mode === "expression") {
-      setValue(`>${entry.prefix}`);
-      return;
-    }
-
-    setValue(entry.requiresArgument ? `${entry.prefix} ` : entry.prefix);
+    const input = paletteInputForEntry(entry);
+    setValue(entry.requiresArgument ? `${input} ` : input);
   }
 
   function run(input: string): void {
@@ -97,7 +79,7 @@ export function CommandPalette({
 
     if (trimmed === "flow") {
       setFlowMode((enabled) => !enabled);
-      setStatus(`Flow mode ${flowMode ? "off" : "on"}`);
+      setStatus(flowMode ? t("palette.flowModeOff") : t("palette.flowModeOn"));
       return;
     }
 
@@ -116,20 +98,15 @@ export function CommandPalette({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-
-    if (event.key === "Tab") {
-      event.preventDefault();
+    if (event.defaultPrevented) return;
+    if (event.key === "Tab" && !event.shiftKey && value.trim()) {
       const suggestion = suggestions[selectedIndex] ?? suggestions[0];
 
-      if (suggestion) {
+      if (suggestion && parsePaletteInput(value).prefix !== suggestion.prefix) {
+        event.preventDefault();
         completeSuggestion(suggestion);
+        return;
       }
-      return;
     }
 
     if (event.key === "Enter") {
@@ -161,22 +138,32 @@ export function CommandPalette({
   }
 
   return (
-    <section className="commandPalette" aria-label="Command palette" data-testid="command-palette">
+    <section ref={dialogRef} className="commandPalette" role="dialog" aria-modal="true"
+      aria-label={t("palette.commandPalette")} data-testid="command-palette" tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }
+      }}
+    >
       <div className="commandPaletteInputRow">
-        <span className="commandPrompt">{parsePaletteInput(value).prefix}</span>
+        <span className="commandPrompt" aria-hidden="true">{parsePaletteInput(value).prefix}</span>
         <input
-          ref={inputRef}
           data-testid="command-palette-input"
+          data-dialog-initial-focus
+          aria-label={t("palette.searchCommands")}
           value={value}
           placeholder={COMMAND_PALETTE_PLACEHOLDER}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={handleKeyDown}
         />
-        <button type="button" className={flowMode ? "activeToggle" : ""} onClick={() => setFlowMode((enabled) => !enabled)}>
-          Flow
+        <button type="button" aria-pressed={flowMode} className={flowMode ? "activeToggle" : ""} onClick={() => setFlowMode((enabled) => !enabled)}>
+          {t("palette.flow")}
         </button>
-        <button type="button" onClick={onClose} title="Close command palette">
-          x
+        <button type="button" onClick={onClose} title={t("palette.closeCommandPalette")} aria-label={t("palette.closeCommandPalette")}>
+          <span aria-hidden="true">×</span>
         </button>
       </div>
       <div className="commandSuggestionList">
@@ -189,11 +176,11 @@ export function CommandPalette({
               index === selectedIndex ? "selectedSuggestion" : "",
               entry.disabled ? "disabledSuggestion" : ""
             ].join(" ")}
-            onClick={() => (entry.requiresArgument ? completeSuggestion(entry) : run(entry.kind === "action" ? `@ ${entry.prefix}` : entry.prefix))}
+            onClick={() => (entry.requiresArgument ? completeSuggestion(entry) : run(paletteInputForEntry(entry)))}
           >
             <strong>{entry.prefix}</strong>
             <span>{entry.description}</span>
-            {entry.requiresArgument ? <em>↹</em> : null}
+            {entry.requiresArgument ? <em aria-hidden="true">↹</em> : null}
           </button>
         ))}
       </div>
@@ -217,6 +204,6 @@ function patternPreview(input: string): string | null {
   const [, prefix, pattern] = match;
   return `${prefix}: ${pattern
     .split("")
-    .map((char) => (char === " " ? "rest" : char))
+    .map((char) => (char === " " ? t("palette.rest") : char))
     .join(" | ")}`;
 }

@@ -1,4 +1,5 @@
 import { useViewStore } from "../../store/viewStore";
+import { isMenuAppAction } from "../../commands/menus";
 // Command controller — the Command Palette free-text grammar interpreter
 // (`handleCommandPaletteSubmit` and everything it delegates to) plus
 // `runMenuAction`/`runAppAction`/`dispatchEditorCommand`.
@@ -23,7 +24,6 @@ import { useViewStore } from "../../store/viewStore";
 // ./paletteGrammar.ts, split out once this file crossed the master
 // prompt's ~500-line-per-controller guideline.
 import { useMemo } from "react";
-import { ensureDemoCommandsRegistered } from "../../commands/demoCommands";
 import { ensureEditingCommandsRegistered, type EditorCommandContext } from "../../commands/editingCommands";
 import { findMenuAction, paletteEntryByPrefix, parsePaletteInput } from "../../commands/paletteCommands";
 import { executeCommand, getAllCommands, type Command } from "../../commands/registry";
@@ -96,7 +96,6 @@ export interface CommandController {
 }
 
 export function useCommandController(params: UseCommandControllerParams): CommandController {
-  ensureDemoCommandsRegistered();
   ensureEditingCommandsRegistered();
 
   const dispatchEditorCommand = (commandId: string): void => {
@@ -223,11 +222,14 @@ export function runMenuAction(deps: CommandControllerDeps, query: string): Comma
     }
   }
 
-  if (action.paletteInput) {
-    return handleCommandPaletteSubmit(deps, action.paletteInput);
+  const appAction = action.appAction ?? action.id;
+  if (isMenuAppAction(appAction)) return runAppAction(deps, appAction, action.label);
+  if (action.paletteInput === "@" || action.paletteInput === ">") {
+    deps.openCommandPalette(action.paletteInput);
+    return { handled: true, message: action.label, keepOpen: true };
   }
-
-  return runAppAction(deps, action.appAction ?? action.id, action.label);
+  if (action.paletteInput) return handleCommandPaletteSubmit(deps, action.paletteInput);
+  return { handled: false, message: `${action.label} is not available here.` };
 }
 
 /** Routes a `MENU_TREE` `appAction` string (or a bare quick-command
@@ -284,7 +286,7 @@ export function runAppAction(deps: CommandControllerDeps, action: string, label 
       void deps.handleExportFile("pdf");
       return { handled: true, message: "Export PDF" };
     case "file.print":
-      window.print();
+      void deps.handleExportFile("pdf");
       return { handled: true, message: "Print" };
     case "layout.forceBreak": {
       const nextScore = deps.transact("Force break line", (draft) => {
@@ -323,16 +325,6 @@ export function runAppAction(deps: CommandControllerDeps, action: string, label 
         const masterBar = draft.masterBars[deps.cursor.barIndex];
         if (masterBar) {
           masterBar.simileMark = masterBar.simileMark === "double" ? "none" : "double";
-        }
-      });
-      deps.setCursor(normaliseCursor(nextScore, deps.cursor));
-      return { handled: true, message: label };
-    }
-    case "bar.symbol.multirest": {
-      const nextScore = deps.transact("Multirest", (draft) => {
-        const masterBar = draft.masterBars[deps.cursor.barIndex];
-        if (masterBar) {
-          masterBar.simileMark = masterBar.simileMark === "single" ? "none" : "single";
         }
       });
       deps.setCursor(normaliseCursor(nextScore, deps.cursor));

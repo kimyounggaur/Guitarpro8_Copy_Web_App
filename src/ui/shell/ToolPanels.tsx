@@ -24,7 +24,7 @@ import {
   tuningTargets,
   type PitchDetection
 } from "../../model/tuner";
-import { checkBarDurations } from "../../engine/tools/barReport";
+import { validateBarDurations } from "../../engine/validate/barDuration";
 import type { TransposeOptions } from "../../engine/tools/transpose";
 import type { CursorPosition } from "../../engine/editing/types";
 import type { Beat, Score, Track, Tuning } from "../../model/types";
@@ -67,7 +67,7 @@ export function ToolPanels(props: ToolPanelsProps) {
     <section className="toolPanel" aria-label="Tools">
       <header className="toolPanelHeader">
         <strong>{toolTitle(props.activeTool)}</strong>
-        <button type="button" onClick={props.onClose} title="Close tool">
+        <button type="button" onClick={props.onClose} title="Close tool" aria-label="Close tool">
           x
         </button>
       </header>
@@ -509,7 +509,7 @@ function TransposeTool({ onApply }: { onApply: (options: TransposeOptions) => nu
 }
 
 function CleanupTool(props: ToolPanelsProps) {
-  const issues = checkBarDurations(props.score);
+  const issues = validateBarDurations(props.score);
 
   return (
     <div className="toolGrid cleanupTool">
@@ -525,7 +525,7 @@ function CleanupTool(props: ToolPanelsProps) {
       <section className="toolColumn reportList">
         {issues.slice(0, 10).map((issue) => (
           <span key={`${issue.trackId}-${issue.barIndex}-${issue.voiceIndex}`}>
-            {issue.trackName} B{issue.barIndex + 1} V{issue.voiceIndex + 1} {Math.round(issue.actualTicks)}/{Math.round(issue.expectedTicks)}
+            {issue.trackName} B{issue.barIndex + 1} V{issue.voiceIndex + 1} {Math.round(issue.actual)}/{Math.round(issue.expected)}
           </span>
         ))}
       </section>

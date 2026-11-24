@@ -35,3 +35,5 @@ pnpm test:e2e
 버그 수정은 재현 테스트를 먼저 작성하고, 해당 테스트를 통과시킨 뒤 타입 검사·단위 테스트·배포 빌드·브라우저 테스트를 실행합니다. 큰 엔진 변경은 작은 단위로 나누고 파일 형식 변경에는 버전별 마이그레이션을 포함합니다.
 
 현재 재생은 브라우저에서 합성합니다. 악보 기호는 Steinberg의 Bravura 1.482와 SMuFL 글리프 이름을 사용합니다. 글꼴은 SIL Open Font License 1.1로 배포됩니다. [Bravura 릴리스](https://github.com/steinbergmedia/bravura/releases/tag/bravura-1.482) · [라이선스](public/fonts/bravura/OFL.txt)
+
+[후속 기능 목록](docs/refactoring/feature-backlog.md) · [UI 리마스터 인계](docs/refactoring/ui-remaster-handoff.md)

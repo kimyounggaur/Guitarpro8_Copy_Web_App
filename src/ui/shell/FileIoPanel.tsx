@@ -1,3 +1,4 @@
+import { t } from "../i18n/messages.en";
 import { useState } from "react";
 import type { PngScale } from "../../io/print/imageExport";
 import { NATIVE_EXTENSION } from "../../io/fileFormat";
@@ -26,12 +27,12 @@ const importFormats: Array<[ImportFormat, string, string]> = [
   ["midi", "MIDI", ".mid .midi"]
 ];
 const exportFormats: Array<[ExportFormat, string, string]> = [
-  ["ascii", "ASCII Tab", "Active track text tablature"],
-  ["musicxml", "MusicXML", "Exchange notation XML"],
-  ["midi", "MIDI", "SMF format 1"],
-  ["svg", "SVG", "Vector score image"],
-  ["png", "PNG", "Rendered page image"],
-  ["pdf", "PDF", "Print or save as PDF"]
+  ["ascii", t("files.aSCIITab"), t("files.activeTrackTextTablature")],
+  ["musicxml", "MusicXML", t("files.exchangeNotationXML")],
+  ["midi", "MIDI", t("files.sMFFormat1")],
+  ["svg", "SVG", t("files.vectorScoreImage")],
+  ["png", "PNG", t("files.renderedPageImage")],
+  ["pdf", "PDF", t("files.printOrSaveAsPDF")]
 ];
 
 export function FileIoPanel(props: FileIoPanelProps) {
@@ -41,40 +42,40 @@ export function FileIoPanel(props: FileIoPanelProps) {
   }
 
   return (
-    <section className="fileIoPanel" aria-label="File import and export">
+    <section className="fileIoPanel" aria-label={t("files.fileImportAndExport")}>
       <header className="toolPanelHeader">
-        <strong>File I/O</strong>
-        <button type="button" onClick={props.onClose} title="Close file I/O">
+        <strong>{t("files.fileIO")}</strong>
+        <button type="button" onClick={props.onClose} title={t("files.closeFileIO")} aria-label={t("files.closeFileIO")}>
           x
         </button>
       </header>
       <div className="fileIoBody">
         <section className="fileIoColumn">
-          <h2>Native</h2>
-          <p>{props.score.meta.title || "Untitled Score"}</p>
+          <h2>{t("files.native")}</h2>
+          <p>{props.score.meta.title || t("files.untitledScore")}</p>
           <span className={props.dirty ? "fileDirtyBadge" : "fileCleanBadge"}>
-            {props.dirty ? "Unsaved changes" : "Saved"}
+            {props.dirty ? t("files.unsavedChanges") : t("files.saved")}
           </span>
           <div className="fileButtonGrid">
             <button type="button" onClick={props.onNew}>
-              New
+              {t("files.new")}
             </button>
             <button type="button" onClick={props.onOpenNative}>
-              Open
+              {t("files.open")}
             </button>
             <button type="button" onClick={props.onSaveNative}>
-              Save
+              {t("files.save")}
             </button>
             <button type="button" onClick={props.onSaveNativeAs}>
-              Save As
+              {t("files.saveAs")}
             </button>
           </div>
           <button type="button" onClick={() => props.onExport("native")}>
-            Download {NATIVE_EXTENSION}
+            {t("files.downloadExtension", { extension: NATIVE_EXTENSION })}
           </button>
         </section>
         <section className="fileIoColumn">
-          <h2>Import</h2>
+          <h2>{t("files.import")}</h2>
           {importFormats.map(([format, label, hint]) => (
             <button key={format} type="button" onClick={() => props.onImport(format)}>
               <strong>{label}</strong>
@@ -83,9 +84,9 @@ export function FileIoPanel(props: FileIoPanelProps) {
           ))}
         </section>
         <section className="fileIoColumn">
-          <h2>Export</h2>
+          <h2>{t("files.export")}</h2>
           <label>
-            PNG scale
+            {t("files.pNGScale")}
             <select value={pngScale} onChange={(event) => {
               const scale = Number(event.target.value);
               if (scale === 1 || scale === 2 || scale === 3) setPngScale(scale);

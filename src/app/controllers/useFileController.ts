@@ -1,4 +1,6 @@
 import { getDocumentView } from "../../store/viewStore";
+import { instrumentById, TUNING_PRESETS } from "../../model/instruments";
+import type { NewScoreOptions } from "../../ui/shell/StartScreen";
 // File I/O controller — File System Access API, the hidden <input> fallback,
 // import/export/download, and score drag & drop.
 //
@@ -21,6 +23,7 @@ import { createEmptyScore, createTrack } from "../../model/factory";
 import type { Score } from "../../model/types";
 import { checkInvariants } from "../../model/invariants";
 import { discardRecoverySnapshot } from "../../store/autosave";
+import { usePreferencesStore } from "../../store/preferencesStore";
 import { useDocumentStore, type LoadScoreOptions } from "../../store/documentStore";
 import type { UnsavedChoice } from "../../ui/overlays/UnsavedChangesDialog";
 import type { ExportFormat, ImportFormat } from "../../ui/shell/FileIoPanel";
@@ -50,10 +53,12 @@ export interface UseFileControllerParams {
 export interface FileController {
   fileIoStatus: string;
   fileInputRef: React.RefObject<HTMLInputElement>;
+  midiImportOpen: boolean;
+  resolveMidiImport: (detectTriplets: boolean | null) => void;
   unsavedConfirmationOpen: boolean;
   resolveUnsavedChoice: (choice: UnsavedChoice) => void;
   openDemo: (score: Score) => Promise<boolean>;
-  handleNewFile: () => void;
+  handleNewFile: (options?: NewScoreOptions) => void;
   handleOpenNativeFile: () => Promise<void>;
   handleSaveNativeFile: () => Promise<void>;
   handleSaveNativeFileAs: () => Promise<void>;
@@ -71,6 +76,8 @@ export function useFileController(params: UseFileControllerParams): FileControll
   const [fileIoStatus, setFileIoStatus] = useState(
     `Native ${NATIVE_EXTENSION}, ASCII, MusicXML, MIDI, SVG, PNG, and PDF are ready.`
   );
+  const [midiImportOpen, setMidiImportOpen] = useState(false);
+  const midiChoice = useRef<((detectTriplets: boolean | null) => void) | null>(null);
   const [unsavedConfirmationOpen, setUnsavedConfirmationOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingFileLoadRef = useRef<PendingFileLoad | null>(null);
@@ -80,7 +87,24 @@ export function useFileController(params: UseFileControllerParams): FileControll
   const saving = useRef(false);
   const loadingGeneration = useRef(0);
 
-  useEffect(() => () => unsavedChoice.current?.("cancel"), []);
+  useEffect(() => () => {
+    midiChoice.current?.(null);
+    unsavedChoice.current?.("cancel");
+  }, []);
+
+  function resolveMidiImport(detectTriplets: boolean | null): void {
+    const resolve = midiChoice.current;
+    midiChoice.current = null;
+    setMidiImportOpen(false);
+    resolve?.(detectTriplets);
+  }
+
+  function chooseMidiGrid(): Promise<boolean | null> {
+    return new Promise((resolve) => {
+      midiChoice.current = resolve;
+      setMidiImportOpen(true);
+    });
+  }
 
   function resolveUnsavedChoice(choice: UnsavedChoice): void {
     const resolve = unsavedChoice.current;
@@ -130,11 +154,28 @@ export function useFileController(params: UseFileControllerParams): FileControll
     setCursor(defaultCursor(score));
   }
 
-  function handleNewFile(): void {
+  function handleNewFile(options?: NewScoreOptions): void {
     void navigate(async () => {
       if (!await confirmDiscardIfDirty()) return false;
       const nextScore = createEmptyScore();
-      nextScore.tracks.push(createTrack(undefined, nextScore.masterBars.length));
+      const defaultStylesheet = usePreferencesStore.getState().defaultStylesheet;
+      if (defaultStylesheet) nextScore.stylesheet = structuredClone(defaultStylesheet);
+      const preset = options ? instrumentById(options.instrumentId) : undefined;
+      const tuning = options && TUNING_PRESETS.find(({ id, instrumentIds }) =>
+        id === options.tuningId && instrumentIds.includes(options.instrumentId));
+      if (options) {
+        nextScore.masterBars[0].timeSignature = {
+          ...nextScore.masterBars[0].timeSignature, numerator: options.beats, denominator: options.unit
+        };
+        nextScore.masterAutomations = [{
+          type: "tempo", scope: "master", points: [{ tick: 0, value: options.tempo, transition: "constant" }]
+        }];
+      }
+      nextScore.tracks.push(createTrack(preset ? {
+        ...preset,
+        strings: tuning ? [...tuning.strings] : [...preset.tuning],
+        tuningLabel: tuning ? tuning.label : preset.tuningLabel
+      } : undefined, nextScore.masterBars.length));
       replaceScore(nextScore);
       setFileIoStatus("Created a new untitled score.");
       closeFileIoPanel();
@@ -166,7 +207,8 @@ export function useFileController(params: UseFileControllerParams): FileControll
             {
               description: `${APP_NAME} score`,
               accept: { "application/json": NATIVE_FILE_ACCEPT }
-            }
+            },
+            { description: "MIDI", accept: { "audio/midi": [".mid", ".midi"] } }
           ]
         });
         return handle ? await loadFileIntoScore(await handle.getFile(), handle) : false;
@@ -364,7 +406,10 @@ export function useFileController(params: UseFileControllerParams): FileControll
       const text = kind === "midi" || kind === "mxl" ? "" : new TextDecoder().decode(bytes);
       const loaded = kind === "native" ? readScoreFile(text) : null;
       const xml = kind === "mxl" ? readCompressedMusicXml(bytes) : kind === "musicxml" ? readMusicXml(text) : null;
-      const nextScore = loaded?.score ?? xml?.score ?? (kind === "midi" ? importMidi(bytes) : importAsciiTab(text));
+      const detectTriplets = kind === "midi" ? await chooseMidiGrid() : false;
+      if (detectTriplets === null) return false;
+      const nextScore = loaded?.score ?? xml?.score ??
+        (kind === "midi" ? importMidi(bytes, { detectTriplets }) : importAsciiTab(text));
       if (!loaded) {
         const fatal = checkInvariants(nextScore).find((issue) => issue.severity === "fatal");
         if (fatal) throw new Error(`This score cannot be opened: ${fatal.message}`);
@@ -397,6 +442,8 @@ export function useFileController(params: UseFileControllerParams): FileControll
   return {
     fileIoStatus,
     fileInputRef,
+    midiImportOpen,
+    resolveMidiImport,
     unsavedConfirmationOpen,
     resolveUnsavedChoice,
     openDemo,
@@ -414,7 +461,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
 
 function acceptForPending(pending: PendingFileLoad): string {
   if (pending.kind === "native") {
-    return [...NATIVE_FILE_ACCEPT, "application/json"].join(",");
+    return [...NATIVE_FILE_ACCEPT, "application/json", ".mid", ".midi", "audio/midi"].join(",");
   }
 
   switch (pending.format) {

@@ -5,7 +5,7 @@ import { openApp, state, test } from "./helpers";
 for (const path of ["/", "/?testMode=visual"]) {
   test(`does not expose the E2E hooks at ${path}`, async ({ page }) => {
     await page.goto(path);
-    await expect(page.getByTestId("gp-shell")).toBeVisible();
+    await expect(path === "/" ? page.getByRole("heading", { name: "TabScore" }) : page.getByTestId("gp-shell")).toBeVisible();
     expect(await page.evaluate(() => Object.prototype.hasOwnProperty.call(window, "__GPW_TEST__"))).toBe(false);
   });
 }
