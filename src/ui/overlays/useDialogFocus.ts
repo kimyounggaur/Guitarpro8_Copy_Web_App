@@ -45,6 +45,8 @@ export function useDialogFocus<ElementType extends HTMLElement>(
       resetOutside?.();
       if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) {
         opener.focus({ preventScroll: true });
+      } else if (document.activeElement === document.body) {
+        document.querySelector<HTMLElement>(".scoreViewport")?.focus({ preventScroll: true });
       }
     };
   }, [ref, open, kind]);

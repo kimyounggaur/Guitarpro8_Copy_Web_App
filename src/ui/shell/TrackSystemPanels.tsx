@@ -1,3 +1,4 @@
+import { EditorWindow } from "../overlays/EditorWindow";
 import { useEffect, useState } from "react";
 import { FileDialog } from "../overlays/FileDialog";
 import {
@@ -53,22 +54,20 @@ export function TrackSystemPanels(props: TrackSystemPanelsProps) {
   }
 
   return (
-    <section className="trackSystemPanel" aria-label="Track system">
-      <header className="toolPanelHeader">
-        <strong>{trackPanelTitle(props.activePanel)}</strong>
-        <button type="button" onClick={props.onClose} title="Close track panel" aria-label="Close track panel">
-          x
-        </button>
-      </header>
+    <EditorWindow regionLabel="Track system" kind="track" id={props.activePanel} modal={props.activePanel !== "drums" && props.activePanel !== "voices"} title={trackPanelTitle(props.activePanel)} closeLabel="Close track panel" description={trackPanelTitle(props.activePanel) + " settings for this score."} onClose={props.onClose}>
+    <section className="trackSystemPanel">
       {props.activePanel === "wizard" ? <TrackWizard {...props} /> : null}
       {props.activePanel === "tuning" && props.activeTrack ? <TuningPanel {...props} track={props.activeTrack} /> : null}
       {props.activePanel === "voices" ? <VoicePanel {...props} /> : null}
       {props.activePanel === "drums" && props.activeTrack ? <DrumKitPanel {...props} track={props.activeTrack} /> : null}
     </section>
+    </EditorWindow>
   );
 }
 
 function TrackWizard({ onCreateTrack }: TrackSystemPanelsProps) {
+  const [step, setStep] = useState(0);
+  const steps = ["Category", "Instrument", "Notation & tuning", "Summary"];
   const [category, setCategory] = useState<InstrumentCategory>("Stringed");
   const [presetId, setPresetId] = useState(presetsByCategory("Stringed")[0].id);
   const preset = instrumentById(presetId);
@@ -89,8 +88,17 @@ function TrackWizard({ onCreateTrack }: TrackSystemPanelsProps) {
   }
 
   return (
-    <div className="trackWizardGrid">
-      <section className="toolColumn">
+    <form className="wizardSteps" onSubmit={(event) => {
+      event.preventDefault();
+      if (step === steps.length - 1) create();
+      else setStep(step + 1);
+    }}>
+      <nav aria-label="Track creation steps" className="wizardStepsNav">
+        {steps.map((name, index) => <button type="button" key={name} aria-current={index === step ? "step" : undefined}
+          onClick={() => setStep(index)}>{index + 1}. {name}</button>)}
+      </nav>
+      <div className="wizardStepBody">
+      {step === 0 && (
         <div className="toolButtonRow">
           {categories.map((item) => (
             <button key={item} type="button" className={category === item ? "activeToggle" : ""} onClick={() => setCategory(item)}>
@@ -98,6 +106,8 @@ function TrackWizard({ onCreateTrack }: TrackSystemPanelsProps) {
             </button>
           ))}
         </div>
+      )}
+      {step === 1 && (
         <div className="instrumentList">
           {presetsByCategory(category).map((instrument) => (
             <button
@@ -112,7 +122,8 @@ function TrackWizard({ onCreateTrack }: TrackSystemPanelsProps) {
             </button>
           ))}
         </div>
-      </section>
+      )}
+      {step === 2 && <div className="wizardNotationGrid">
       <section className="toolColumn">
         <label>
           <span>Name</span>
@@ -128,10 +139,11 @@ function TrackWizard({ onCreateTrack }: TrackSystemPanelsProps) {
         </label>
         <div className="notationChecks">
           {notationTypes.map((notation) => (
-            <label key={notation}>
+            <label key={notation} title={notation === "numbered" ? "This notation is planned" : undefined}>
               <input
                 type="checkbox"
                 checked={draft.notationTypes.includes(notation)}
+                disabled={notation === "numbered"}
                 onChange={(event) =>
                   setDraft({
                     ...draft,
@@ -161,11 +173,22 @@ function TrackWizard({ onCreateTrack }: TrackSystemPanelsProps) {
         <button type="button" onClick={() => auditionTuning(draft.tuning)}>
           Audition
         </button>
-        <button type="button" onClick={create}>
-          Create
-        </button>
       </section>
-    </div>
+      </div>}
+      {step === 3 && <dl className="wizardSummary">
+        <div><dt>Instrument</dt><dd>{category} · {preset.name}</dd></div>
+        <div><dt>Track name</dt><dd>{draft.name}</dd></div>
+        <div><dt>Notation</dt><dd>{draft.notationTypes.join(" + ")} · {draft.staffConfig}</dd></div>
+        <div><dt>Tuning</dt><dd>{draft.tuning.strings.map(midiName).join(" · ")}</dd></div>
+      </dl>}
+      </div>
+      <footer className="wizardFooter">
+        <span>{draft.name} · {draft.notationTypes.join(" + ")}</span>
+        {step > 0 && <button type="button" onClick={() => setStep(step - 1)}>Back</button>}
+        {step < steps.length - 1 && <button type="submit">Next</button>}
+        <button type={step === steps.length - 1 ? "submit" : "button"} onClick={step === steps.length - 1 ? undefined : create}>Create</button>
+      </footer>
+    </form>
   );
 }
 
@@ -341,7 +364,7 @@ function DrumKitPanel({ onDrumToggle }: TrackSystemPanelsProps & { track: Track 
         target?.tagName === "TEXTAREA" ||
         target?.isContentEditable;
 
-      if (editingText) {
+      if (event.defaultPrevented || editingText || !target?.closest('[data-window-id="drums"]')) {
         return;
       }
 

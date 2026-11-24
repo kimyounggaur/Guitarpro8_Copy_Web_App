@@ -7,6 +7,10 @@ interface ViewStore extends DocumentViewSettings {
   cursor: CursorPosition;
   selection: SelectionRange | null;
   trackVisibility: Record<string, boolean>;
+  multiVoiceEdit: boolean;
+  multiTrackView: boolean;
+  setMultiVoiceEdit: (update: boolean | ((current: boolean) => boolean)) => void;
+  setMultiTrackView: (update: boolean | ((current: boolean) => boolean)) => void;
   setCursor: (cursor: CursorPosition) => void;
   patchCursor: (cursor: Partial<CursorPosition>) => void;
   setSelection: (selection: SelectionRange | null) => void;
@@ -32,13 +36,21 @@ export const useViewStore = create<ViewStore>((set) => ({
   selection: null,
   ...defaultDocumentView,
   trackVisibility: {},
+  multiVoiceEdit: false,
+  multiTrackView: true,
+  setMultiVoiceEdit: (update) => set((state) => ({
+    multiVoiceEdit: typeof update === "function" ? update(state.multiVoiceEdit) : update
+  })),
+  setMultiTrackView: (update) => set((state) => ({
+    multiTrackView: typeof update === "function" ? update(state.multiTrackView) : update
+  })),
   setCursor: (cursor) => set({ cursor }),
   patchCursor: (cursor) => set((state) => ({ cursor: { ...state.cursor, ...cursor } })),
   setSelection: (selection) => set({ selection }),
   setStaffKind: (staffKind) => set((state) => ({ cursor: { ...state.cursor, staffKind } })),
   setZoom: (zoom) => set({ zoom }),
   setDisplayMode: (displayMode) => set({ displayMode }),
-  setDocumentView: (view = defaultDocumentView) => set({ ...view, trackVisibility: {} }),
+  setDocumentView: (view = defaultDocumentView) => set({ ...view, trackVisibility: {}, multiVoiceEdit: false, multiTrackView: true }),
   setTrackVisible: (trackId, visible) => set((state) => ({
     trackVisibility: { ...state.trackVisibility, [trackId]: visible }
   }))

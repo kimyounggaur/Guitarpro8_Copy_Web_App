@@ -134,3 +134,35 @@ jobs:
           name: editor-performance-results
           path: test-results/
           if-no-files-found: ignore
+
+  safari:
+    if: github.event_name != 'schedule'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: sudo safaridriver --enable
+      - name: Verify editing in Safari
+        shell: bash
+        run: |
+          pnpm dev --port 5174 --strictPort > /tmp/tabscore-safari-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" || true' EXIT
+          for attempt in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:5174/ > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          node scripts/safari-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safari-browser-verification
+          path: test-results/safari-smoke.json
+          if-no-files-found: ignore

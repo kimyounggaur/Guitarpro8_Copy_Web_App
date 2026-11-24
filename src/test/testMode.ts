@@ -10,6 +10,11 @@ function requestedTestMode(): string | null {
   return new URLSearchParams(window.location.search).get("testMode");
 }
 
+export function usesDeterministicDocumentIds(): boolean {
+  const mode = requestedTestMode();
+  return mode === "e2e" || mode === "visual";
+}
+
 export function isVisualTestMode(): boolean {
   return requestedTestMode() === "visual";
 }

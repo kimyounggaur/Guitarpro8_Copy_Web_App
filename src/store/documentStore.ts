@@ -1,12 +1,13 @@
 import { applyPatches, produceWithPatches } from "immer";
 import { create } from "zustand";
-import { cloneScore, normaliseCursor } from "../engine/editing/operations";
-import type { CursorPosition } from "../engine/editing/types";
+import { cloneScore, defaultCursor, normaliseCursor } from "../engine/editing/operations";
+import type { CursorPosition, SelectionRange } from "../engine/editing/types";
 import { createEmptyScore } from "../model/factory";
 import { checkInvariants, type InvariantIssue } from "../model/invariants";
 import { newId } from "../model/ids";
 import { applyTieRepairs, inspectTies } from "../model/ties";
 import type { DocumentViewSettings, Score } from "../model/types";
+import { usesDeterministicDocumentIds } from "../test/testMode";
 import { appendEdit, type EditTransaction } from "./history";
 import { useViewStore } from "./viewStore";
 
@@ -21,12 +22,29 @@ export interface LoadScoreOptions {
   documentId?: string;
   recovered?: boolean;
   view?: DocumentViewSettings;
+  mode?: "tab";
+  locked?: boolean;
 }
 
 export interface EditTransactionOptions {
   cursorAfter?: () => CursorPosition;
   coalesceRevision?: number;
   group?: string;
+}
+
+export interface DocumentSession {
+  score: Score;
+  revision: number;
+  savedRevision: number | null;
+  undoStack: EditTransaction[];
+  redoStack: EditTransaction[];
+  view: DocumentViewSettings & {
+    cursor: CursorPosition;
+    selection: SelectionRange | null;
+    trackVisibility: Record<string, boolean>;
+    multiVoiceEdit: boolean;
+    multiTrackView: boolean;
+  };
 }
 
 interface DocumentStore {
@@ -36,6 +54,10 @@ interface DocumentStore {
   dirty: boolean;
   documents: DocumentTabState[];
   activeId: string;
+  inactive: ReadonlyMap<string, DocumentSession>;
+  getSession: (id: string) => DocumentSession | undefined;
+  selectDocument: (id: string) => boolean;
+  closeDocument: (id: string) => void;
   undoStack: EditTransaction[];
   redoStack: EditTransaction[];
   lastRejection: { label: string; issues: InvariantIssue[] } | null;
@@ -50,30 +72,108 @@ interface DocumentStore {
 
 let nextRevision = 0;
 let editGroup = 0;
-const initialId = newId("doc");
+let nextTestDocument = 0;
+
+function createDocumentId(documents: DocumentTabState[] = []): string {
+  let id: string;
+  do {
+    id = usesDeterministicDocumentIds() ? `doc_test_${++nextTestDocument}` : newId("doc");
+  } while (documents.some((document) => document.id === id));
+  return id;
+}
+
+const initialId = createDocumentId();
 const initialScore = createEmptyScore();
 
 export const useDocumentStore = create<DocumentStore>((set, get) => ({
   score: initialScore,
   ...documentState(initialScore, initialId, nextRevision, nextRevision),
+  documents: [],
+  inactive: new Map(),
+  getSession: (id) => {
+    const state = get();
+    if (!state.documents.some((tab) => tab.id === id)) return undefined;
+    return id === state.activeId ? captureSession(state) : state.inactive.get(id);
+  },
+  selectDocument: (id) => {
+    const state = get();
+    if (id === state.activeId) return false;
+    const target = state.inactive.get(id);
+    if (!target) return false;
+    const inactive = new Map(state.inactive);
+    if (state.documents.some((tab) => tab.id === state.activeId)) {
+      inactive.set(state.activeId, captureSession(state));
+    }
+    inactive.delete(id);
+    restoreView(target);
+    editGroup++;
+    set({ ...sessionState(target, id, state.documents), inactive });
+    return true;
+  },
+  closeDocument: (id) => {
+    const state = get();
+    const index = state.documents.findIndex((tab) => tab.id === id);
+    if (index < 0) return;
+    const documents = state.documents.filter((tab) => tab.id !== id);
+    const inactive = new Map(state.inactive);
+    inactive.delete(id);
+    if (id !== state.activeId) {
+      set({ documents, inactive });
+      return;
+    }
+    const next = documents[Math.min(index, documents.length - 1)];
+    const target = next && inactive.get(next.id);
+    if (next && target) {
+      inactive.delete(next.id);
+      restoreView(target);
+      editGroup++;
+      set({ ...sessionState(target, next.id, documents), inactive });
+    } else {
+      const empty = createEmptyScore();
+      const revision = ++nextRevision;
+      useViewStore.getState().setDocumentView();
+      useViewStore.getState().setCursor(defaultCursor(empty));
+      useViewStore.getState().setSelection(null);
+      set({ score: empty, ...documentState(empty, createDocumentId(), revision, revision), documents, inactive, undoStack: [], redoStack: [], lastRejection: null });
+    }
+  },
   undoStack: [],
   redoStack: [],
   lastRejection: null,
-  loadScore: (score, { documentId = newId("doc"), recovered = false, view } = {}) => {
+  loadScore: (score, { documentId: requestedId, recovered = false, view, mode, locked = false } = {}) => {
+    const state = get();
+    const documentId = requestedId ?? createDocumentId(state.documents);
+    if (mode === "tab" && state.documents.some((tab) => tab.id === documentId)) {
+      state.selectDocument(documentId);
+      return;
+    }
     const revision = ++nextRevision;
+    const savedRevision = recovered ? null : revision;
+    const documents = mode === "tab" ? state.documents : [];
+    const inactive = new Map(mode === "tab" ? state.inactive : undefined);
+    if (mode === "tab" && documents.some((tab) => tab.id === state.activeId)) {
+      inactive.set(state.activeId, captureSession(state));
+    }
+    const documentView = useViewStore.getState();
+    documentView.setDocumentView(view);
+    documentView.setCursor(defaultCursor(score));
+    documentView.setSelection(null);
+    editGroup++;
     set({
       score: cloneScore(score),
-      ...documentState(score, documentId, revision, recovered ? null : revision),
+      ...documentState(score, documentId, revision, savedRevision, [...documents,
+        { id: documentId, title: score.meta.title || "Untitled", dirty: revision !== savedRevision, locked }
+      ]),
+      inactive,
       undoStack: [],
       redoStack: [],
       lastRejection: null
     });
-    useViewStore.getState().setDocumentView(view);
   },
   setScore: (score) =>
     set((state) => ({
       score: cloneScore(score),
-      ...documentState(score, state.activeId, ++nextRevision, state.savedRevision),
+      ...documentState(score, state.activeId, ++nextRevision, state.savedRevision, state.documents),
       undoStack: [],
       redoStack: []
     })),
@@ -81,11 +181,20 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   markSaved: (documentId, revision) => {
     const state = get();
     if (state.activeId === documentId) {
-      set(documentState(state.score, state.activeId, state.revision, revision));
+      set(documentState(state.score, state.activeId, state.revision, revision, state.documents));
+    } else {
+      const session = state.inactive.get(documentId);
+      if (!session) return;
+      set({
+        inactive: new Map(state.inactive).set(documentId, { ...session, savedRevision: revision }),
+        documents: state.documents.map((tab) => tab.id === documentId
+          ? { ...tab, dirty: session.revision !== revision } : tab)
+      });
     }
   },
   transact: (label, recipe, options) => {
     const state = get();
+    if (state.documents.find((tab) => tab.id === state.activeId)?.locked) return state.score;
     const view = useViewStore.getState();
     const cursorBefore = { ...view.cursor };
     const [edited, forward, inverse] = produceWithPatches(state.score, (draft) => {
@@ -126,7 +235,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     set({
       score: after,
       lastRejection: null,
-      ...documentState(after, state.activeId, revision, state.savedRevision),
+      ...documentState(after, state.activeId, revision, state.savedRevision, state.documents),
       undoStack: appendEdit(state.undoStack, transaction, state.savedRevision, options?.coalesceRevision),
       redoStack: []
     });
@@ -142,7 +251,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     const score = applyPatches(state.score, transaction.inversePatches);
     set({
       score,
-      ...documentState(score, state.activeId, transaction.revisionBefore, state.savedRevision),
+      ...documentState(score, state.activeId, transaction.revisionBefore, state.savedRevision, state.documents),
       undoStack: state.undoStack.slice(0, -1),
       redoStack: [...state.redoStack, transaction]
     });
@@ -159,7 +268,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     const score = applyPatches(state.score, transaction.patches);
     set({
       score,
-      ...documentState(score, state.activeId, transaction.revisionAfter, state.savedRevision),
+      ...documentState(score, state.activeId, transaction.revisionAfter, state.savedRevision, state.documents),
       undoStack: [...state.undoStack, transaction],
       redoStack: state.redoStack.slice(0, -1)
     });
@@ -174,7 +283,8 @@ function documentState(
   score: Score,
   documentId: string,
   revision: number,
-  savedRevision: number | null
+  savedRevision: number | null,
+  documents: DocumentTabState[] = []
 ) {
   const dirty = revision !== savedRevision;
   return {
@@ -182,6 +292,35 @@ function documentState(
     revision,
     savedRevision,
     dirty,
-    documents: [{ id: documentId, title: score.meta.title || "Untitled", dirty, locked: false }]
+    documents: documents.map((tab) => tab.id === documentId
+      ? { ...tab, title: score.meta.title || "Untitled", dirty } : tab)
+  };
+}
+
+function captureSession(state: DocumentStore): DocumentSession {
+  const { cursor, selection, trackVisibility, multiVoiceEdit, multiTrackView, zoom, displayMode } = useViewStore.getState();
+  return {
+    score: state.score, revision: state.revision, savedRevision: state.savedRevision,
+    undoStack: state.undoStack, redoStack: state.redoStack,
+    view: { cursor, selection, trackVisibility, multiVoiceEdit, multiTrackView, zoom, displayMode }
+  };
+}
+
+function restoreView(session: DocumentSession): void {
+  const { cursor, selection, trackVisibility, multiVoiceEdit, multiTrackView, zoom, displayMode } = session.view;
+  useViewStore.setState({
+    zoom, displayMode, trackVisibility, multiVoiceEdit, multiTrackView,
+    cursor: normaliseCursor(session.score, cursor),
+    selection: selection ? { ...selection, anchor: normaliseCursor(session.score, selection.anchor), head: normaliseCursor(session.score, selection.head) } : null
+  });
+}
+
+function sessionState(session: DocumentSession, id: string, documents: DocumentTabState[]) {
+  return {
+    score: session.score,
+    ...documentState(session.score, id, session.revision, session.savedRevision, documents),
+    undoStack: session.undoStack,
+    redoStack: session.redoStack,
+    lastRejection: null
   };
 }

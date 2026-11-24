@@ -76,6 +76,7 @@ export interface UseCommandControllerParams {
   setActiveTrackPanel: (panel: TrackPanelId | null) => void;
   openStylesheetPanel: () => void;
   openFileIoPanel: () => void;
+  openShortcutHelp: () => void;
   openCommandPalette: (initialValue?: string) => void;
   togglePanel: (panel: keyof PanelVisibility) => void;
 }
@@ -237,6 +238,9 @@ export function runMenuAction(deps: CommandControllerDeps, query: string): Comma
  * so it can be unit tested directly — see useCommandController.test.ts. */
 export function runAppAction(deps: CommandControllerDeps, action: string, label = action): CommandPaletteResult {
   switch (action) {
+    case "help.gettingHelp":
+      deps.openShortcutHelp();
+      return { handled: true, message: label };
     case "file.new":
       deps.handleNewFile();
       return { handled: true, message: label };
@@ -386,10 +390,10 @@ export function runAppAction(deps: CommandControllerDeps, action: string, label 
       deps.openStylesheetPanel();
       return { handled: true, message: label };
     case "view.zoomIn":
-      deps.handleZoomChange(useViewStore.getState().zoom + 10);
+      deps.handleZoomChange(useViewStore.getState().zoom + 5);
       return { handled: true, message: label };
     case "view.zoomOut":
-      deps.handleZoomChange(useViewStore.getState().zoom - 10);
+      deps.handleZoomChange(useViewStore.getState().zoom - 5);
       return { handled: true, message: label };
     default:
       break;

@@ -1,0 +1,17 @@
+.audioTrackDock { min-height:0; overflow:auto; background:#111f31; color:#dde8f2; padding:0 8px 3px; font-size:12px; }
+.audioTrackDock header,.audioTrackTools {display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.audioTrackDock header {min-height:27px;}
+.audioTrackName {overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:32ch;}
+.audioTrackDock button,.audioTrackDock select,.audioTrackDock input {font:inherit;}
+.audioTrackDock button,.audioTrackDock select,.audioTrackDock input[type=number] {color:#e8f1fb; background:#24364b; border:1px solid #4a6179; border-radius:3px;}
+.audioTrackDock button[aria-pressed=true] {background:#275788;}
+.audioTrackTools label {display:inline-flex; align-items:center; gap:3px;}
+.audioTrackTools input[type=number] {width:6em;}
+.audioTrackTools input[type=range] {width:6em;}
+.audioTrackDock p {margin:4px 0;}
+.audioWaveform {position:relative; height:clamp(80px,9vh,140px); touch-action:none; cursor:crosshair;}
+.audioWaveform canvas {width:100%; height:100%; display:block;}
+.audioWaveform i {pointer-events:none; position:absolute; top:0; height:100%; width:2px;}
+.waveCursor {background:#f8cf55;}
+.wavePlayhead {background:#2faaff;}
+.audioTrackPolicy {font-size:11px; color:#b2c3d4;}

@@ -1,3 +1,6 @@
+import type { Score } from "../../model/types";
+import type { RecentScore } from "../../store/autosave";
+import { HomeLibrary } from "../home/HomeLibrary";
 import { useState } from "react";
 import { INSTRUMENT_DEFINITIONS, TUNING_PRESETS, instrumentById } from "../../model/instruments";
 import type { BeatDuration } from "../../model/types";
@@ -12,12 +15,17 @@ export interface NewScoreOptions {
 }
 
 export function StartScreen({
-  onCreate, onOpen, onRecent, onDemo
+  onCreate, onOpen, onRecent, onDemo, hasDocuments, onReturn, onOpenRecent, onOpenLocal, onCreateTemplate
 }: {
   onCreate: (options: NewScoreOptions) => void;
   onOpen: () => void;
   onRecent: () => void;
   onDemo: () => void;
+  hasDocuments: boolean;
+  onReturn: () => void;
+  onOpenRecent: (recent: RecentScore) => void;
+  onOpenLocal: (file: File) => void;
+  onCreateTemplate: (score: Score) => void;
 }) {
   const [customizing, setCustomizing] = useState(false);
   const [instrumentId, setInstrument] = useState("guitar");
@@ -28,14 +36,18 @@ export function StartScreen({
   const instrument = instrumentById(instrumentId);
   const tunings = TUNING_PRESETS.filter(({ instrumentIds }) => instrumentIds.includes(instrumentId));
 
-  return <main className="tabScoreHome" aria-labelledby="home-title">
-    <h1 id="home-title">{t("product")}</h1>
-    {!customizing ? <div className="tabScoreHomeActions">
+  return <main className="tabScoreHome homeLibrary" aria-labelledby="home-title">
+    <header>
+      <h1 id="home-title">{t("product")}</h1>
+      {hasDocuments && <button type="button" onClick={onReturn}>Return to editor</button>}
+    </header>
+    {!customizing ? <><div className="tabScoreHomeActions">
       <button type="button" onClick={() => setCustomizing(true)}>{t("newScore")}</button>
       <button type="button" onClick={onOpen}>{t("openFile")}</button>
       <button type="button" onClick={onRecent}>{t("recentFiles")}</button>
       <button type="button" onClick={onDemo}>{t("demo")}</button>
-    </div> : <form onSubmit={(event) => {
+    </div><HomeLibrary onOpenRecent={onOpenRecent} onOpenLocal={onOpenLocal}
+      onCreateTemplate={onCreateTemplate} /></> : <form onSubmit={(event) => {
       event.preventDefault();
       onCreate({ instrumentId, tuningId: tuningId || undefined, tempo, beats, unit });
     }}>

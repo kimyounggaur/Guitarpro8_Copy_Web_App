@@ -261,7 +261,7 @@ export const MENU_TREE: MenuGroup[] = [
     action("view.fullScreen", t("menu.action.view.fullScreen"), undefined, undefined, "view.fullScreen")
   ]),
   menu(t("menu.group.help"), [
-    action("help.gettingHelp", t("menu.action.help.gettingHelp"), "help.gettingHelp"),
+    action("help.gettingHelp", t("menu.action.help.gettingHelp"), undefined, undefined, "help.gettingHelp"),
     action("app.about", t("menu.action.app.about"), "app.about")
   ])
 ];

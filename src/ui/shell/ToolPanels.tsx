@@ -1,3 +1,4 @@
+import { EditorWindow } from "../overlays/EditorWindow";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { noteMidiPitch } from "../../model/derive";
 import {
@@ -64,13 +65,8 @@ export function ToolPanels(props: ToolPanelsProps) {
   }
 
   return (
-    <section className="toolPanel" aria-label="Tools">
-      <header className="toolPanelHeader">
-        <strong>{toolTitle(props.activeTool)}</strong>
-        <button type="button" onClick={props.onClose} title="Close tool" aria-label="Close tool">
-          x
-        </button>
-      </header>
+    <EditorWindow regionLabel="Tools" kind="tool" id={props.activeTool} modal={props.activeTool === "transpose" || props.activeTool === "cleanup"} title={toolTitle(props.activeTool)} closeLabel="Close tool" description={toolTitle(props.activeTool) + " for the selected score and track."} onClose={props.onClose}>
+    <section className="toolPanel">
       {props.activeTool === "chords" ? <ChordTool {...props} track={activeTrack} /> : null}
       {props.activeTool === "scales" ? <ScaleTool {...props} track={activeTrack} /> : null}
       {props.activeTool === "instrument" ? <InstrumentTool {...props} track={activeTrack} /> : null}
@@ -78,6 +74,7 @@ export function ToolPanels(props: ToolPanelsProps) {
       {props.activeTool === "transpose" ? <TransposeTool onApply={props.onTransposeRequest} /> : null}
       {props.activeTool === "cleanup" ? <CleanupTool {...props} /> : null}
     </section>
+    </EditorWindow>
   );
 }
 

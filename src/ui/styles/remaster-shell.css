@@ -1,0 +1,321 @@
+@layer layout {
+  .gpShell.remasterShell {
+    grid-template-rows: minmax(26px, auto) minmax(46px, auto) minmax(26px, auto) minmax(0, 1fr);
+    height: 100dvh;
+  }
+
+  .editorDockLayout {
+    display: grid;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .resizableEditorMain, .paletteDockSlot, .inspectorDockSlot, .horizontalSplitterSlot {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .paletteDockSlot, .inspectorDockSlot {
+    display: grid;
+    overflow: hidden;
+  }
+
+  .resizableEditorMain > .workspacePanel {
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .editorDockLayout > .bottomDock {
+    min-height: 0;
+    overflow: hidden;
+    border: 0;
+  }
+
+  .editorDockLayout > .bottomDock[hidden] { display: none; }
+
+  .dockSplitter {
+    position: relative;
+    align-self: stretch;
+    display: block;
+    min-height: 100%;
+    min-width: 100%;
+    z-index: 1;
+    cursor: ew-resize;
+    touch-action: none;
+    user-select: none;
+    background: var(--surface-shell);
+  }
+
+  .dockSplitter::before {
+    content: "";
+    position: absolute;
+    inset: 0 3px;
+    background: var(--border-panel);
+    pointer-events: none;
+  }
+
+  .dockSplitterHorizontal { cursor: ns-resize; }
+  .dockSplitterHorizontal::before { inset: 3px 0; }
+
+  .dockSplitter:hover::before, .dockSplitter[data-dragging]::before {
+    background: var(--accent);
+  }
+
+  .dockSplitter:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .remasterWorkspace {
+    --workspace-surface: #0b1421;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) 27px;
+    background: var(--workspace-surface);
+  }
+
+  .workspaceCanvas {
+    display: grid;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .remasterWorkspace .scoreViewport {
+    border: 0;
+    border-radius: 0;
+    padding: 18px;
+    background: var(--workspace-surface);
+  }
+
+  .remasterWorkspace .scoreViewport:focus {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  .remasterWorkspace .scorePage {
+    border-radius: 2px;
+    box-shadow: 0 4px 14px rgb(0 0 0 / 36%);
+  }
+
+  .workspaceControls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding-inline: 10px;
+    min-width: 0;
+    border-top: 1px solid var(--border-panel);
+    background: var(--surface-panel);
+    font-size: 11px;
+  }
+
+  .workspaceZoom { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .workspaceControls button { min-height: 20px; padding-inline: 6px; }
+
+  @media (width < 1100px) {
+    .remasterWorkspace .scoreViewport { padding: 12px; }
+  }
+
+  @media (width < 1024px) {
+    .gpMain.resizableEditorMain { grid-template-columns: minmax(0, 1fr) !important; }
+    .gpMain.resizableEditorMain > :is(.paletteDockSlot, .inspectorDockSlot, .dockSplitter) { display: none; }
+  }
+}
+
+@layer components {
+  .compactPalette, .compactInspector {
+    scrollbar-width: thin;
+    border: 0;
+  }
+
+  .compactPalette .paletteGroup {
+    min-width: 0;
+    padding: 6px 8px 8px;
+  }
+
+  .compactPalette .paletteGroup h2 { margin-bottom: 4px; }
+
+  .compactPalette .paletteDisclosure {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    min-height: 22px;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-align: start;
+    text-transform: uppercase;
+    padding: 2px 0;
+  }
+
+  .compactPalette .paletteButtons {
+    max-width: 154px;
+    gap: 3px;
+  }
+
+  .compactPalette .paletteCommandCount { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+
+  .compactPalette .paletteButtons button {
+    min-height: 31px;
+    border-radius: 3px;
+    font-size: 13px;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .compactPalette .paletteButtons button[aria-pressed="true"],
+  .compactInspector button[aria-pressed="true"],
+  .globalTrackRow button[aria-pressed="true"] {
+    background: var(--surface-mode-active);
+    border-color: var(--accent-blue);
+    color: var(--text-accent);
+  }
+
+  .inspectorTabs {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding-inline: 6px;
+    gap: 4px;
+    background: var(--surface-panel);
+    border-bottom: 1px solid var(--border-panel);
+  }
+
+  .inspectorTabs button {
+    min-height: 28px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+  }
+
+  .inspectorTabs button[aria-selected="true"] {
+    color: var(--text-accent);
+    box-shadow: inset 0 -2px 0 var(--accent);
+    background: var(--surface-panel-raised);
+  }
+
+  .compactInspector section { padding: 9px; }
+  .compactInspector section h2 { color: var(--text-muted); margin-bottom: 7px; font-size: 11px; }
+  .compactInspector section label { gap: 3px; margin-bottom: 6px; font-size: 11px; }
+  .compactInspector section input:not([type="checkbox"]), .compactInspector section select { height: 26px; }
+  .compactInspector .notationChecks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .compactInspector .notationChecks label { flex-direction: row-reverse; justify-content: start; white-space: nowrap; }
+  .compactInspector .inspectorButtonRow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .compactInspector textarea {
+    min-width: 0;
+    resize: vertical;
+    border: 1px solid var(--border-input);
+    border-radius: 4px;
+    padding: 5px;
+    background: var(--surface-input);
+    color: var(--text-default);
+    font: inherit;
+  }
+  .compactInspector .inspectorSummary { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
+  .compactInspector section > button + button { margin-left: 5px; }
+
+  .globalView.alignedGlobalView {
+    --global-row-height: 28px;
+    --global-track-width: 274px;
+    display: block;
+    min-height: 0;
+    overflow: auto;
+    scrollbar-width: thin;
+  }
+
+  .globalAlignedGrid {
+    display: grid;
+    width: max-content;
+    min-width: 100%;
+    grid-auto-rows: var(--global-row-height);
+  }
+
+  .globalPinned {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    border-right: 1px solid var(--border-panel);
+    border-bottom: 1px solid var(--border-panel);
+    background: var(--surface-panel);
+  }
+
+  .globalMasterRow, .globalTrackRow {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    padding-inline: 4px;
+  }
+
+  .globalTop, .globalMeasureLabels {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--surface-panel);
+  }
+  .globalTop { z-index: 4; }
+
+  .globalMeasureRow {
+    display: grid;
+    grid-auto-columns: 42px;
+    grid-auto-flow: column;
+    min-width: 0;
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .globalMeasureLabels .globalHeader, .globalMeasureRow .globalCell {
+    display: grid;
+    place-items: center;
+    margin: 0;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    border-right: 1px solid var(--border-grid);
+    border-bottom: 1px solid var(--border-grid);
+  }
+
+  .globalMeasureLabels small { color: var(--text-accent); font-size: 9px; line-height: 1; }
+  .globalMeasureRow .activeCell { outline: 1px solid #f6cd76; outline-offset: -2px; z-index: 1; }
+  .globalMeasureRow .selectedCell { background: color-mix(in srgb, #52a9d2 20%, var(--surface-panel)); }
+  .globalMeasureRow .playingCell { box-shadow: inset 0 -2px 0 #58bbed; }
+  .globalMeasureRow .globalCell span { height: 4px; width: 16px; border-radius: 1px; }
+
+  :is(.globalTrackRow, .globalMasterRow) button {
+    min-height: 21px;
+    height: 21px;
+    padding-inline: 4px;
+    font-size: 10px;
+  }
+  .globalTrackRow .globalTrackName {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 38px;
+    flex: 1;
+    overflow: hidden;
+  }
+  .globalTrackName strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .globalTrackSwatch { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 2px; }
+  .globalTrackRowActive .globalTrackName { border-color: var(--accent); }
+  .globalTrackFader { width: 31px; min-width: 0; margin: 0; accent-color: var(--accent); }
+  .globalMiniFader { display: flex; align-items: center; gap: 2px; padding-inline: 2px; color: var(--text-muted); font-size: 10px; }
+  .globalMiniFader input { width: 43px; min-width: 0; margin: 0; accent-color: var(--accent); }
+}

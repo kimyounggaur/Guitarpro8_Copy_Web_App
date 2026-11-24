@@ -1,3 +1,7 @@
+import { ShortcutHelp } from "../ui/overlays/ShortcutHelp";
+import { AudioTrackDock } from "../ui/audio-track/AudioTrackDock";
+import { useLayoutStore } from "../store/layoutStore";
+import { DocumentTabs } from "../ui/shell/DocumentTabs";
 import { StartScreen } from "../ui/shell/StartScreen";
 import { SpecialPasteDialog } from "../ui/overlays/SpecialPasteDialog";
 // Composition root: store subscriptions, controller composition, and the
@@ -5,8 +9,7 @@ import { SpecialPasteDialog } from "../ui/overlays/SpecialPasteDialog";
 // tool-window logic now lives in src/app/controllers/* — see
 // docs/ui-remaster/00-component-map.md for the extraction map this Phase 2
 // refactor followed.
-import { useEffect, useMemo, useRef, useState } from "react";
-import { defaultCursor } from "../engine/editing/operations";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LayoutCache } from "../engine/layout/layoutCache";
 import { layoutScore } from "../engine/layout/layoutScore";
 import { SvgRenderer } from "../engine/render/SvgRenderer";
@@ -38,17 +41,36 @@ function App() {
   const rejection = useDocumentStore((state) => state.lastRejection);
   const [recoveryDismissed, setRecoveryDismissed] = useState(false);
   const [notice, setNotice] = useState("");
-  const [editorKey, setEditorKey] = useState(0);
+  const [recoveryVersion, setRecoveryVersion] = useState(0);
+  const [homeOpen, setHomeOpen] = useState(false);
+  const restoredSessions = useRef(new Map<string, {
+    savedAt: string; snapshotRevision: number; id: string; restoredRevision: number;
+  }>());
 
   function restore(snapshot: RecoverySnapshot) {
     try {
       const loaded = readScoreFile(snapshot.payload, { documentId: snapshot.documentId });
-      useDocumentStore.getState().loadScore(loaded.score, { documentId: loaded.documentId, recovered: true, view: loaded.view });
-      const view = useViewStore.getState();
-      view.setSelection(null);
-      view.setCursor(defaultCursor(loaded.score));
+      const store = useDocumentStore.getState();
+      const previous = restoredSessions.current.get(snapshot.documentId);
+      if (previous?.savedAt === snapshot.savedAt && previous.snapshotRevision === snapshot.revision &&
+          store.getSession(previous.id)?.revision === previous.restoredRevision) {
+        store.selectDocument(previous.id);
+      } else {
+        // A disk tab or an edited recovery can share the snapshot's ID.
+        // Restore an independent working copy when that session already exists.
+        store.loadScore(loaded.score, {
+          documentId: store.getSession(loaded.documentId) ? undefined : loaded.documentId,
+          recovered: true, view: loaded.view, mode: "tab"
+        });
+        const restored = useDocumentStore.getState();
+        restoredSessions.current.set(snapshot.documentId, {
+          savedAt: snapshot.savedAt, snapshotRevision: snapshot.revision,
+          id: restored.activeId, restoredRevision: restored.revision
+        });
+      }
+      setHomeOpen(false);
       setRecoveryDismissed(true);
-      setEditorKey((key) => key + 1);
+      setRecoveryVersion(version => version + 1);
       setNotice(loaded.warnings.join(" "));
     } catch (error) {
       setRecoveryDismissed(true);
@@ -85,11 +107,11 @@ function App() {
   return (
     <>
       <AppErrorBoundary
-        key={editorKey}
+        recoveryVersion={recoveryVersion}
         onUndo={() => useDocumentStore.getState().undo()}
         onRecover={openRecovery}
       >
-        <EditorApp startupReady={startupReady} onRecentFiles={openRecovery} />
+        <EditorApp startupReady={startupReady} onRecentFiles={openRecovery} homeOpen={homeOpen} setHomeOpen={setHomeOpen} />
       </AppErrorBoundary>
       {recoveryOpen && snapshots && (
         <RecoveryDialog
@@ -110,11 +132,15 @@ function App() {
   );
 }
 
-function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onRecentFiles: () => void }) {
+function EditorApp({ startupReady, onRecentFiles, homeOpen, setHomeOpen }: {
+  startupReady: boolean; onRecentFiles: () => void; homeOpen: boolean; setHomeOpen: (open: boolean) => void;
+}) {
   const score = useDocumentStore((state) => state.score);
   const dirty = useDocumentStore((state) => state.dirty);
   const documents = useDocumentStore((state) => state.documents);
   const activeId = useDocumentStore((state) => state.activeId);
+  const scoreViewportRef = useRef<HTMLDivElement>(null);
+  const documentScroll = useRef(new Map<string, { left: number; top: number }>());
   const undoCount = useDocumentStore((state) => state.undoStack.length);
   const redoCount = useDocumentStore((state) => state.redoStack.length);
   const loadScore = useDocumentStore((state) => state.loadScore);
@@ -136,8 +162,13 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
   const trackVisibility = useViewStore((state) => state.trackVisibility);
   const trackControls = usePlaybackStore((state) => state.trackControls);
   const focusPreview = usePlaybackStore((state) => state.focusPreview);
-  const mixer = useMemo(() => createMixerState(score, trackVisibility, trackControls, focusPreview),
-    [score, trackVisibility, trackControls, focusPreview]);
+  const masterVolumePreview = usePlaybackStore((state) => state.masterVolumePreview);
+  const audioDockOpen = useLayoutStore((state) => state.audioVisible);
+  const toggleAudioDock = useLayoutStore((state) => state.toggleAudio);
+  const mixer = useMemo(() => {
+    const base = createMixerState(score, trackVisibility, trackControls, focusPreview);
+    return masterVolumePreview === null ? base : { ...base, master: { ...base.master, volume: masterVolumePreview } };
+  }, [score, trackVisibility, trackControls, focusPreview, masterVolumePreview]);
   const setPlaybackStatus = usePlaybackStore((state) => state.setStatus);
   const setPlaybackPosition = usePlaybackStore((state) => state.setPosition);
   const togglePlaybackLoop = usePlaybackStore((state) => state.toggleLoop);
@@ -193,6 +224,20 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     setActiveTrackPanel: toolWindow.setActiveTrackPanel
   });
 
+  function beforeDocumentSwitch(): void {
+    playback.stopPlayback();
+    editor.editorContext.endFretInput();
+    const viewport = scoreViewportRef.current;
+    if (viewport && !homeOpen) documentScroll.current.set(useDocumentStore.getState().activeId, {
+      left: viewport.scrollLeft, top: viewport.scrollTop
+    });
+  }
+
+  function openHome(): void {
+    beforeDocumentSwitch();
+    setHomeOpen(true);
+  }
+
   const file = useFileController({
     score,
     activeTrackId: cursor.trackId,
@@ -200,7 +245,9 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     setSelection,
     setCursor,
     openFileIoPanel: toolWindow.openFileIoPanel,
-    closeFileIoPanel: toolWindow.closeFileIoPanel
+    closeFileIoPanel: toolWindow.closeFileIoPanel,
+    beforeDocumentSwitch,
+    onDocumentOpened: () => setHomeOpen(false)
   });
 
   const openDemo = file.openDemo;
@@ -238,11 +285,41 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     setActiveTrackPanel: toolWindow.setActiveTrackPanel,
     openStylesheetPanel: toolWindow.openStylesheetPanel,
     openFileIoPanel: toolWindow.openFileIoPanel,
+    openShortcutHelp: toolWindow.openShortcutHelp,
     openCommandPalette: toolWindow.openCommandPalette,
     togglePanel
   });
 
+  function cycleDocument(direction: number): boolean {
+    const tabs = useDocumentStore.getState().documents;
+    if (tabs.length < 2) return false;
+    const current = tabs.findIndex(({ id }) => id === useDocumentStore.getState().activeId);
+    file.handleSelectDocument(tabs[(current + tabs.length + direction) % tabs.length].id);
+    return true;
+  }
+
+  async function closeDocuments(ids: string[]): Promise<void> {
+    let changed = false;
+    for (const id of ids) {
+      if (!await file.handleCloseDocument(id)) break;
+      changed = true;
+      documentScroll.current.delete(id);
+    }
+    if (changed) requestAnimationFrame(() => {
+      const viewport = scoreViewportRef.current;
+      if (viewport && !homeOpen) viewport.focus({ preventScroll: true });
+      else document.querySelector<HTMLButtonElement>(".tabScoreHomeActions button")?.focus();
+    });
+  }
+
   useGlobalShortcuts({
+    "file.close": () => {
+      const id = useDocumentStore.getState().activeId;
+      if (!useDocumentStore.getState().getSession(id)) return false;
+      void closeDocuments([id]);
+    },
+    "tabs.next": () => cycleDocument(1),
+    "tabs.previous": () => cycleDocument(-1),
     "file.new": file.handleNewFile,
     "file.open": file.handleOpenNativeFile,
     "file.save": file.handleSaveNativeFile,
@@ -253,7 +330,7 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     "playback.toggle": () => editor.editorContext.togglePlayback(false),
     "view.closeOverlays": () => {
       if (!toolWindow.anyOverlayOpen) return false;
-      toolWindow.closeAllOverlays();
+      toolWindow.closeTopOverlay();
     },
     "panels.palette": () => togglePanel("palette"),
     "panels.songInspector": () => togglePanel("songInspector"),
@@ -262,8 +339,8 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     "panels.automation": () => togglePanel("automationView"),
     "view.stylesheet": toolWindow.toggleStylesheetPanel,
     "view.multitrack": editor.handleToggleMultiTrackView,
-    "view.zoomIn": () => editor.handleZoomChange(useViewStore.getState().zoom + 10),
-    "view.zoomOut": () => editor.handleZoomChange(useViewStore.getState().zoom - 10),
+    "view.zoomIn": () => editor.handleZoomChange(useViewStore.getState().zoom + 5),
+    "view.zoomOut": () => editor.handleZoomChange(useViewStore.getState().zoom - 5),
     "track.add": () => toolWindow.setActiveTrackPanel("wizard"),
     "voice.toggleMulti": () => {
       editor.handleToggleMultiVoice();
@@ -292,22 +369,29 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     "tools.commandPalette": () => toolWindow.openCommandPalette(),
     "tools.actionList": () => toolWindow.openCommandPalette("@"),
     "tools.expressionText": () => toolWindow.openCommandPalette(">")
-  });
+  }, !homeOpen && score.tracks.length > 0);
 
-  const scoreViewportRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (homeOpen) return;
+    const viewport = scoreViewportRef.current;
+    if (!viewport) return;
+    const position = documentScroll.current.get(activeId);
+    viewport.scrollTo(position?.left ?? 0, position?.top ?? 0);
+  }, [activeId, homeOpen]);
+
   const followingPlayback = playbackStatus === "playing";
   useScoreFollow(
     scoreViewportRef,
     followingPlayback ? `[id^="playback-bar-${playbackBarIndex}-"]` : "#editor-cursor-primary",
     followingPlayback ? String(playbackBarIndex) : `${cursor.trackId}:${cursor.barIndex}:${cursor.voiceIndex}:${cursor.beatIndex}:${cursor.staffLine}`,
     followingPlayback ? playbackBarIndex : cursor.barIndex,
-    startupReady && score.tracks.length > 0
+    startupReady && score.tracks.length > 0 && !homeOpen
   );
   useEffect(() => {
-    if (startupReady && score.tracks.length > 0 && document.activeElement === document.body) {
+    if (startupReady && score.tracks.length > 0 && !homeOpen && document.activeElement === document.body) {
       scoreViewportRef.current?.focus({ preventScroll: true });
     }
-  }, [score.tracks.length, startupReady]);
+  }, [score.tracks.length, startupReady, homeOpen]);
 
   const isolatedTrackId = editor.multiTrackView ? null : cursor.trackId;
   const scoreForLayout = useMemo(() => {
@@ -335,8 +419,15 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
   return (
     <>
       {editor.editNotice && <aside className="autosaveUnavailable" role="status">{editor.editNotice}</aside>}
-      {score.tracks.length > 0 ? <EditorShell
+      {score.tracks.length > 0 && <div className="tabScoreEditorScreen" hidden={homeOpen}><EditorShell
+        onHomeOpen={openHome}
+        documentTabs={<DocumentTabs documents={documents} activeId={activeId}
+          onSelect={file.handleSelectDocument} onNew={() => file.handleNewFile()}
+          onClose={(ids) => void closeDocuments(ids)} onSave={(id) => void file.handleSaveDocument(id)} />}
         score={score}
+        audioDockOpen={audioDockOpen}
+        onAudioDockToggle={toggleAudioDock}
+        audioDock={<AudioTrackDock visible={audioDockOpen} compilation={playback.playbackCompilation} onSeek={playback.seek} />}
         cursor={cursor}
         dirty={dirty}
         undoCount={undoCount}
@@ -441,11 +532,17 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
             />
           </div>
         }
-      /> : <>
+      /></div>}
+      {(homeOpen || score.tracks.length === 0) && <>
         <StartScreen onCreate={file.handleNewFile} onOpen={() => void file.handleOpenNativeFile()}
-          onRecent={onRecentFiles} onDemo={() => void file.openDemo(demoScore)} />
-        {file.fileIoStatus && <p role="status">{file.fileIoStatus}</p>}
+          onRecent={onRecentFiles} onDemo={() => void file.openDemo(demoScore)}
+          hasDocuments={documents.length > 0} onReturn={() => setHomeOpen(false)}
+          onOpenRecent={(recent) => void file.handleOpenRecent(recent)}
+          onOpenLocal={(local) => void file.handleOpenLocal(local)}
+          onCreateTemplate={(template) => void file.openDemo(template)} />
+        {file.fileIoStatus && <p className="homeFileStatus" role="status">{file.fileIoStatus}</p>}
       </>}
+      {toolWindow.shortcutHelpOpen && <ShortcutHelp onClose={toolWindow.closeShortcutHelp} />}
       {file.midiImportOpen && <MidiImportDialog onChoose={file.resolveMidiImport} />}
       {file.unsavedConfirmationOpen && <UnsavedChangesDialog onChoose={file.resolveUnsavedChoice} />}
       {editor.specialPasteOpen ? (

@@ -37,3 +37,19 @@ pnpm test:e2e
 현재 재생은 브라우저에서 합성합니다. 악보 기호는 Steinberg의 Bravura 1.482와 SMuFL 글리프 이름을 사용합니다. 글꼴은 SIL Open Font License 1.1로 배포됩니다. [Bravura 릴리스](https://github.com/steinbergmedia/bravura/releases/tag/bravura-1.482) · [라이선스](public/fonts/bravura/OFL.txt)
 
 [후속 기능 목록](docs/refactoring/feature-backlog.md) · [UI 리마스터 인계](docs/refactoring/ui-remaster-handoff.md)
+
+## 데스크톱 UI
+
+Home에서 새 악보, 최근 파일, 로컬 파일과 템플릿을 열 수 있습니다. 문서 탭마다 편집 이력과 화면 상태를 보관합니다. 좌우 패널과 하단 도크는 끌거나 키보드 화살표로 조절하며 크기를 복원합니다.
+
+F2는 기호 팔레트, F5/F6은 SONG/TRACK, F8은 Global View, F10은 자동화를 엽니다. Ctrl/Cmd+E로 명령 검색, Ctrl+Tab과 Ctrl+Shift+Tab으로 문서를 이동합니다. Help 메뉴에서 플랫폼별 단축키를 검색할 수 있습니다. Ctrl/Cmd+마우스 휠은 악보 줌을 조절합니다.
+
+오디오 도크는 로컬 녹음의 파형·탐색·미리듣기를 제공합니다. 파일 참조를 저장하므로 악보를 다시 열면 녹음을 재연결해야 합니다.
+
+```sh
+pnpm test:visual
+pnpm test:audio
+pnpm test:perf
+```
+
+[UI 검증 기록](docs/ui-remaster/19-final-parity-report.md) · [브라우저·기능 제약](docs/ui-remaster/19-intentional-differences.md) · [성능](docs/ui-remaster/18-performance.md)

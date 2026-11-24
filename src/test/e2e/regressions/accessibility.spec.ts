@@ -38,7 +38,7 @@ test("[C9] the unsaved dialog confines keyboard focus and restores the opener", 
   const viewport = page.getByRole("application", { name: "Editable score" });
   await focusScore(page);
   await page.keyboard.press("4");
-  await page.keyboard.press("Control+n");
+  await page.keyboard.press("Control+w");
   const dialog = page.getByRole("dialog", { name: "Unsaved changes" });
   await expect(dialog).toBeVisible();
   await verifyCriticalAccessibility(page);

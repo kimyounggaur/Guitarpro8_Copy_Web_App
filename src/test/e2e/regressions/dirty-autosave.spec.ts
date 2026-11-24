@@ -2,14 +2,14 @@ import { expect } from "@playwright/test";
 import { focusScore, openApp, state, test } from "../helpers";
 import { guitarWithBars } from "./scoreFixtures";
 
-test("[A10] starting a new score asks before discarding an unsaved edit", async ({ page }) => {
+test("[A10] closing a dirty score asks before discarding an unsaved edit", async ({ page }) => {
   const score = guitarWithBars([[5]]);
   await openApp(page, { fixture: score });
   await focusScore(page);
 
   await page.keyboard.press("x");
   await expect.poll(async () => (await state(page)).score.tracks[0].bars[0].voices[0].beats[0].notes[0].deadNote).toBe(true);
-  await page.keyboard.press("Control+n");
+  await page.keyboard.press("Control+w");
 
   const dialog = page.getByRole("dialog", { name: "Unsaved changes" });
   await expect(dialog).toBeVisible();
@@ -63,7 +63,7 @@ test("[A10] a fresh page offers to recover the edited score from IndexedDB", asy
 
   await expect.poll(() => page.evaluate(async () => {
     return await new Promise<number>((resolve, reject) => {
-      const database = indexedDB.open("tabscore-recovery", 1);
+      const database = indexedDB.open("tabscore-recovery");
       database.onerror = () => reject(database.error);
       database.onsuccess = () => {
         const db = database.result;
@@ -97,7 +97,7 @@ test("[A10] cancelling the save picker keeps the current edit when choosing Save
   await expect.poll(async () => (await state(page)).score.tracks[0].bars[0].voices[0].beats[0].notes[0].deadNote).toBe(true);
   const previous = await state(page);
 
-  await page.keyboard.press("Control+n");
+  await page.keyboard.press("Control+w");
   const dialog = page.getByRole("dialog", { name: "Unsaved changes" });
   await dialog.getByRole("button", { name: "Save and continue" }).click();
   await expect(dialog).toBeHidden();

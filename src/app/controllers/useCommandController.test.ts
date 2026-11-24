@@ -50,6 +50,7 @@ function createDeps(overrides: Partial<CommandControllerDeps> = {}): CommandCont
     setActiveTrackPanel: vi.fn(),
     openStylesheetPanel: vi.fn(),
     openFileIoPanel: vi.fn(),
+    openShortcutHelp: vi.fn(),
     openCommandPalette: vi.fn(),
     togglePanel: vi.fn(),
     ...overrides
@@ -76,12 +77,12 @@ describe("runAppAction (command controller app-action routing)", () => {
     expect(result).toEqual({ handled: true, message: "Multi-voice" });
   });
 
-  it("routes view.zoomIn to handleZoomChange with the view's current zoom plus 10", () => {
+  it("routes view.zoomIn to handleZoomChange with the view's current zoom plus 5", () => {
     const deps = createDeps();
 
     runAppAction(deps, "view.zoomIn");
 
-    expect(deps.handleZoomChange).toHaveBeenCalledWith(useViewStore.getState().zoom + 10);
+    expect(deps.handleZoomChange).toHaveBeenCalledWith(useViewStore.getState().zoom + 5);
   });
 
   it("routes track.delete to handleTrackDelete only when the cursor has an active track", () => {

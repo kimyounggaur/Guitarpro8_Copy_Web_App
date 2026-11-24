@@ -2,6 +2,7 @@ import { Component, type ReactNode } from "react";
 
 interface AppErrorBoundaryProps {
   children: ReactNode;
+  recoveryVersion?: number;
   onUndo: () => void;
   onRecover: () => void;
   version?: string;
@@ -13,6 +14,12 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, { error: 
 
   static getDerivedStateFromError(error: Error) {
     return { error, copied: false };
+  }
+
+  componentDidUpdate(previous: AppErrorBoundaryProps) {
+    if (this.state.error && this.props.recoveryVersion !== previous.recoveryVersion) {
+      this.setState({ error: null, copied: false });
+    }
   }
 
   async copyError() {
