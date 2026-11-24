@@ -20,7 +20,10 @@ test("[B17] copying a three-measure range pastes all three measures", async ({ p
 test("[B17] special paste inserts repetitions and keeps the original destination", async ({ page }) => {
   await openApp(page, { fixture: guitarWithBars([[5], [7], [8]]) });
   await focusScore(page);
-  await typeKeys(page, "Control+c Control+ArrowRight Control+Shift+v");
+  await typeKeys(page, "Control+c Control+ArrowRight");
+  await expect.poll(async () => (await state(page)).cursor.barIndex).toBe(1);
+  await focusScore(page);
+  await page.keyboard.press("Control+Shift+v");
 
   const dialog = page.getByRole("dialog", { name: "Special paste" });
   await expect(dialog).toBeVisible();
@@ -35,6 +38,7 @@ test("[B17] special paste inserts repetitions and keeps the original destination
 test("[B17] dragging between notes extends the score selection without inserting a note", async ({ page }) => {
   await openApp(page, { fixture: guitarWithBars([[5], [7], [8]]) });
   const notes = page.locator('[data-hit-kind="note"][id$="-tab"]');
+  await notes.nth(1).scrollIntoViewIfNeeded();
   const first = await notes.nth(0).boundingBox();
   const second = await notes.nth(1).boundingBox();
   expect(first).not.toBeNull();
