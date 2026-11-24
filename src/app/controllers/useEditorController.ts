@@ -180,8 +180,10 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     setActiveTrackPanel
   } = params;
 
-  const [multiVoiceEdit, setMultiVoiceEdit] = useState(false);
-  const [multiTrackView, setMultiTrackView] = useState(true);
+  const multiVoiceEdit = useViewStore((state) => state.multiVoiceEdit);
+  const multiTrackView = useViewStore((state) => state.multiTrackView);
+  const setMultiVoiceEdit = useViewStore((state) => state.setMultiVoiceEdit);
+  const setMultiTrackView = useViewStore((state) => state.setMultiTrackView);
   const [editNotice, setEditNotice] = useState("");
   const fretEntry = useRef<FretEntry | null>(null);
   const clipboardRef = useRef<ClipboardPayload | null>(null);

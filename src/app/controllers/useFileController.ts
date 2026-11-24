@@ -267,8 +267,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
         return handle ? await loadFileIntoScore(await handle.getFile(), handle) : false;
       } catch (error) {
         if (!isAbortError(error)) {
-          setFileIoStatus("File access was unavailable. Choose a file using the browser picker.");
-          requestFileLoad({ kind: "native" });
+          requestFileLoad({ kind: "native" }, "File access was unavailable. Choose a file using the browser picker.");
         }
         return false;
       }
@@ -428,9 +427,9 @@ export function useFileController(params: UseFileControllerParams): FileControll
     }
   }
 
-  function requestFileLoad(pending: PendingFileLoad): void {
+  function requestFileLoad(pending: PendingFileLoad, status = `Choose a ${pendingFileLabel(pending)} file.`): void {
     pendingFileLoadRef.current = pending;
-    setFileIoStatus(`Choose a ${pendingFileLabel(pending)} file.`);
+    setFileIoStatus(status);
 
     if (!fileInputRef.current) {
       setFileIoStatus("The browser file input is not ready yet.");

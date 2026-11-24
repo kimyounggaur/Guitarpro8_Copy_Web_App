@@ -10,21 +10,39 @@
   height: 26px;
   border-bottom: 1px solid var(--gp-border, #414f64);
 }
-.tabScoreDocumentList {
-  display: flex;
-  align-items: stretch;
-  overflow: auto hidden;
+.tabScoreDocumentScroll {
+  --document-tab-width: 150px;
+  --document-close-width: 24px;
+  position: relative;
   min-width: 0;
+  overflow: auto hidden;
   scrollbar-width: thin;
 }
-.tabScoreDocumentList > div { flex: 0 0 auto; display: flex; align-items: center; border-right: 1px solid #526176; }
+.tabScoreDocumentList, .documentCloseActions { display: flex; align-items: stretch; width: max-content; }
 .tabScoreDocumentStrip button { height: 24px; min-width: 24px; border-radius: 2px; }
-.tabScoreDocumentList [role="tab"] { display: flex; align-items: center; gap: 6px; padding: 0 8px; }
-.tabScoreDocumentList .activeDocument, .tabScoreDocumentList .activeDocument button { background: #435b77; color: #f1f6ff; }
+.tabScoreDocumentList [role="tab"] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: var(--document-tab-width);
+  padding: 0 calc(var(--document-close-width) + 4px) 0 8px;
+  border-right: 1px solid #526176;
+}
+.tabScoreDocumentList [aria-selected="true"], .closeDocument[data-active="true"] {
+  background: #435b77;
+  color: #f1f6ff;
+}
 .documentDirtyDot { color: #f9ce7d; font-size: 9px; }
-.documentTitle { max-width: 180px; min-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-.closeDocument { opacity: .56; }
-.activeDocument .closeDocument, .tabScoreDocumentList > div:hover .closeDocument, .closeDocument:focus-visible { opacity: 1; }
+.documentTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.documentCloseActions { position: absolute; inset: 0 auto auto 0; pointer-events: none; }
+.documentCloseActions > div {
+  display: flex;
+  width: var(--document-tab-width);
+  justify-content: flex-end;
+  padding-inline-end: 1px;
+}
+.closeDocument { width: var(--document-close-width); opacity: .56; pointer-events: auto; }
+.closeDocument[data-active="true"], .closeDocument:hover, .closeDocument:focus-visible { opacity: 1; }
 .createDocument { margin-inline-start: 3px; }
 .documentContextMenu {
   position: absolute;

@@ -203,8 +203,9 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
 
   function beforeDocumentSwitch(): void {
     playback.stopPlayback();
+    editor.editorContext.endFretInput();
     const viewport = scoreViewportRef.current;
-    if (viewport) documentScroll.current.set(useDocumentStore.getState().activeId, {
+    if (viewport && !homeOpen) documentScroll.current.set(useDocumentStore.getState().activeId, {
       left: viewport.scrollLeft, top: viewport.scrollTop
     });
   }
@@ -345,7 +346,7 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     "tools.commandPalette": () => toolWindow.openCommandPalette(),
     "tools.actionList": () => toolWindow.openCommandPalette("@"),
     "tools.expressionText": () => toolWindow.openCommandPalette(">")
-  });
+  }, !homeOpen && score.tracks.length > 0);
 
   useLayoutEffect(() => {
     if (homeOpen) return;

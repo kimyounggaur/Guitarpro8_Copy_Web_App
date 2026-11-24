@@ -108,10 +108,89 @@ test("Home searches, pins, previews and clears recent file entries", async ({ pa
   })).toBe(1);
   await page.getByRole("button", { name: "Home", exact: true }).click();
   await page.getByRole("searchbox", { name: "Search scores" }).fill("studio");
-  await expect(page.getByRole("region", { name: "Score preview" }).getByText("Evening étude")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Score preview" }).getByRole("heading", { name: "Evening étude" })).toBeVisible();
   await page.getByRole("button", { name: "Pin Evening étude" }).click();
   await expect(page.getByRole("button", { name: "Unpin Evening étude" })).toBeVisible();
   await expect(page.locator(".homeThumbnail svg")).toHaveCount(1);
   await page.getByRole("button", { name: "Clear recent files" }).click();
   await expect(page.getByRole("button", { name: "Unpin Evening étude" })).toHaveCount(0);
 });
+
+test("Home falls back to individual file selection when folder permission is denied", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, "showDirectoryPicker", {
+    value: async () => { throw new DOMException("Directory access denied", "NotAllowedError"); }
+  }));
+  await page.goto("/");
+  await page.getByRole("button", { name: /Local/ }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Choose local files" }).click();
+  await (await chooser).setFiles({
+    name: "guitar-study.txt", mimeType: "text/plain",
+    buffer: Buffer.from("e|--0--2--4--7--|\nB|--------------|\nG|--------------|\nD|--------------|\nA|--------------|\nE|--------------|")
+  });
+  await expect(page.getByRole("status").filter({ hasText: "Folder access" })).toHaveText("Folder access was unavailable. Choose local files instead.");
+  await expect(page.getByRole("button", { name: /guitar-study.txt/ })).toBeVisible();
+  await page.getByRole("button", { name: "Open selected score" }).click();
+  await expect(page.getByTestId("gp-shell")).toBeVisible();
+});
+
+test("background dirty drafts remain recoverable after reloading the page", async ({ page }) => {
+  const fixture = guitarWithBars([[3]]);
+  fixture.meta.title = "Background draft";
+  await openApp(page, { fixture });
+  await focusScore(page);
+  await page.keyboard.press("7");
+  await page.getByTestId("tab-add").click();
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide")));
+  await expect.poll(() => page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("tabscore-recovery");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return await new Promise<number>((resolve, reject) => {
+      const request = db.transaction("snapshots").objectStore("snapshots").count();
+      request.onsuccess = () => { db.close(); resolve(request.result); };
+      request.onerror = () => { db.close(); reject(request.error); };
+    });
+  })).toBe(1);
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.reload();
+  const recover = page.getByRole("dialog", { name: "Recover unsaved work" });
+  await expect(recover.getByText("Background draft")).toBeVisible();
+  await recover.getByRole("button", { name: "Recover", exact: true }).click();
+  expect(await firstFret(page)).toBe(7);
+  await expect(page.getByRole("tab")).toHaveCount(1);
+});
+
+test("overflowing tabs scroll in their own strip and keep the new tab button available", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await openApp(page);
+  const tabBar = page.getByTestId("tab-bar");
+  const add = tabBar.getByTestId("tab-add");
+  for (let count = 0; count < 12; count++) await add.click();
+  const tabs = tabBar.getByRole("tab");
+  await expect(tabs).toHaveCount(13);
+  const list = tabBar.locator(".tabScoreDocumentScroll");
+  expect(await list.evaluate((element) => element.scrollWidth)).toBeGreaterThan(await list.evaluate((element) => element.clientWidth));
+  await expect(add).toBeInViewport();
+  await expect(tabs.last()).toBeInViewport();
+  await testInfo.attach("document-tabs-overflow", { body: await tabBar.screenshot(), contentType: "image/png" });
+});
+
+for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
+  test(`Home keeps the list and preview within the ${width}×${height} viewport`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/");
+    await page.getByRole("button", { name: /Examples/ }).click();
+    const list = page.getByRole("region", { name: "Examples scores" });
+    const preview = page.getByRole("region", { name: "Score preview" });
+    await expect(list).toBeInViewport();
+    await expect(preview.locator("svg")).toBeVisible();
+    const listBounds = await list.boundingBox();
+    const previewBounds = await preview.boundingBox();
+    expect(listBounds!.x + listBounds!.width).toBeLessThan(previewBounds!.x);
+    expect(previewBounds!.x + previewBounds!.width).toBeLessThanOrEqual(width);
+    await testInfo.attach(`home-${width}x${height}`, { body: await page.screenshot(), contentType: "image/png" });
+  });
+}

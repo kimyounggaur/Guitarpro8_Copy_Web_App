@@ -5,7 +5,10 @@ import { commandIdForKeyEvent } from "../../commands/keymap";
 
 export type GlobalShortcutId = ApplicationShortcutId | "history.undo" | "history.redo" | "playback.toggle";
 
-export function useGlobalShortcuts(actions: Record<GlobalShortcutId, () => unknown>): void {
+export function useGlobalShortcuts(
+  actions: Record<GlobalShortcutId, () => unknown>,
+  editorVisible = true
+): void {
   useEffect(() => {
     function handleGlobalShortcut(event: KeyboardEvent): void {
       if (event.defaultPrevented || document.querySelector(".fileDecisionDialog[open]")) {
@@ -40,6 +43,8 @@ export function useGlobalShortcuts(actions: Record<GlobalShortcutId, () => unkno
         return;
       }
 
+      if (!editorVisible && !id.startsWith("file.") && !id.startsWith("tabs.") && id !== "view.closeOverlays") return;
+
       if (id === "playback.toggle" && target?.closest("button, a, [role=button]")) {
         return; // Preserve native keyboard activation of the focused control.
       }
@@ -51,7 +56,7 @@ export function useGlobalShortcuts(actions: Record<GlobalShortcutId, () => unkno
 
     window.addEventListener("keydown", handleGlobalShortcut, { capture: true });
     return () => window.removeEventListener("keydown", handleGlobalShortcut, { capture: true });
-  }, [actions]);
+  }, [actions, editorVisible]);
 }
 
 function isGlobalAction(

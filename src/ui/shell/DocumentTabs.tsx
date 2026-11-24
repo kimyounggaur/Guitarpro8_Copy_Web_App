@@ -56,28 +56,34 @@ export function DocumentTabs({ documents, activeId, onSelect, onNew, onClose, on
   }
 
   return <div className="tabScoreDocumentStrip" data-testid="tab-bar" ref={root}>
-    <div className="tabScoreDocumentList" role="tablist" aria-label="Open documents">
-      {documents.map((document, index) => (
-        <div className={document.id === activeId ? "activeDocument" : ""} key={document.id}
-          onContextMenu={(event) => { event.preventDefault(); setContextId(document.id); }}
-          onAuxClick={(event) => {
-            if (event.button === 1) { event.preventDefault(); onClose([document.id]); }
-          }}>
+    <div className="tabScoreDocumentScroll">
+      <div className="tabScoreDocumentList" role="tablist" aria-label="Open documents">
+        {documents.map((document, index) => (
           <button type="button" role="tab" aria-selected={document.id === activeId}
-            tabIndex={document.id === activeId ? 0 : -1} data-testid="document-tab"
+            key={document.id} tabIndex={document.id === activeId ? 0 : -1} data-testid="document-tab"
             ref={(element) => {
               if (element) items.current.set(document.id, element);
               else items.current.delete(document.id);
             }}
-            title={document.title} onKeyDown={(event) => keyDown(event, index)} onClick={() => onSelect(document.id)}>
+            title={document.title} onKeyDown={(event) => keyDown(event, index)} onClick={() => onSelect(document.id)}
+            onContextMenu={(event) => { event.preventDefault(); setContextId(document.id); }}
+            onAuxClick={(event) => {
+              if (event.button === 1) { event.preventDefault(); onClose([document.id]); }
+            }}>
             {document.dirty && <span className="documentDirtyDot" aria-label="Unsaved changes">●</span>}
             {document.locked && <span role="img" aria-label="Read-only">🔒</span>}
             <span className="documentTitle">{document.title}</span>
           </button>
+        ))}
+      </div>
+      <div className="documentCloseActions">
+        {documents.map((document) => <div key={document.id}>
           <button type="button" className="closeDocument" aria-label={`Close ${document.title}`}
+            onContextMenu={(event) => { event.preventDefault(); setContextId(document.id); }}
+            tabIndex={document.id === activeId ? 0 : -1} data-active={document.id === activeId}
             title={`Close ${document.title}`} onClick={() => onClose([document.id])}>×</button>
-        </div>
-      ))}
+        </div>)}
+      </div>
     </div>
     <button type="button" className="createDocument" aria-label="New document tab" data-testid="tab-add"
       title="New document tab" onClick={onNew}>+</button>
