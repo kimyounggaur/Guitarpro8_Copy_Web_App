@@ -6,7 +6,7 @@ import v1Demo from "../test/fixtures/files/v1-demo.json";
 import { NATIVE_SCORE_FORMAT, serializeNativeScore } from "./nativeScore";
 
 describe("TabScore native files", () => {
-  it("round-trips the demo and a stable document ID through a compact v4 envelope", () => {
+  it("round-trips the demo and a stable document ID through a compact v5 envelope", () => {
     const score = createDemoScore();
     const saveTime = new Date("2026-11-23T03:00:00.000Z");
     const payload = writeScoreFile(score, "doc_fixture", saveTime);
@@ -15,6 +15,26 @@ describe("TabScore native files", () => {
     expect(payload).not.toContain("\n");
     expect(JSON.parse(payload)).toMatchObject({ format: APP_FILE_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION });
     expect(migrated).toEqual({ score, documentId: "doc_fixture", savedAt: saveTime.toISOString(), warnings: [] });
+  });
+
+  it("[A8][B5] migrates v4 volume units and round-trips the score's selected mix", () => {
+    const score = createEmptyScore();
+    const guitar = createTrack();
+    score.tracks = [guitar];
+    guitar.automations = [{ type: "volume", scope: "track", points: [
+      { tick: 0, value: 1.2, transition: "constant" },
+      { tick: 480, value: 75, transition: "progressive" }
+    ] }];
+    const legacy = { ...score, masterBars: [{ ...score.masterBars[0], tripletFeel: "8th swing" }] };
+    const read = readScoreFile(JSON.stringify({
+      format: APP_FILE_FORMAT, schemaVersion: 4, documentId: "doc_mix", app: { name: "TabScore", version: "0.0.0" }, score: legacy
+    }));
+    expect(read.score.masterBars[0].tripletFeel).toBe("8th");
+    expect(read.score.tracks[0].automations[0].points.map(({ value }) => value)).toEqual([1, 0.75]);
+    read.score.tracks[0].mix.volume = 0.42;
+    read.score.tracks[0].mix.mute = true;
+    read.score.masterMix.focusPercent = 70;
+    expect(readScoreFile(writeScoreFile(read.score, read.documentId)).score).toEqual(read.score);
   });
 
   it("opens the original v1 demo fixture with its existing IDs", () => {

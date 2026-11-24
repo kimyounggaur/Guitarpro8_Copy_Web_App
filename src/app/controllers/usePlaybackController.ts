@@ -3,15 +3,23 @@
 //
 // Extracted from src/App.tsx (see docs/ui-remaster/00-component-map.md §1,
 // rows App.tsx:159-165 and App.tsx:1377-1421) as part of Phase 2's
-// structural-only refactor. Behavior is unchanged from the original.
+// structural-only refactor.
 import { useEffect, useMemo, useRef } from "react";
+import { beatTickForCursor } from "../../engine/editing/operations";
+import { metronomeClicks, countInAt } from "../../engine/audio/metronome";
+import { setMeasureTempo, writtenBarStarts, writtenTempoMap } from "../../engine/audio/tempoMap";
+import { useDocumentStore } from "../../store/documentStore";
+import { useViewStore } from "../../store/viewStore";
 import { compilePlayback, type NoteEvent, type PlaybackCompilation } from "../../engine/audio/compile";
 import { PlaybackScheduler } from "../../engine/audio/scheduler";
-import type { MixerState } from "../../engine/audio/mixer";
+import { getPlaybackLoop } from "../../engine/audio/playbackLoop";
+import { PlaybackTransport } from "../../engine/audio/transport";
+import { createMixerState, type MixerState } from "../../engine/audio/mixer";
+import { compileMixerAutomation } from "../../engine/audio/mixerAutomation";
 import { unrollScore } from "../../engine/unroll/unrollScore";
 import type { CursorPosition, SelectionRange } from "../../engine/editing/types";
 import type { Score } from "../../model/types";
-import type { PlaybackStatus } from "../../store/playbackStore";
+import { usePlaybackStore, type PlaybackStatus } from "../../store/playbackStore";
 
 export interface UsePlaybackControllerParams {
   score: Score;
@@ -28,6 +36,8 @@ export interface UsePlaybackControllerParams {
 
 export interface PlaybackController {
   playbackCompilation: PlaybackCompilation;
+  currentTempo: number;
+  changeTempo: (bpm: number) => void;
   startPlayback: (startSec: number) => Promise<void>;
   stopPlayback: () => void;
   seek: (seconds: number) => void;
@@ -47,11 +57,16 @@ export function usePlaybackController(params: UsePlaybackControllerParams): Play
     setPlaybackPosition
   } = params;
 
-  const schedulerRef = useRef<PlaybackScheduler | null>(null);
+  const transportRef = useRef<PlaybackTransport | null>(null);
+  const mixerRef = useRef(mixer);
+  mixerRef.current = mixer;
 
   useEffect(() => {
-    return () => schedulerRef.current?.stop("manual");
+    return () => transportRef.current?.stop();
   }, []);
+  useEffect(() => {
+    transportRef.current?.setMixer(mixer, cursor.trackId);
+  }, [mixer, cursor.trackId]);
 
   const playbackCompilation = useMemo(
     () =>
@@ -61,101 +76,108 @@ export function usePlaybackController(params: UsePlaybackControllerParams): Play
         {
           mode: "relative",
           percent: speedPercent
-        },
-        mixer,
-        cursor.trackId
+        }
       ),
-    [score, speedPercent, mixer, cursor.trackId]
+    [score, speedPercent]
   );
 
+  const loopRange = useMemo(() =>
+    loopEnabled ? getPlaybackLoop(playbackCompilation, selection, cursor.barIndex) : null,
+    [loopEnabled, playbackCompilation, selection, cursor.barIndex]
+  );
+  useEffect(() => {
+    transportRef.current?.setLoop(loopRange);
+  }, [loopRange?.startSec, loopRange?.endSec]);
+
+  const { bpmAtTick: writtenBpmAtTick } = useMemo(() =>
+    writtenTempoMap(score, { mode: "relative", percent: speedPercent }),
+    [score, speedPercent]
+  );
+  const writtenStarts = useMemo(() => writtenBarStarts(score), [score]);
+  const playbackTempo = usePlaybackStore((state) => state.tempo);
+  const playing = usePlaybackStore((state) => state.status === "playing");
+  const currentTempo = playing ? playbackTempo
+    : writtenBpmAtTick((writtenStarts[cursor.barIndex] ?? 0) + beatTickForCursor(score, cursor));
+
   async function startPlayback(startSec: number): Promise<void> {
-    const scheduler = schedulerRef.current ?? new PlaybackScheduler();
-    schedulerRef.current = scheduler;
-    const countInSeconds = countInEnabled ? countInDurationSeconds(playbackCompilation) : 0;
-    const events = playbackEvents(playbackCompilation, {
-      metronome: metronomeEnabled,
-      countIn: countInEnabled,
-      startSec,
-      countInSeconds
+    await launchPlayback(score, playbackCompilation, startSec, countInEnabled);
+  }
+
+  async function launchPlayback(
+    playbackScore: Score,
+    compilation: PlaybackCompilation,
+    startSec: number,
+    countInEnabled: boolean
+  ): Promise<void> {
+    const transport = transportRef.current ?? new PlaybackTransport(new PlaybackScheduler(), setPlaybackStatus);
+    transportRef.current = transport;
+    const view = useViewStore.getState();
+    const loop = usePlaybackStore.getState().loopEnabled
+      ? getPlaybackLoop(compilation, view.selection, view.cursor.barIndex)
+      : null;
+    if (loop && (startSec < loop.startSec || startSec >= loop.endSec)) startSec = loop.startSec;
+
+    const countIn = countInEnabled ? countInAt(playbackScore, compilation.tempoMap, startSec) : null;
+    const events = [...compilation.events];
+    if (metronomeEnabled) {
+      for (const [index, click] of metronomeClicks(playbackScore, compilation.segments, compilation.tempoMap).entries()) {
+        events.push(clickEvent(`metronome-${index}`, click.timeSec, click.downbeat));
+      }
+    }
+    const countInEvents = (countIn?.clicks ?? []).map((click, index) =>
+      clickEvent(`count-in-${index}`, click.timeSec, click.downbeat));
+    await transport.play(compilation.tempoMap.secondsToTicks(startSec), {
+      countInSeconds: countIn?.duration ?? 0,
+      totalSeconds: compilation.totalSeconds,
+      ticksToSeconds: compilation.tempoMap.ticksToSeconds,
+      events,
+      countInEvents,
+      loop,
+      mixer: mixerRef.current.tracks[playbackScore.tracks[0]?.id] ? mixerRef.current : createMixerState(playbackScore),
+      focusedTrackId: useViewStore.getState().cursor.trackId,
+      mixerAutomation: compileMixerAutomation(playbackScore, compilation),
+      onPosition: (timeSec) => {
+        const position = compilation.positionAtSecond(timeSec);
+        usePlaybackStore.getState().setTempo(compilation.tempoMap.bpmAtTick(position.tick));
+        setPlaybackPosition({
+          barIndex: position.barIndex,
+          tick: position.tick,
+          timeSec: position.timeSec
+        });
+      },
     });
+  }
 
-    setPlaybackStatus("playing");
-
-    try {
-      await scheduler.play({
-        startSec: startSec - countInSeconds,
-        totalSeconds: playbackCompilation.totalSeconds,
-        events,
-        onPosition: ({ timeSec }) => {
-          const position = playbackCompilation.positionAtSecond(Math.max(0, timeSec));
-          setPlaybackPosition({
-            barIndex: position.barIndex,
-            tick: position.tick,
-            timeSec: position.timeSec
-          });
-        },
-        onStop: (reason) => {
-          setPlaybackStatus("stopped");
-
-          if (reason === "ended" && loopEnabled) {
-            window.setTimeout(() => {
-              void startPlayback(loopStartSecond(playbackCompilation, selection, cursor.barIndex));
-            }, 0);
-          }
-        }
-      });
-    } catch {
-      setPlaybackStatus("stopped");
+  function changeTempo(bpm: number): void {
+    if (!Number.isFinite(bpm)) return;
+    const playback = usePlaybackStore.getState();
+    const cursor = useViewStore.getState().cursor;
+    const active = playback.status === "playing" || playback.status === "starting";
+    const document = useDocumentStore.getState();
+    const nextScore = document.transact("Set measure tempo", (draft) => {
+      setMeasureTempo(draft, active ? playback.currentBarIndex : cursor.barIndex, bpm);
+    });
+    if (active && nextScore !== document.score) {
+      const compilation = compilePlayback(nextScore, unrollScore(nextScore),
+        { mode: "relative", percent: playback.speedPercent });
+      const time = compilation.tempoMap.ticksToSeconds(playback.currentTick);
+      void launchPlayback(nextScore, compilation, time, false);
     }
   }
 
   function stopPlayback(): void {
-    schedulerRef.current?.stop("manual");
-    setPlaybackStatus("stopped");
-  }
-
-  function seek(seconds: number): void {
-    schedulerRef.current?.seek(seconds);
-  }
-
-  return { playbackCompilation, startPlayback, stopPlayback, seek };
-}
-
-function playbackEvents(
-  compilation: PlaybackCompilation,
-  options: { metronome: boolean; countIn: boolean; startSec: number; countInSeconds: number }
-): NoteEvent[] {
-  const events = [...compilation.events];
-
-  if (options.metronome) {
-    compilation.segments.forEach((segment) => {
-      for (let tick = segment.startTick; tick < segment.startTick + segment.durationTicks; tick += 480) {
-        events.push(
-          clickEvent(
-            `metronome-${segment.sequenceIndex}-${tick}`,
-            compilation.tempoMap.ticksToSeconds(tick),
-            tick === segment.startTick
-          )
-        );
-      }
-    });
-  }
-
-  if (options.countIn) {
-    const beatLength = options.countInSeconds / 4;
-
-    for (let beat = 0; beat < 4; beat += 1) {
-      events.push(
-        clickEvent(
-          `count-in-${beat}`,
-          options.startSec - options.countInSeconds + beat * beatLength,
-          beat === 0
-        )
-      );
+    if (transportRef.current) {
+      transportRef.current.stop();
+    } else {
+      setPlaybackStatus("stopped");
     }
   }
 
-  return events.sort((left, right) => left.timeSec - right.timeSec);
+  function seek(seconds: number): void {
+    transportRef.current?.seek(playbackCompilation.tempoMap.secondsToTicks(seconds));
+  }
+
+  return { playbackCompilation, currentTempo, changeTempo, startPlayback, stopPlayback, seek };
 }
 
 function clickEvent(id: string, timeSec: number, downbeat: boolean): NoteEvent {
@@ -200,29 +222,6 @@ function clickEvent(id: string, timeSec: number, downbeat: boolean): NoteEvent {
       attackSec: 0.002,
       releaseSec: 0.02,
       filter: "palmMute"
-    },
-    mix: {
-      muted: false,
-      gain: 0.9,
-      pan: 0,
-      eq: "bright",
-      effectChain: []
     }
   };
-}
-
-function countInDurationSeconds(compilation: PlaybackCompilation): number {
-  const bpm = compilation.tempoMap.points[0]?.bpm ?? 120;
-  return (60 / bpm) * 4;
-}
-
-function loopStartSecond(
-  compilation: PlaybackCompilation,
-  selection: SelectionRange | null,
-  fallbackBarIndex: number
-): number {
-  const barIndex = selection
-    ? Math.min(selection.anchor.barIndex, selection.head.barIndex)
-    : fallbackBarIndex;
-  return compilation.secondAtBar(barIndex);
 }

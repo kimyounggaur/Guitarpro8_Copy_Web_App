@@ -1,15 +1,12 @@
 import { create } from "zustand";
-import {
-  createDefaultMixerState,
-  syncMixerToTracks,
-  toggleEffectSlot,
-  type EffectSlotType,
-  type MixerState,
-  type TrackMixerState
-} from "../engine/audio/mixer";
-import type { Track } from "../model/types";
+import { toggleEffectSlot, type EffectSlotType, type TrackMixerState } from "../engine/audio/mixer";
+import type { TransportStatus } from "../engine/audio/transport";
+import type { TrackMix } from "../model/mix";
+import { useDocumentStore } from "./documentStore";
+import { useViewStore } from "./viewStore";
 
-export type PlaybackStatus = "stopped" | "playing" | "paused";
+export type PlaybackStatus = TransportStatus;
+export type MixerEditPhase = "preview" | "commit";
 
 interface PlaybackStore {
   status: PlaybackStatus;
@@ -21,7 +18,8 @@ interface PlaybackStore {
   metronomeEnabled: boolean;
   countInEnabled: boolean;
   speedPercent: number;
-  mixer: MixerState;
+  trackControls: Record<string, Partial<TrackMixerState>>;
+  focusPreview: number | null;
   setStatus: (status: PlaybackStatus) => void;
   setTempo: (tempo: number) => void;
   setPosition: (position: { barIndex: number; tick: number; timeSec: number }) => void;
@@ -29,9 +27,8 @@ interface PlaybackStore {
   toggleMetronome: () => void;
   toggleCountIn: () => void;
   setSpeedPercent: (speedPercent: number) => void;
-  syncMixerTracks: (tracks: Track[]) => void;
-  setTrackMixer: (trackId: string, patch: Partial<TrackMixerState>) => void;
-  setMasterFocusPercent: (focusPercent: number) => void;
+  setTrackMixer: (trackId: string, patch: Partial<TrackMixerState>, phase?: MixerEditPhase) => void;
+  setMasterFocusPercent: (focusPercent: number, phase?: MixerEditPhase) => void;
   toggleTrackEffect: (trackId: string, effect: EffectSlotType) => void;
 }
 
@@ -45,7 +42,8 @@ export const usePlaybackStore = create<PlaybackStore>((set) => ({
   metronomeEnabled: false,
   countInEnabled: false,
   speedPercent: 100,
-  mixer: createDefaultMixerState(),
+  trackControls: {},
+  focusPreview: null,
   setStatus: (status) => set({ status }),
   setTempo: (tempo) => set({ tempo }),
   setPosition: ({ barIndex, tick, timeSec }) =>
@@ -54,41 +52,57 @@ export const usePlaybackStore = create<PlaybackStore>((set) => ({
   toggleMetronome: () => set((state) => ({ metronomeEnabled: !state.metronomeEnabled })),
   toggleCountIn: () => set((state) => ({ countInEnabled: !state.countInEnabled })),
   setSpeedPercent: (speedPercent) =>
-    set({ speedPercent: Math.min(300, Math.max(10, speedPercent)) }),
-  syncMixerTracks: (tracks) => set((state) => ({ mixer: syncMixerToTracks(state.mixer, tracks) })),
-  setTrackMixer: (trackId, patch) =>
+    set({ speedPercent: clamp(speedPercent, 10, 300) }),
+  setTrackMixer: (trackId, patch, phase = "commit") => {
+    const { visible, volumeAutomationEnabled, panAutomationEnabled, effectChain, ...values } = patch;
+    if (visible !== undefined) useViewStore.getState().setTrackVisible(trackId, visible);
+    const document = useDocumentStore.getState();
+    const track = document.score.tracks.find(({ id }) => id === trackId);
+    if (!track) return;
+
+    const change: Partial<TrackMix> = { ...values };
+    if (values.volume !== undefined) change.volume = clamp(values.volume, 0, 1);
+    if (values.pan !== undefined) change.pan = clamp(values.pan, -1, 1);
+    if (effectChain !== undefined) change.effects = effectChain;
+
+    if (phase === "commit" && Object.entries(change).some(([key, value]) => track.mix[key as keyof TrackMix] !== value)) {
+      document.transact("Mix track", (score) => {
+        const draft = score.tracks.find(({ id }) => id === trackId);
+        if (draft) Object.assign(draft.mix, change);
+      });
+    }
+
     set((state) => {
-      const trackMixer = state.mixer.tracks[trackId];
-
-      if (!trackMixer) {
-        return state;
-      }
-
-      return {
-        mixer: {
-          ...state.mixer,
-          tracks: {
-            ...state.mixer.tracks,
-            [trackId]: {
-              ...trackMixer,
-              ...patch
-            }
-          }
-        }
-      };
-    }),
-  setMasterFocusPercent: (focusPercent) =>
-    set((state) => ({
-      mixer: {
-        ...state.mixer,
-        master: {
-          ...state.mixer.master,
-          focusPercent: Math.min(100, Math.max(-100, focusPercent))
-        }
-      }
-    })),
-  toggleTrackEffect: (trackId, effect) =>
-    set((state) => ({
-      mixer: toggleEffectSlot(state.mixer, trackId, effect)
-    }))
+      const controls = { ...state.trackControls[trackId] };
+      if (volumeAutomationEnabled !== undefined) controls.volumeAutomationEnabled = volumeAutomationEnabled;
+      if (panAutomationEnabled !== undefined) controls.panAutomationEnabled = panAutomationEnabled;
+      if (change.volume !== undefined) controls.volume = phase === "preview" ? change.volume : undefined;
+      if (change.pan !== undefined) controls.pan = phase === "preview" ? change.pan : undefined;
+      if (controls.volume === undefined) delete controls.volume;
+      if (controls.pan === undefined) delete controls.pan;
+      return { trackControls: { ...state.trackControls, [trackId]: controls } };
+    });
+  },
+  setMasterFocusPercent: (value, phase = "commit") => {
+    const focus = clamp(value, -100, 100);
+    if (phase === "preview") {
+      set({ focusPreview: focus });
+      return;
+    }
+    const document = useDocumentStore.getState();
+    if (document.score.masterMix.focusPercent !== focus) {
+      document.transact("Set master focus", (score) => { score.masterMix.focusPercent = focus; });
+    }
+    set({ focusPreview: null });
+  },
+  toggleTrackEffect: (trackId, effect) => {
+    useDocumentStore.getState().transact("Toggle track effect", (score) => {
+      const track = score.tracks.find(({ id }) => id === trackId);
+      if (track) track.mix.effects = toggleEffectSlot(track.mix.effects, effect);
+    });
+  }
 }));
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}

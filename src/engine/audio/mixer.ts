@@ -1,21 +1,7 @@
-import type { Automation, Score, Track } from "../../model/types";
+import { defaultMasterMix, type EffectSlot, type EffectSlotType, type EqPreset } from "../../model/mix";
+import type { Score, Track } from "../../model/types";
 
-export type EqPreset = "flat" | "bright" | "warm" | "bass";
-export type EffectSlotType =
-  | "overdrive"
-  | "chorus"
-  | "flanger"
-  | "phaser"
-  | "delay"
-  | "reverb"
-  | "wah"
-  | "compressor";
-
-export interface EffectSlot {
-  type: EffectSlotType;
-  amount: number;
-  bypassed: boolean;
-}
+export { normalizeVolume, type EffectSlot, type EffectSlotType, type EqPreset } from "../../model/mix";
 
 export interface TrackMixerState {
   visible: boolean;
@@ -29,18 +15,12 @@ export interface TrackMixerState {
   effectChain: EffectSlot[];
 }
 
-export interface MasterMixerState {
-  volume: number;
-  pan: number;
-  focusPercent: number;
-}
-
 export interface MixerState {
   tracks: Record<string, TrackMixerState>;
-  master: MasterMixerState;
+  master: { volume: number; focusPercent: number };
 }
 
-export interface NoteMix {
+export interface TrackOutput {
   muted: boolean;
   gain: number;
   pan: number;
@@ -48,199 +28,69 @@ export interface NoteMix {
   effectChain: EffectSlot[];
 }
 
+export function createMixerState(
+  score: Score,
+  visibility: Record<string, boolean> = {},
+  controls: Record<string, Partial<TrackMixerState>> = {},
+  focusPreview: number | null = null
+): MixerState {
+  return {
+    tracks: Object.fromEntries(score.tracks.map((track) => [
+      track.id,
+      { ...trackMixerState(track), ...controls[track.id], visible: visibility[track.id] ?? true }
+    ])),
+    master: {
+      ...score.masterMix,
+      focusPercent: focusPreview ?? score.masterMix.focusPercent
+    }
+  };
+}
+
 export function createDefaultMixerState(tracks: Track[] = []): MixerState {
   return {
-    tracks: Object.fromEntries(tracks.map((track) => [track.id, createDefaultTrackMixer(track)])),
-    master: {
-      volume: 1,
-      pan: 0,
-      focusPercent: 0
-    }
+    tracks: Object.fromEntries(tracks.map((track) => [track.id, trackMixerState(track)])),
+    master: defaultMasterMix()
   };
 }
 
-export function createDefaultTrackMixer(track: Track): TrackMixerState {
-  const isBass = track.name.toLowerCase().includes("bass");
+function trackMixerState(track: Track): TrackMixerState {
+  const { effects, ...mix } = track.mix;
+  return { ...mix, effectChain: effects, visible: true, volumeAutomationEnabled: true, panAutomationEnabled: true };
+}
 
+export function resolveTrackOutput(mixer: MixerState, trackId: string, focusedTrackId: string | null): TrackOutput {
+  const track = mixer.tracks[trackId];
+  if (!track) return { muted: true, gain: 0, pan: 0, eq: "flat", effectChain: [] };
+  const soloActive = Object.values(mixer.tracks).some(({ solo }) => solo);
   return {
-    visible: true,
-    mute: false,
-    solo: false,
-    volume: 0.88,
-    volumeAutomationEnabled: true,
-    pan: isBass ? -0.08 : 0.08,
-    panAutomationEnabled: true,
-    eq: isBass ? "bass" : "bright",
-    effectChain: isBass
-      ? [{ type: "compressor", amount: 0.45, bypassed: false }]
-      : [
-          { type: "overdrive", amount: 0.24, bypassed: false },
-          { type: "reverb", amount: 0.18, bypassed: false }
-        ]
+    muted: track.mute || (soloActive && !track.solo),
+    gain: track.volume * focusGain(trackId, focusedTrackId, mixer.master.focusPercent),
+    pan: track.pan,
+    eq: track.eq,
+    effectChain: track.effectChain
   };
 }
 
-export function syncMixerToTracks(mixer: MixerState, tracks: Track[]): MixerState {
-  const nextTracks: Record<string, TrackMixerState> = {};
-
-  tracks.forEach((track) => {
-    nextTracks[track.id] = mixer.tracks[track.id] ?? createDefaultTrackMixer(track);
-  });
-
-  return {
-    master: mixer.master,
-    tracks: nextTracks
-  };
+export function toggleEffectSlot(chain: EffectSlot[], type: EffectSlotType): EffectSlot[] {
+  return chain.some((slot) => slot.type === type)
+    ? chain.filter((slot) => slot.type !== type)
+    : [...chain, { type, amount: defaultEffectAmount(type), bypassed: false }].slice(0, 6);
 }
 
-export function buildNoteMix(
-  score: Score,
-  trackId: string,
-  writtenTick: number,
-  mixer: MixerState,
-  focusedTrackId: string | null
-): NoteMix {
-  if (trackId === "__metronome__") {
-    return {
-      muted: false,
-      gain: 0.9,
-      pan: 0,
-      eq: "bright",
-      effectChain: []
-    };
-  }
-
-  const track = score.tracks.find((candidate) => candidate.id === trackId);
-  const trackMixer = mixer.tracks[trackId];
-
-  if (!track || !trackMixer || !trackMixer.visible) {
-    return mutedMix(trackMixer);
-  }
-
-  const soloActive = Object.values(mixer.tracks).some((state) => state.solo);
-  const muted = trackMixer.mute || (soloActive && !trackMixer.solo);
-  const volumeAutomation = trackMixer.volumeAutomationEnabled
-    ? automationValue(track.automations, "volume", writtenTick, 1)
-    : 1;
-  const panAutomation = trackMixer.panAutomationEnabled
-    ? automationValue(track.automations, "pan", writtenTick, 0)
-    : 0;
-  const masterVolume = automationValue(score.masterAutomations, "volume", writtenTick, mixer.master.volume);
-  const masterPan = automationValue(score.masterAutomations, "pan", writtenTick, mixer.master.pan);
-  const focus = focusGain(trackId, focusedTrackId, mixer.master.focusPercent);
-
-  return {
-    muted,
-    gain: muted ? 0 : clamp(trackMixer.volume * volumeAutomation * masterVolume * focus, 0, 1.6),
-    pan: clamp(trackMixer.pan + panAutomation + masterPan, -1, 1),
-    eq: trackMixer.eq,
-    effectChain: trackMixer.effectChain.filter((slot) => !slot.bypassed)
-  };
-}
-
-export function toggleEffectSlot(
-  mixer: MixerState,
-  trackId: string,
-  type: EffectSlotType
-): MixerState {
-  const trackMixer = mixer.tracks[trackId];
-
-  if (!trackMixer) {
-    return mixer;
-  }
-
-  const existingIndex = trackMixer.effectChain.findIndex((slot) => slot.type === type);
-  const nextChain =
-    existingIndex >= 0
-      ? trackMixer.effectChain.filter((_, index) => index !== existingIndex)
-      : [...trackMixer.effectChain, { type, amount: defaultEffectAmount(type), bypassed: false }].slice(0, 6);
-
-  return {
-    ...mixer,
-    tracks: {
-      ...mixer.tracks,
-      [trackId]: {
-        ...trackMixer,
-        effectChain: nextChain
-      }
-    }
-  };
-}
-
-function mutedMix(trackMixer: TrackMixerState | undefined): NoteMix {
-  return {
-    muted: true,
-    gain: 0,
-    pan: 0,
-    eq: trackMixer?.eq ?? "flat",
-    effectChain: []
-  };
+export function faderToGain(value: number): number {
+  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)) ** 2;
 }
 
 function focusGain(trackId: string, focusedTrackId: string | null, focusPercent: number): number {
-  const amount = clamp(Math.abs(focusPercent) / 100, 0, 1);
-
-  if (!focusedTrackId || amount === 0) {
-    return 1;
-  }
-
-  if (focusPercent > 0) {
-    return trackId === focusedTrackId ? 1 : 1 - amount * 0.72;
-  }
-
-  return trackId === focusedTrackId ? 1 - amount * 0.72 : 1;
-}
-
-function automationValue(
-  automations: Automation[],
-  type: "volume" | "pan",
-  tick: number,
-  fallback: number
-): number {
-  const automation = automations.find((candidate) => candidate.type === type);
-
-  if (!automation || automation.points.length === 0) {
-    return fallback;
-  }
-
-  const points = [...automation.points].sort((left, right) => left.tick - right.tick);
-  const previous = [...points].reverse().find((point) => point.tick <= tick) ?? points[0];
-  const next = points.find((point) => point.tick > tick);
-
-  if (!next || previous.transition === "constant") {
-    return type === "volume" ? normalizeVolume(previous.value) : normalizePan(previous.value);
-  }
-
-  const range = Math.max(1, next.tick - previous.tick);
-  const progress = clamp((tick - previous.tick) / range, 0, 1);
-  const start = type === "volume" ? normalizeVolume(previous.value) : normalizePan(previous.value);
-  const end = type === "volume" ? normalizeVolume(next.value) : normalizePan(next.value);
-  return start + (end - start) * progress;
-}
-
-function normalizeVolume(value: number): number {
-  return clamp(value > 1 ? value / 100 : value, 0, 1.6);
-}
-
-function normalizePan(value: number): number {
-  return clamp(Math.abs(value) > 1 ? value / 100 : value, -1, 1);
+  const amount = Math.min(Math.abs(focusPercent) / 100, 1);
+  if (!focusedTrackId || amount === 0) return 1;
+  return (focusPercent > 0) === (trackId === focusedTrackId) ? 1 : 1 - amount * 0.72;
 }
 
 function defaultEffectAmount(type: EffectSlotType): number {
   const amounts: Record<EffectSlotType, number> = {
-    overdrive: 0.32,
-    chorus: 0.22,
-    flanger: 0.18,
-    phaser: 0.2,
-    delay: 0.22,
-    reverb: 0.18,
-    wah: 0.5,
-    compressor: 0.55
+    overdrive: 0.32, chorus: 0.22, flanger: 0.18, phaser: 0.2,
+    delay: 0.22, reverb: 0.18, wah: 0.5, compressor: 0.55
   };
-
   return amounts[type];
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }

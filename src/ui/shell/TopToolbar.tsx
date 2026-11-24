@@ -8,7 +8,7 @@ import { ToolbarOverflowMenu, type ToolbarGroup } from "./ToolbarOverflowMenu";
 type TopToolbarProps = Pick<EditorShellProps,
   | "score" | "cursor" | "platform" | "dispatchCommand" | "togglePanel"
   | "countInEnabled" | "metronomeEnabled" | "loopEnabled" | "speedPercent"
-  | "playbackStatus" | "playbackBarIndex" | "playbackTimeSec"
+  | "playbackStatus" | "playbackBarIndex" | "playbackTimeSec" | "currentTempo" | "onTempoChange"
   | "multiVoiceEdit" | "multiTrackView" | "onToggleMultiTrackView"
   | "onFileIoPanelOpen" | "onTrackPanelOpen" | "onCommandPaletteOpen"
   | "onStylesheetPanelOpen" | "onToolOpen" | "onDisplayModeChange" | "onZoomChange"
@@ -30,6 +30,20 @@ export function TopToolbar(props: TopToolbarProps) {
   const currentTrack = props.score.tracks.find((track) => track.id === props.cursor.trackId);
   const { zoom, displayMode } = props.score.documentSettings;
   const { cursor } = props;
+  const [tempoDraft, setTempoDraft] = useState<string | null>(null);
+  const tempoEditing = useRef(false);
+  const tempoEdited = useRef(false);
+  const tempoButton = useRef<HTMLButtonElement>(null);
+
+  function finishTempo(value?: string) {
+    if (!tempoEditing.current) return;
+    tempoEditing.current = false;
+    setTempoDraft(null);
+    if (tempoEdited.current && value?.trim() && Number.isFinite(Number(value))) {
+      props.onTempoChange(Number(value));
+    }
+    tempoEdited.current = false;
+  }
 
   function title(label: string, command: string) {
     const shortcut = shortcutLabel(command, props.platform);
@@ -110,7 +124,7 @@ export function TopToolbar(props: TopToolbarProps) {
             <button type="button" title="First bar" onClick={() => props.dispatchCommand("cursor.firstBar")}>|&lt;</button>
             <button type="button" title={title("Previous bar", "playback.previousBar")} onClick={() => props.dispatchCommand("playback.previousBar")}>&lt;</button>
             <button type="button" title="Play / stop Space" data-testid="transport-play-stop" onClick={() => props.dispatchCommand("playback.toggle")}>
-              {props.playbackStatus === "playing" ? "Stop" : "Play"}
+              {(props.playbackStatus === "playing" || props.playbackStatus === "starting") ? "Stop" : "Play"}
             </button>
             <button type="button" title={title("Next bar", "playback.nextBar")} onClick={() => props.dispatchCommand("playback.nextBar")}>&gt;</button>
             <button type="button" title="Last bar" onClick={() => props.dispatchCommand("cursor.lastBar")}>&gt;|</button>
@@ -118,7 +132,36 @@ export function TopToolbar(props: TopToolbarProps) {
           <div className="lcd" title={issue ? `Voice ${cursor.voiceIndex + 1}: ${actual}/${expected}` : "Bar duration ok"}>
             <span className="trackColor" style={{ background: currentTrack?.color ?? "#64748b" }} />
             <strong>{currentTrack?.shortName ?? "Track"}</strong>
-            <span>♩ 120</span>
+            {tempoDraft === null ? (
+              <button ref={tempoButton} type="button" className="lcdTempo" title="Edit measure tempo" data-testid="lcd-tempo" onClick={() => {
+                tempoEditing.current = true;
+                setTempoDraft(String(Math.round(props.currentTempo)));
+              }}>
+                ♩ {Math.round(props.currentTempo)}
+              </button>
+            ) : (
+              <input
+                className="lcdTempoInput"
+                aria-label="Tempo BPM"
+                type="number"
+                min={10}
+                max={300}
+                autoFocus
+                value={tempoDraft}
+                onChange={(event) => {
+                  tempoEdited.current = true;
+                  setTempoDraft(event.target.value);
+                }}
+                onBlur={(event) => finishTempo(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === "Escape") {
+                    event.preventDefault();
+                    finishTempo(event.key === "Enter" ? event.currentTarget.value : undefined);
+                    requestAnimationFrame(() => tempoButton.current?.focus());
+                  }
+                }}
+              />
+            )}
             <span className={issue ? "lcdWarning" : ""}>{Math.round(actual)}/{Math.round(expected)}</span>
             <button type="button" aria-pressed={props.multiTrackView} className={props.multiTrackView ? "activeToggle" : ""} title={title("Multitrack view", "view.multitrack")} onClick={props.onToggleMultiTrackView}>
               {props.multiTrackView ? "Multi" : "1"}

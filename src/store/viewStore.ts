@@ -5,11 +5,13 @@ interface ViewStore {
   cursor: CursorPosition;
   selection: SelectionRange | null;
   zoom: number;
+  trackVisibility: Record<string, boolean>;
   setCursor: (cursor: CursorPosition) => void;
   patchCursor: (cursor: Partial<CursorPosition>) => void;
   setSelection: (selection: SelectionRange | null) => void;
   setStaffKind: (staffKind: StaffKind) => void;
   setZoom: (zoom: number) => void;
+  setTrackVisible: (trackId: string, visible: boolean) => void;
 }
 
 export const initialCursor: CursorPosition = {
@@ -26,9 +28,13 @@ export const useViewStore = create<ViewStore>((set) => ({
   cursor: initialCursor,
   selection: null,
   zoom: 100,
+  trackVisibility: {},
   setCursor: (cursor) => set({ cursor }),
   patchCursor: (cursor) => set((state) => ({ cursor: { ...state.cursor, ...cursor } })),
   setSelection: (selection) => set({ selection }),
   setStaffKind: (staffKind) => set((state) => ({ cursor: { ...state.cursor, staffKind } })),
-  setZoom: (zoom) => set({ zoom })
+  setZoom: (zoom) => set({ zoom }),
+  setTrackVisible: (trackId, visible) => set((state) => ({
+    trackVisibility: { ...state.trackVisibility, [trackId]: visible }
+  }))
 }));

@@ -3,6 +3,7 @@ import { version as appVersion } from "../../package.json";
 import { ensureUniqueTrackIds, newId } from "../model/ids";
 import { checkInvariants } from "../model/invariants";
 import { INSTRUMENT_DEFINITIONS } from "../model/instruments";
+import { defaultMasterMix, defaultTrackMix, normalizeVolume } from "../model/mix";
 import { normalizeTies } from "../model/ties";
 import { frettedMidiPitch, inferTrackNotation, isMidiPitch } from "../model/trackKind";
 import type { Note, Score, TrackKind } from "../model/types";
@@ -14,7 +15,7 @@ export const APP_FILE_FORMAT = "tabscore/score";
 export const NATIVE_EXTENSION = ".tabscore";
 export const LEGACY_NATIVE_EXTENSIONS = [".gp", ".gp8"] as const;
 export const NATIVE_FILE_ACCEPT = [NATIVE_EXTENSION, ...LEGACY_NATIVE_EXTENSIONS, ".json"];
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 export interface ScoreFileEnvelope {
   format: typeof APP_FILE_FORMAT;
@@ -65,8 +66,41 @@ const migrations: Partial<Record<number, Migration>> = {
     ...input,
     schemaVersion: 4,
     score: migrateLegacyTrackTypes(input.score, warnings)
+  }),
+  4: (input) => ({
+    ...input,
+    schemaVersion: 5,
+    score: migrateMixer(input.score)
   })
 };
+
+function migrateMixer(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  return {
+    ...value,
+    masterMix: defaultMasterMix(),
+    masterAutomations: migrateVolumeLanes(value.masterAutomations),
+    masterBars: Array.isArray(value.masterBars)
+      ? value.masterBars.map((bar) => isRecord(bar) ? {
+          ...bar,
+          tripletFeel: typeof bar.tripletFeel === "string" && bar.tripletFeel.startsWith("8th") ? "8th"
+            : typeof bar.tripletFeel === "string" && bar.tripletFeel.startsWith("16th") ? "16th" : null
+        } : bar)
+      : value.masterBars,
+    tracks: Array.isArray(value.tracks) ? value.tracks.map((track) => isRecord(track) ? {
+      ...track,
+      mix: defaultTrackMix(typeof track.name === "string" ? track.name : ""),
+      automations: migrateVolumeLanes(track.automations)
+    } : track) : value.tracks
+  };
+}
+
+function migrateVolumeLanes(value: unknown): unknown {
+  return Array.isArray(value) ? value.map((lane) => isRecord(lane) && lane.type === "volume" && Array.isArray(lane.points)
+    ? { ...lane, points: lane.points.map((point) => isRecord(point) && typeof point.value === "number"
+        ? { ...point, value: normalizeVolume(point.value) } : point) }
+    : lane) : value;
+}
 
 export function writeScoreFile(score: Score, documentId: string, savedAt = new Date()): string {
   const envelope: ScoreFileEnvelope = {

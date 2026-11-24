@@ -1,14 +1,9 @@
 import { noteTieIdentity } from "../../model/trackKind";
-import { barTheoreticalTicks, beatDurationTicks, tryNoteMidiPitch } from "../../model/derive";
+import { beatDurationTicks, tryNoteMidiPitch } from "../../model/derive";
 import { TICKS_PER_QUARTER, type Beat, type Note, type Score } from "../../model/types";
 import type { PlaybackSegment, UnrollResult } from "../unroll/unrollScore";
-import {
-  buildNoteMix,
-  createDefaultMixerState,
-  type MixerState,
-  type NoteMix
-} from "./mixer";
-import { buildTempoMap, type PlaybackSpeedOverride, type TempoMap } from "./tempoMap";
+import { buildTempoMap, writtenBarStarts, type PlaybackSpeedOverride, type TempoMap } from "./tempoMap";
+import { hairpinVelocity, naturalHarmonicInterval, resolveSimileBar, strokeOffsets, swingBeat } from "./playbackExpression";
 
 export interface NoteEvent {
   id: string;
@@ -18,6 +13,7 @@ export interface NoteEvent {
   writtenTick: number;
   durationTicks: number;
   midiPitch: number;
+  percussion?: boolean;
   velocity: number;
   trackId: string;
   barIndex: number;
@@ -26,7 +22,6 @@ export interface NoteEvent {
   noteIndex: number;
   string: number;
   effects: NoteEventEffects;
-  mix: NoteMix;
 }
 
 export interface NoteEventEffects {
@@ -50,6 +45,7 @@ export interface NoteEventEffects {
   slide: Note["slide"] | null;
   harmonic: Note["harmonic"] | null;
   harmonicShift: number;
+  trill?: { secondPitch: number; ticksPerStroke: number };
   wah: Note["wah"] | null;
   tremoloPicking: Note["tremoloPicking"] | null;
   attackSec: number;
@@ -83,23 +79,22 @@ interface SoundingNote {
 export function compilePlayback(
   score: Score,
   unrolled: UnrollResult,
-  speedOverride: PlaybackSpeedOverride = { mode: "relative", percent: 100 },
-  mixer: MixerState = createDefaultMixerState(score.tracks),
-  focusedTrackId: string | null = null
+  speedOverride: PlaybackSpeedOverride = { mode: "relative", percent: 100 }
 ): PlaybackCompilation {
   const tempoMap = buildTempoMap(score, unrolled.segments, speedOverride);
   const writtenStarts = writtenBarStarts(score);
   const soundingNotes = new Map<string, SoundingNote>();
   const events = unrolled.segments.flatMap((segment) =>
-    compileSegment(score, segment, tempoMap, writtenStarts, mixer, focusedTrackId, soundingNotes)
+    compileSegment(score, segment, tempoMap, writtenStarts, soundingNotes)
   );
-  for (const event of events) {
+  const voicedEvents = events.flatMap((event) => expandTrill(event, tempoMap));
+  for (const event of voicedEvents) {
     if (event.noteIndex >= 0) {
       const endSec = tempoMap.ticksToSeconds(event.startTick + event.durationTicks);
       event.durationSec = Math.max(0.035, endSec - event.timeSec);
     }
   }
-  const sortedEvents = events.sort((left, right) => left.timeSec - right.timeSec || left.midiPitch - right.midiPitch);
+  const sortedEvents = voicedEvents.sort((left, right) => left.timeSec - right.timeSec || left.midiPitch - right.midiPitch);
 
   return {
     events: sortedEvents,
@@ -118,25 +113,27 @@ function compileSegment(
   segment: PlaybackSegment,
   tempoMap: TempoMap,
   writtenStarts: number[],
-  mixer: MixerState,
-  focusedTrackId: string | null,
   soundingNotes: Map<string, SoundingNote>
 ): NoteEvent[] {
   const events: NoteEvent[] = [];
   const writtenStart = writtenStarts[segment.barIndex] ?? 0;
+  const sourceBar = resolveSimileBar(score.masterBars, segment.barIndex);
+  const feel = score.masterBars[segment.barIndex].tripletFeel;
 
   score.tracks.forEach((track) => {
-    const bar = track.bars[segment.barIndex];
+    const bar = track.bars[sourceBar];
 
     bar?.voices.forEach((voice, voiceIndex) => {
       let beatTick = 0;
 
       voice.beats.forEach((beat, beatIndex) => {
-        const durationTicks = beatDurationTicks(beat);
-        const startTick = segment.startTick + beatTick;
+        const writtenDuration = beatDurationTicks(beat);
+        const rhythm = swingBeat(feel, beat, beatTick, writtenDuration);
+        const durationTicks = Math.min(segment.durationTicks - rhythm.start, rhythm.duration);
+        const startTick = segment.startTick + rhythm.start;
         const writtenTick = writtenStart + beatTick;
 
-        if (!beat.rest) {
+        if (!beat.rest && durationTicks > 0) {
           beat.graceNotes.forEach((grace, graceIndex) => {
             const graceTick = Math.max(segment.startTick, startTick - (grace.onBeat ? 0 : TICKS_PER_QUARTER / 16));
             const graceWrittenTick = Math.max(writtenStart, writtenTick - (grace.onBeat ? 0 : TICKS_PER_QUARTER / 16));
@@ -157,12 +154,14 @@ function compileSegment(
               beatIndex,
               noteIndex: -1,
               string: grace.string,
-              effects: { ...defaultEffects(), hopo: true, attackSec: 0.002 },
-              mix: buildNoteMix(score, track.id, graceWrittenTick, mixer, focusedTrackId)
+              effects: { ...defaultEffects(), hopo: true, attackSec: 0.002 }
             });
           });
 
+          const offsets = strokeOffsets(beat, durationTicks);
           beat.notes.forEach((note, noteIndex) => {
+            const offset = offsets[noteIndex];
+            const velocityOffset = hairpinVelocity(voice.beats, beatIndex, offset);
             const event = noteEvent(
                 score,
                 track.id,
@@ -172,12 +171,11 @@ function compileSegment(
                 voiceIndex,
                 beatIndex,
                 noteIndex,
-                startTick,
+                startTick + offset,
                 writtenTick,
-                durationTicks,
-                tempoMap,
-                mixer,
-                focusedTrackId
+                durationTicks - offset,
+                velocityOffset,
+                tempoMap
             );
             if (!event) return;
 
@@ -196,7 +194,7 @@ function compileSegment(
           });
         }
 
-        beatTick += durationTicks;
+        beatTick += writtenDuration;
       });
     });
   });
@@ -216,9 +214,8 @@ function noteEvent(
   startTick: number,
   writtenTick: number,
   durationTicks: number,
-  tempoMap: TempoMap,
-  mixer: MixerState,
-  focusedTrackId: string | null
+  velocityOffset: number,
+  tempoMap: TempoMap
 ): NoteEvent | null {
   const track = score.tracks.find((candidate) => candidate.id === trackId);
 
@@ -230,6 +227,21 @@ function noteEvent(
   if (midiPitch === null) return null;
 
   const effects = noteEffects(note, beat);
+  let soundingPitch = midiPitch;
+  if (track.kind === "stringed" && note.harmonic?.type === "natural") {
+    const openPitch = tryNoteMidiPitch({ ...note, fret: 0 }, track);
+    if (openPitch === null) return null;
+    soundingPitch = openPitch + naturalHarmonicInterval(note.harmonic);
+    effects.harmonicShift = soundingPitch - midiPitch;
+  } else if (track.kind !== "percussion") {
+    soundingPitch += effects.harmonicShift;
+  }
+  if (track.kind === "stringed" && note.trill) {
+    const secondPitch = tryNoteMidiPitch({ ...note, fret: note.trill.secondFret }, track);
+    if (secondPitch !== null) {
+      effects.trill = { secondPitch, ticksPerStroke: TICKS_PER_QUARTER * 4 / note.trill.speed };
+    }
+  }
   const durationMultiplier = durationMultiplierForNote(note);
   const effectiveDurationTicks = Math.max(TICKS_PER_QUARTER / 32, durationTicks * durationMultiplier);
   const timeSec = tempoMap.ticksToSeconds(startTick);
@@ -241,16 +253,16 @@ function noteEvent(
     startTick,
     writtenTick,
     durationTicks: effectiveDurationTicks,
-    midiPitch: midiPitch + effects.harmonicShift,
-    velocity: velocityForNote(note),
+    midiPitch: soundingPitch,
+    percussion: track.kind === "percussion",
+    velocity: clamp(velocityForNote(note) + velocityOffset, 1, 127),
     trackId: track.id,
     barIndex: segment.barIndex,
     voiceIndex,
     beatIndex,
     noteIndex,
     string: note.string,
-    effects,
-    mix: buildNoteMix(score, track.id, writtenTick, mixer, focusedTrackId)
+    effects
   };
 }
 
@@ -298,8 +310,8 @@ function noteEffects(note: Note, beat: Beat): NoteEventEffects {
     accent: note.accent,
     vibrato,
     hopo: note.hopo || beat.tapping,
-    fadeIn: note.fadeIn || note.volumeSwell || beat.dynamicHairpin?.type === "cresc",
-    fadeOut: note.fadeOut || beat.dynamicHairpin?.type === "decresc",
+    fadeIn: note.fadeIn || note.volumeSwell,
+    fadeOut: note.fadeOut,
     volumeSwell: note.volumeSwell,
     slap: note.slap,
     pop: note.pop,
@@ -354,13 +366,23 @@ function harmonicPitchShift(harmonic: Note["harmonic"] | null): number {
   return 12;
 }
 
-function writtenBarStarts(score: Score): number[] {
-  let tick = 0;
-  return score.masterBars.map((masterBar) => {
-    const start = tick;
-    tick += barTheoreticalTicks(masterBar);
-    return start;
-  });
+function expandTrill(event: NoteEvent, tempoMap: TempoMap): NoteEvent[] {
+  const trill = event.effects.trill;
+  if (!trill || trill.ticksPerStroke <= 0 || !Number.isFinite(trill.ticksPerStroke)) return [event];
+
+  const expanded: NoteEvent[] = [];
+  for (let offset = 0; offset < event.durationTicks; offset += trill.ticksPerStroke) {
+    const startTick = event.startTick + offset;
+    expanded.push({
+      ...event,
+      id: `${event.id}-trill-${expanded.length}`,
+      startTick,
+      timeSec: tempoMap.ticksToSeconds(startTick),
+      durationTicks: Math.min(trill.ticksPerStroke, event.durationTicks - offset),
+      midiPitch: expanded.length % 2 ? trill.secondPitch : event.midiPitch
+    });
+  }
+  return expanded;
 }
 
 function defaultNote(string: number, fret: number): Note {

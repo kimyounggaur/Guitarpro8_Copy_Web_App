@@ -1,36 +1,30 @@
 import type { NoteEvent } from "./compile";
-import type { EffectSlot, EqPreset } from "./mixer";
+import { AudioGraph } from "./audioGraph";
+import { DrumSynth } from "./drumSynth";
+
+// Calibrate the dry oscillator against the stereo demo RMS after the faders
+// and master headroom. The Web Audio graph mixes float samples before limiting.
+const SYNTH_MAKEUP_GAIN = 10 ** (15 / 20);
 
 export interface ScheduledVoice {
-  oscillator: OscillatorNode;
+  oscillator: AudioScheduledSourceNode;
   gain: GainNode;
   nodes: AudioNode[];
-  modulators: OscillatorNode[];
+  modulators: AudioScheduledSourceNode[];
 }
 
 export class SimpleSynth {
-  private readonly masterGain: GainNode;
-  private readonly limiter: DynamicsCompressorNode;
-  private reverbBuffer: AudioBuffer | null = null;
+  readonly graph: AudioGraph;
+  private readonly drums: DrumSynth;
 
-  constructor(private readonly context: AudioContext) {
-    this.masterGain = context.createGain();
-    this.masterGain.gain.value = 0.2;
-
-    this.limiter = context.createDynamicsCompressor();
-    this.limiter.threshold.value = -10;
-    this.limiter.knee.value = 12;
-    this.limiter.ratio.value = 8;
-    this.limiter.attack.value = 0.004;
-    this.limiter.release.value = 0.14;
-
-    this.masterGain.connect(this.limiter);
-    this.limiter.connect(context.destination);
+  constructor(private readonly context: BaseAudioContext) {
+    this.graph = new AudioGraph(context);
+    this.drums = new DrumSynth(context);
   }
 
-  trigger(event: NoteEvent, when: number): ScheduledVoice | null {
-    if (event.mix.muted || event.mix.gain <= 0) {
-      return null;
+  trigger(event: NoteEvent, when: number): ScheduledVoice {
+    if (event.percussion) {
+      return this.drums.trigger(event.midiPitch, event.velocity, when, this.graph.trackInput(event.trackId), event.trackId);
     }
 
     const oscillator = this.context.createOscillator();
@@ -43,83 +37,16 @@ export class SimpleSynth {
     oscillator.type = oscillatorType(event);
     configurePitch(oscillator, event, when, duration, this.context, nodes, modulators);
     scheduleEnvelope(gain, event, when, duration, peak, this.context, nodes, modulators);
-
-    let current: AudioNode = oscillator;
-    current = appendArticulationFilter(this.context, current, event, when, duration, nodes);
-    current.connect(gain);
-    current = gain;
-    current = appendEq(this.context, current, event.mix.eq, nodes);
-
-    event.mix.effectChain.forEach((slot) => {
-      current = this.appendEffect(current, slot, event, when, duration, nodes, modulators);
-    });
-
-    const panner = this.context.createStereoPanner();
-    panner.pan.setValueAtTime(clamp(event.mix.pan, -1, 1), when);
-    nodes.push(panner);
-    current.connect(panner);
-    panner.connect(this.masterGain);
+    appendArticulationFilter(this.context, oscillator, event, when, duration, nodes).connect(gain);
+    gain.connect(this.graph.trackInput(event.trackId));
 
     oscillator.start(when);
     oscillator.stop(when + duration + 0.08);
-
     return { oscillator, gain, nodes, modulators };
   }
 
   dispose(): void {
-    this.masterGain.disconnect();
-    this.limiter.disconnect();
-  }
-
-  private appendEffect(
-    input: AudioNode,
-    slot: EffectSlot,
-    event: NoteEvent,
-    when: number,
-    duration: number,
-    nodes: AudioNode[],
-    modulators: OscillatorNode[]
-  ): AudioNode {
-    const amount = clamp(slot.amount, 0, 1);
-
-    switch (slot.type) {
-      case "overdrive":
-        return appendOverdrive(this.context, input, amount, nodes);
-      case "chorus":
-      case "flanger":
-        return appendChorusLike(this.context, input, slot.type, amount, when, duration, nodes, modulators);
-      case "phaser":
-        return appendPhaser(this.context, input, amount, when, duration, nodes, modulators);
-      case "delay":
-        return appendDelay(this.context, input, amount, nodes);
-      case "reverb":
-        return appendReverb(this.context, input, amount, this.getReverbBuffer(amount), nodes);
-      case "wah":
-        return appendWah(this.context, input, event, amount, when, duration, nodes);
-      case "compressor":
-        return appendCompressor(this.context, input, amount, nodes);
-    }
-  }
-
-  private getReverbBuffer(amount: number): AudioBuffer {
-    if (this.reverbBuffer) {
-      return this.reverbBuffer;
-    }
-
-    const length = Math.floor(this.context.sampleRate * (1.1 + amount * 0.6));
-    const buffer = this.context.createBuffer(2, length, this.context.sampleRate);
-
-    for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
-      const data = buffer.getChannelData(channel);
-
-      for (let index = 0; index < length; index += 1) {
-        const decay = (1 - index / length) ** 2.2;
-        data[index] = (Math.random() * 2 - 1) * decay * 0.42;
-      }
-    }
-
-    this.reverbBuffer = buffer;
-    return buffer;
+    this.graph.dispose();
   }
 }
 
@@ -128,7 +55,7 @@ function configurePitch(
   event: NoteEvent,
   when: number,
   duration: number,
-  context: AudioContext,
+  context: BaseAudioContext,
   nodes: AudioNode[],
   modulators: OscillatorNode[]
 ): void {
@@ -200,7 +127,7 @@ function scheduleEnvelope(
   when: number,
   duration: number,
   peak: number,
-  context: AudioContext,
+  context: BaseAudioContext,
   nodes: AudioNode[],
   modulators: OscillatorNode[]
 ): void {
@@ -234,7 +161,7 @@ function scheduleEnvelope(
 }
 
 function appendArticulationFilter(
-  context: AudioContext,
+  context: BaseAudioContext,
   input: AudioNode,
   event: NoteEvent,
   when: number,
@@ -267,217 +194,6 @@ function appendArticulationFilter(
   return filter;
 }
 
-function appendEq(context: AudioContext, input: AudioNode, preset: EqPreset, nodes: AudioNode[]): AudioNode {
-  if (preset === "flat") {
-    return input;
-  }
-
-  const filters =
-    preset === "bright"
-      ? [
-          eqFilter(context, "highshelf", 2600, 3.2),
-          eqFilter(context, "lowshelf", 160, -1.8)
-        ]
-      : preset === "warm"
-        ? [
-            eqFilter(context, "lowshelf", 180, 2.8),
-            eqFilter(context, "highshelf", 3000, -2.1)
-          ]
-        : [
-            eqFilter(context, "lowshelf", 120, 4.2),
-            eqFilter(context, "highshelf", 2400, -2.8)
-          ];
-
-  nodes.push(...filters);
-  return connectSerial(input, filters);
-}
-
-function appendOverdrive(context: AudioContext, input: AudioNode, amount: number, nodes: AudioNode[]): AudioNode {
-  const shaper = context.createWaveShaper();
-  shaper.curve = distortionCurve(amount);
-  shaper.oversample = "4x";
-  nodes.push(shaper);
-  input.connect(shaper);
-  return shaper;
-}
-
-function appendChorusLike(
-  context: AudioContext,
-  input: AudioNode,
-  type: "chorus" | "flanger",
-  amount: number,
-  when: number,
-  duration: number,
-  nodes: AudioNode[],
-  modulators: OscillatorNode[]
-): AudioNode {
-  const output = context.createGain();
-  const dry = context.createGain();
-  const wet = context.createGain();
-  const delay = context.createDelay(0.08);
-  const lfo = context.createOscillator();
-  const lfoGain = context.createGain();
-
-  dry.gain.value = 1 - amount * 0.18;
-  wet.gain.value = 0.18 + amount * 0.32;
-  delay.delayTime.value = type === "chorus" ? 0.018 : 0.0045;
-  lfo.frequency.value = type === "chorus" ? 0.85 : 0.35;
-  lfoGain.gain.value = type === "chorus" ? 0.004 + amount * 0.006 : 0.001 + amount * 0.002;
-
-  input.connect(dry);
-  dry.connect(output);
-  input.connect(delay);
-  delay.connect(wet);
-  wet.connect(output);
-  lfo.connect(lfoGain);
-  lfoGain.connect(delay.delayTime);
-
-  nodes.push(output, dry, wet, delay, lfoGain);
-  modulators.push(lfo);
-  lfo.start(when);
-  lfo.stop(when + duration + 0.35);
-  return output;
-}
-
-function appendPhaser(
-  context: AudioContext,
-  input: AudioNode,
-  amount: number,
-  when: number,
-  duration: number,
-  nodes: AudioNode[],
-  modulators: OscillatorNode[]
-): AudioNode {
-  const stages = [context.createBiquadFilter(), context.createBiquadFilter(), context.createBiquadFilter()];
-  const lfo = context.createOscillator();
-  const lfoGain = context.createGain();
-
-  stages.forEach((stage, index) => {
-    stage.type = "allpass";
-    stage.frequency.value = 520 + index * 420;
-    stage.Q.value = 0.65 + amount * 1.4;
-    lfoGain.connect(stage.frequency);
-  });
-
-  lfo.frequency.value = 0.28 + amount * 0.42;
-  lfoGain.gain.value = 280 + amount * 520;
-  lfo.connect(lfoGain);
-  nodes.push(...stages, lfoGain);
-  modulators.push(lfo);
-  lfo.start(when);
-  lfo.stop(when + duration + 0.35);
-  return connectSerial(input, stages);
-}
-
-function appendDelay(context: AudioContext, input: AudioNode, amount: number, nodes: AudioNode[]): AudioNode {
-  const output = context.createGain();
-  const dry = context.createGain();
-  const wet = context.createGain();
-  const delay = context.createDelay(1.2);
-  const feedback = context.createGain();
-
-  dry.gain.value = 1;
-  wet.gain.value = 0.16 + amount * 0.28;
-  delay.delayTime.value = 0.16 + amount * 0.22;
-  feedback.gain.value = 0.18 + amount * 0.28;
-
-  input.connect(dry);
-  dry.connect(output);
-  input.connect(delay);
-  delay.connect(wet);
-  wet.connect(output);
-  delay.connect(feedback);
-  feedback.connect(delay);
-
-  nodes.push(output, dry, wet, delay, feedback);
-  return output;
-}
-
-function appendReverb(
-  context: AudioContext,
-  input: AudioNode,
-  amount: number,
-  buffer: AudioBuffer,
-  nodes: AudioNode[]
-): AudioNode {
-  const output = context.createGain();
-  const dry = context.createGain();
-  const wet = context.createGain();
-  const convolver = context.createConvolver();
-
-  convolver.buffer = buffer;
-  dry.gain.value = 1 - amount * 0.12;
-  wet.gain.value = 0.12 + amount * 0.34;
-
-  input.connect(dry);
-  dry.connect(output);
-  input.connect(convolver);
-  convolver.connect(wet);
-  wet.connect(output);
-
-  nodes.push(output, dry, wet, convolver);
-  return output;
-}
-
-function appendWah(
-  context: AudioContext,
-  input: AudioNode,
-  event: NoteEvent,
-  amount: number,
-  when: number,
-  duration: number,
-  nodes: AudioNode[]
-): AudioNode {
-  const filter = context.createBiquadFilter();
-  filter.type = "bandpass";
-  filter.Q.value = 5 + amount * 7;
-
-  if (event.effects.wah === "open") {
-    filter.frequency.setValueAtTime(1650 + amount * 620, when);
-  } else if (event.effects.wah === "closed") {
-    filter.frequency.setValueAtTime(440 + amount * 260, when);
-  } else {
-    filter.frequency.setValueAtTime(420, when);
-    filter.frequency.linearRampToValueAtTime(1750 + amount * 540, when + duration * 0.42);
-    filter.frequency.linearRampToValueAtTime(720, when + duration);
-  }
-
-  nodes.push(filter);
-  input.connect(filter);
-  return filter;
-}
-
-function appendCompressor(context: AudioContext, input: AudioNode, amount: number, nodes: AudioNode[]): AudioNode {
-  const compressor = context.createDynamicsCompressor();
-  compressor.threshold.value = -24 + amount * 8;
-  compressor.knee.value = 18;
-  compressor.ratio.value = 3 + amount * 8;
-  compressor.attack.value = 0.004;
-  compressor.release.value = 0.12 + amount * 0.1;
-  nodes.push(compressor);
-  input.connect(compressor);
-  return compressor;
-}
-
-function connectSerial(input: AudioNode, nodes: AudioNode[]): AudioNode {
-  let current = input;
-
-  nodes.forEach((node) => {
-    current.connect(node);
-    current = node;
-  });
-
-  return current;
-}
-
-function eqFilter(context: AudioContext, type: BiquadFilterType, frequency: number, gain: number): BiquadFilterNode {
-  const filter = context.createBiquadFilter();
-  filter.type = type;
-  filter.frequency.value = frequency;
-  filter.gain.value = gain;
-  return filter;
-}
-
 function oscillatorType(event: NoteEvent): OscillatorType {
   if (event.trackId === "__metronome__" || event.effects.dead || event.effects.pickscrape) {
     return "square";
@@ -505,7 +221,7 @@ function peakGain(event: NoteEvent): number {
           : event.effects.palmMute
             ? 0.5
             : 0.68;
-  return Math.max(0.0002, (event.velocity / 127) * articulation * event.mix.gain);
+  return SYNTH_MAKEUP_GAIN * (0.05 + clamp(event.velocity / 127, 0, 1) * 0.2) * articulation / 0.68;
 }
 
 function bendOffsetRatio(offset: number): number {
@@ -531,19 +247,6 @@ function tremoloRate(value: NonNullable<NoteEvent["effects"]["tremoloPicking"]>)
     32: 16
   } as const;
   return rates[value];
-}
-
-function distortionCurve(amount: number): Float32Array<ArrayBuffer> {
-  const samples = 256;
-  const curve = new Float32Array(new ArrayBuffer(samples * Float32Array.BYTES_PER_ELEMENT));
-  const drive = 1 + amount * 46;
-
-  for (let index = 0; index < samples; index += 1) {
-    const x = (index * 2) / samples - 1;
-    curve[index] = ((3 + drive) * x * 20) / (Math.PI + drive * Math.abs(x));
-  }
-
-  return curve;
 }
 
 function midiToFrequency(midiPitch: number): number {

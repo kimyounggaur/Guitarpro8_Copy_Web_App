@@ -27,7 +27,7 @@ it("[B10] extending at the end inherits meter, key and feel without copying mark
   const original = score.masterBars[0];
   original.timeSignature.numerator = 3;
   original.keySignature.key = "G";
-  original.tripletFeel = "8th swing";
+  original.tripletFeel = "8th";
   original.repeatOpen = true;
   original.repeatClose = 2;
   original.alternateEndings = 1;
