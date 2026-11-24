@@ -83,8 +83,7 @@ it("[A6] large page systems show the size warning and continuous layout remains 
     text: expect.stringContaining("exceeds")
   });
 
-  score.documentSettings.displayMode = "vertical-screen";
-  const continuous = layoutScore(score).pages[0];
+  const continuous = layoutScore(score, { displayMode: "vertical-screen" }).pages[0];
   expect(continuous.height).toBeGreaterThan(1500);
   expect(continuous.primitives.some((primitive) => primitive.id === "system-0-scale")).toBe(false);
 });

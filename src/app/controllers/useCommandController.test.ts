@@ -1,3 +1,4 @@
+import { useViewStore } from "../../store/viewStore";
 import { describe, expect, it, vi } from "vitest";
 import { defaultCursor } from "../../engine/editing/operations";
 import { createEmptyScore, createTrack } from "../../model/factory";
@@ -73,12 +74,12 @@ describe("runAppAction (command controller app-action routing)", () => {
     expect(result).toEqual({ handled: true, message: "Multi-voice" });
   });
 
-  it("routes view.zoomIn to handleZoomChange with the score's current zoom plus 10", () => {
+  it("routes view.zoomIn to handleZoomChange with the view's current zoom plus 10", () => {
     const deps = createDeps();
 
     runAppAction(deps, "view.zoomIn");
 
-    expect(deps.handleZoomChange).toHaveBeenCalledWith(deps.score.documentSettings.zoom + 10);
+    expect(deps.handleZoomChange).toHaveBeenCalledWith(useViewStore.getState().zoom + 10);
   });
 
   it("routes track.delete to handleTrackDelete only when the cursor has an active track", () => {

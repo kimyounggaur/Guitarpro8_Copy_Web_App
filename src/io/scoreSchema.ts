@@ -1,6 +1,6 @@
 import { defaultMasterMix, defaultTrackMix } from "../model/mix";
 import { z } from "zod";
-import { createEmptyScore } from "../model/factory";
+import { createEmptyScore, createMasterBar } from "../model/factory";
 import { normalizeStylesheet } from "../model/stylesheet";
 import type { Beat, MasterBar, Note, Score, Track, Tuplet } from "../model/types";
 
@@ -67,14 +67,14 @@ const tuplet: z.ZodType<Tuplet> = z.lazy(() =>
 );
 
 const beat: z.ZodType<Beat> = z.object({
-  duration,
+  duration: duration.default(4),
   dots: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(0),
   tuplet: tuplet.optional(),
   stemDirection: stem.default("auto"),
   beamMode: z.enum(["auto", "force", "break", "breakSecondary", "forceGroup"]).default("auto"),
   rest: z.boolean().default(true),
   graceNotes: z.array(z.object({ string: z.number().int(), fret: z.number().int(), onBeat: z.boolean() })).default([]),
-  notes: z.array(note),
+  notes: z.array(note).default([]),
   whammy: bendCurve.optional(),
   brush: stroke.optional(),
   arpeggio: stroke.optional(),
@@ -156,7 +156,7 @@ export const masterBarSchema: z.ZodType<MasterBar> = z.object({
     numerator: z.number().int().positive(),
     denominator: duration,
     beamingPreset: z.string().default("default")
-  }),
+  }).default(() => createMasterBar().timeSignature),
   keySignature: z.object({ key: z.string(), mode: z.enum(["major", "minor"]) }).default({ key: "C", mode: "major" }),
   tripletFeel: z.enum(["8th", "16th"]).nullable().default(null),
   freeTime: z.boolean().default(false),
@@ -242,9 +242,6 @@ export const scoreSchema: z.ZodType<Score> = z.object({
   audioTrack: z.object({ id: z.string(), name: z.string(), embedded: z.boolean() }).optional(),
   stylesheet,
   documentSettings: z.object({
-    zoom: finite.transform((zoom) => Math.min(300, Math.max(25, zoom))).default(100),
-    displayMode: z.enum(["vertical-page", "horizontal-page", "grid", "parchment", "vertical-screen", "horizontal-screen"])
-      .default("vertical-page"),
     engine: engine.default("RSE"),
     concertTone: z.boolean().default(false)
   }).default(defaults.documentSettings),

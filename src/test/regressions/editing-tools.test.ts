@@ -55,7 +55,7 @@ it("[B9] reapplying the same tuning keeps the player's chosen fingering", () => 
   expect(track).toEqual(before);
 });
 
-it.fails("[B18] an edit in a 100-bar, 8-track score retains untouched bar objects", () => {
+it("[B18] an edit in a 100-bar, 8-track score retains untouched bar objects", () => {
   const score = createEmptyScore();
   score.masterBars = Array.from({ length: 100 }, createMasterBar);
   score.tracks = Array.from({ length: 8 }, () => createTrack(undefined, 100));

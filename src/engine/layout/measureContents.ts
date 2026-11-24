@@ -25,42 +25,45 @@ export function createMeasureContents(
   score: Score,
   notationStyle: Stylesheet["notation"] = score.stylesheet.notation
 ): MeasureContent[] {
-  return score.masterBars.map((masterBar, barIndex) => {
-    const beats = collectBeatPlacements(score, barIndex);
-    const expectedTicks = barTheoreticalTicks(masterBar);
-    const previous = score.masterBars[barIndex - 1];
-    // Reserve the larger common fitting gutter once for all tracks so
-    // simultaneously sounding notes keep a shared horizontal axis.
-    const signature = {
-      clef: "treble8vb" as const,
-      key: masterBar.keySignature,
-      time: masterBar.timeSignature,
-      previousKey: previous?.keySignature,
-      previousTime: previous?.timeSignature,
-      style: notationStyle,
-      staffSpace: STAFF_LINE_GAP
-    };
-    const signatureWidths = {
-      system: layoutStaffSignature({ ...signature, systemStart: true }).width,
-      change: layoutStaffSignature({ ...signature, systemStart: false }).width
-    };
+  return score.masterBars.map((_, index) => createMeasureContent(score, index, notationStyle));
+}
 
-    return {
-      barIndex,
-      expectedTicks,
-      minWidth: 0,
-      hasSignatureChange: Boolean(previous && (
-        previous.timeSignature.numerator !== masterBar.timeSignature.numerator ||
-        previous.timeSignature.denominator !== masterBar.timeSignature.denominator ||
-        previous.keySignature.key !== masterBar.keySignature.key ||
-        previous.keySignature.mode !== masterBar.keySignature.mode
-      )),
-      signatureWidths,
-      forcedBreak: masterBar.layout.forcedBreak,
-      preventBreak: masterBar.layout.preventBreak,
-      beats
-    };
-  });
+export function createMeasureContent(score: Score, barIndex: number, notationStyle: Stylesheet["notation"]): MeasureContent {
+  const masterBar = score.masterBars[barIndex];
+  const beats = collectBeatPlacements(score, barIndex);
+  const expectedTicks = barTheoreticalTicks(masterBar);
+  const previous = score.masterBars[barIndex - 1];
+  // Reserve the larger common fitting gutter once for all tracks so
+  // simultaneously sounding notes keep a shared horizontal axis.
+  const signature = {
+    clef: "treble8vb" as const,
+    key: masterBar.keySignature,
+    time: masterBar.timeSignature,
+    previousKey: previous?.keySignature,
+    previousTime: previous?.timeSignature,
+    style: notationStyle,
+    staffSpace: STAFF_LINE_GAP
+  };
+  const signatureWidths = {
+    system: layoutStaffSignature({ ...signature, systemStart: true }).width,
+    change: layoutStaffSignature({ ...signature, systemStart: false }).width
+  };
+
+  return {
+    barIndex,
+    expectedTicks,
+    minWidth: 0,
+    hasSignatureChange: Boolean(previous && (
+      previous.timeSignature.numerator !== masterBar.timeSignature.numerator ||
+      previous.timeSignature.denominator !== masterBar.timeSignature.denominator ||
+      previous.keySignature.key !== masterBar.keySignature.key ||
+      previous.keySignature.mode !== masterBar.keySignature.mode
+    )),
+    signatureWidths,
+    forcedBreak: masterBar.layout.forcedBreak,
+    preventBreak: masterBar.layout.preventBreak,
+    beats
+  };
 }
 
 export function tickToMeasureX(measure: SystemMeasure, tick: number): number {

@@ -1,10 +1,10 @@
 import { defaultCursor } from "../engine/editing/operations";
 import type { CursorPosition, SelectionRange } from "../engine/editing/types";
-import { readScoreFile } from "../io/fileFormat";
-import type { Score } from "../model/types";
+import { APP_FILE_FORMAT, CURRENT_SCHEMA_VERSION, readScoreFile } from "../io/fileFormat";
+import type { DocumentViewSettings, Score } from "../model/types";
 import { useDocumentStore } from "../store/documentStore";
 import { usePlaybackStore } from "../store/playbackStore";
-import { useViewStore } from "../store/viewStore";
+import { getDocumentView, useViewStore } from "../store/viewStore";
 
 interface GpwTestHooks {
   getScore(): Score;
@@ -12,7 +12,8 @@ interface GpwTestHooks {
   getSelection(): SelectionRange | null;
   getPlayback(): { status: string; positionSec: number };
   getRevision(): { revision: number; savedRevision: number | null };
-  loadScoreJson(json: string): void;
+  getView(): DocumentViewSettings;
+  loadScoreJson(json: string, viewOverride?: DocumentViewSettings): void;
 }
 
 declare global {
@@ -38,9 +39,16 @@ export function installTestHooks(): void {
       // The v1 store only exposes history and the unsaved flag.
       return { revision: state.undoStack.length, savedRevision: state.dirty ? null : state.undoStack.length };
     },
-    loadScoreJson: (json) => {
-      const { score, documentId } = readScoreFile(json);
-      useDocumentStore.getState().loadScore(score, { documentId });
+    getView: getDocumentView,
+    loadScoreJson: (json, viewOverride) => {
+      const fixture = JSON.parse(json);
+      const input = fixture?.format ? json : JSON.stringify({
+        format: APP_FILE_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION,
+        app: { name: "TabScore test fixture", version: "0" },
+        documentId: "doc_fixture", score: fixture, view: viewOverride
+      });
+      const { score, documentId, view: storedView } = readScoreFile(input);
+      useDocumentStore.getState().loadScore(score, { documentId, view: viewOverride ?? storedView });
       const view = useViewStore.getState();
       view.setSelection(null);
       view.setCursor(defaultCursor(score));

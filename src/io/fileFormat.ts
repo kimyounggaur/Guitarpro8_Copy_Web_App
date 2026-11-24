@@ -1,3 +1,5 @@
+import { createBeat, createEmptyScore, createMasterBar, createNote } from "../model/factory";
+import { defaultDocumentView } from "../model/documentView";
 import { z } from "zod";
 import { version as appVersion } from "../../package.json";
 import { ensureUniqueTrackIds, newId } from "../model/ids";
@@ -6,7 +8,7 @@ import { INSTRUMENT_DEFINITIONS } from "../model/instruments";
 import { defaultMasterMix, defaultTrackMix, normalizeVolume } from "../model/mix";
 import { normalizeTies } from "../model/ties";
 import { frettedMidiPitch, inferTrackNotation, isMidiPitch } from "../model/trackKind";
-import type { Note, Score, TrackKind } from "../model/types";
+import type { DocumentViewSettings, Note, Score, TrackKind } from "../model/types";
 import { fillMissingTrackBars, NATIVE_SCORE_FORMAT, NATIVE_SCORE_VERSION } from "./nativeScore";
 import { scoreSchema } from "./scoreSchema";
 
@@ -15,7 +17,7 @@ export const APP_FILE_FORMAT = "tabscore/score";
 export const NATIVE_EXTENSION = ".tabscore";
 export const LEGACY_NATIVE_EXTENSIONS = [".gp", ".gp8"] as const;
 export const NATIVE_FILE_ACCEPT = [NATIVE_EXTENSION, ...LEGACY_NATIVE_EXTENSIONS, ".json"];
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 export interface ScoreFileEnvelope {
   format: typeof APP_FILE_FORMAT;
@@ -24,12 +26,14 @@ export interface ScoreFileEnvelope {
   documentId: string;
   savedAt: string;
   score: ReturnType<typeof scoreForFile>;
+  view: Partial<DocumentViewSettings>;
 }
 
 export interface ScoreFileReadResult {
   score: Score;
   documentId: string;
   warnings: string[];
+  view: DocumentViewSettings;
   savedAt?: string;
 }
 
@@ -39,7 +43,12 @@ const envelopeSchema = z.object({
   app: z.object({ name: z.string(), version: z.string() }),
   documentId: z.string().trim().min(1),
   savedAt: z.string().datetime({ offset: true }).optional(),
-  score: scoreSchema
+  score: scoreSchema,
+  view: z.object({
+    zoom: z.number().finite().transform((zoom) => Math.min(300, Math.max(25, zoom))).default(defaultDocumentView.zoom),
+    displayMode: z.enum(["vertical-page", "horizontal-page", "grid", "parchment", "vertical-screen", "horizontal-screen"])
+      .default(defaultDocumentView.displayMode)
+  }).default(defaultDocumentView)
 });
 
 interface MigrationContext {
@@ -71,7 +80,13 @@ const migrations: Partial<Record<number, Migration>> = {
     ...input,
     schemaVersion: 5,
     score: migrateMixer(input.score)
-  })
+  }),
+  5: (input) => {
+    const score = input.score;
+    if (!isRecord(score) || !isRecord(score.documentSettings)) return { ...input, schemaVersion: 6 };
+    const { zoom, displayMode, ...documentSettings } = score.documentSettings;
+    return { ...input, schemaVersion: 6, view: { zoom, displayMode }, score: { ...score, documentSettings } };
+  }
 };
 
 function migrateMixer(value: unknown): unknown {
@@ -102,14 +117,20 @@ function migrateVolumeLanes(value: unknown): unknown {
     : lane) : value;
 }
 
-export function writeScoreFile(score: Score, documentId: string, savedAt = new Date()): string {
+export function writeScoreFile(
+  score: Score,
+  documentId: string,
+  savedAt = new Date(),
+  view: DocumentViewSettings = defaultDocumentView
+): string {
   const envelope: ScoreFileEnvelope = {
     format: APP_FILE_FORMAT,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     app: { name: APP_NAME, version: appVersion },
     documentId,
     savedAt: savedAt.toISOString(),
-    score: scoreForFile(score)
+    score: scoreForFile(score),
+    view: omitDefaults(view, defaultDocumentView)
   };
   return JSON.stringify(envelope);
 }
@@ -130,7 +151,7 @@ export function readScoreFile(text: string, options: { documentId?: string } = {
     throw new Error(`Invalid score file at ${field}: ${issue.message}`);
   }
 
-  const { score, documentId, savedAt } = parsed.data;
+  const { score, documentId, savedAt, view } = parsed.data;
   if (fromVersion === NATIVE_SCORE_VERSION) {
     const padded = fillMissingTrackBars(score);
     if (padded > 0) warnings.push(`Filled ${padded} missing track measure(s) with rests.`);
@@ -148,7 +169,7 @@ export function readScoreFile(text: string, options: { documentId?: string } = {
     throw new Error(`This score cannot be opened: ${fatal.message}`);
   }
 
-  return { score, documentId, savedAt, warnings };
+  return { score, documentId, savedAt, warnings, view };
 }
 
 function identifyEnvelope(input: Record<string, unknown>) {
@@ -193,18 +214,28 @@ function migrateToCurrent(
   return envelope;
 }
 
+const defaultScore = createEmptyScore();
+const beatDefaults = createBeat();
+const barDefaults = createMasterBar();
+const { string: _defaultString, fret: _defaultFret, ...noteDefaults } = createNote();
+
 function scoreForFile(score: Score) {
   return {
-    ...score,
+    ...omitDefaults(score, {
+      meta: defaultScore.meta,
+      stylesheet: defaultScore.stylesheet,
+      documentSettings: defaultScore.documentSettings,
+      masterMix: defaultScore.masterMix,
+      masterAutomations: []
+    }),
+    masterBars: score.masterBars.map((bar) => omitDefaults(bar, barDefaults)),
     tracks: score.tracks.map((track) => ({
-      ...track,
+      ...omitDefaults(track, { mix: defaultTrackMix(track.name), sounds: [], chordLibrary: [], lyricsLines: [], automations: [] }),
       bars: track.bars.map((bar) => ({
-        ...bar,
         voices: bar.voices.map((voice) => ({
-          ...voice,
-          beats: voice.beats.map((beat) => ({
-            ...beat,
-            notes: beat.notes.map((note) => noteForFile(note, track.kind))
+          beats: voice.beats.map(({ notes, ...rhythm }) => ({
+            ...omitDefaults(rhythm, beatDefaults),
+            ...(notes.length === 0 ? {} : { notes: notes.map((note) => noteForFile(note, track.kind)) })
           }))
         }))
       }))
@@ -213,9 +244,28 @@ function scoreForFile(score: Score) {
 }
 
 function noteForFile(note: Note, kind: TrackKind) {
-  const { string, fret, midiPitch, midiNumber, ...notation } = note;
+  const { string, fret, midiPitch, midiNumber, ...properties } = note;
+  const notation = omitDefaults(properties, noteDefaults);
   if (kind === "stringed") return { ...notation, string, fret };
   return kind === "percussion" ? { ...notation, midiNumber } : { ...notation, midiPitch };
+}
+
+function omitDefaults<T extends object>(value: T, defaults: object): Partial<T> {
+  const result: Partial<T> = {};
+  for (const key of Object.keys(value) as Array<keyof T>) {
+    const item = value[key];
+    const defaultValue = (defaults as Partial<T>)[key];
+    if (!matchesDefault(item, defaultValue)) result[key] = item;
+  }
+  return result;
+}
+
+function matchesDefault(value: unknown, expected: unknown): boolean {
+  if (value === expected) return true;
+  if (Array.isArray(value) && Array.isArray(expected)) return value.length === 0 && expected.length === 0;
+  if (!isRecord(value) || !isRecord(expected)) return false;
+  const keys = Object.keys(value);
+  return keys.length === Object.keys(expected).length && keys.every((key) => matchesDefault(value[key], expected[key]));
 }
 
 const legacyTrackIdentity = z.object({

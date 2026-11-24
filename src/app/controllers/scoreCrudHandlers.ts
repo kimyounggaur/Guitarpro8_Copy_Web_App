@@ -16,7 +16,8 @@ import { moveRightWithScoreMutation, normaliseCursor } from "../../engine/editin
 import type { CursorPosition, SelectionRange } from "../../engine/editing/types";
 import { transposeScore, type TransposeOptions } from "../../engine/tools/transpose";
 import { completeVoiceRests, lowerBeatFingerings } from "../../engine/tools/cleanup";
-import { useDocumentStore } from "../../store/documentStore";
+import { useDocumentStore, type EditTransactionOptions } from "../../store/documentStore";
+import { useViewStore } from "../../store/viewStore";
 import { createBeat, createNote, createTrack } from "../../model/factory";
 import { DRUM_MAPPINGS, instrumentById, retuneTrack, type RetuneMode } from "../../model/instruments";
 import { applyStylePreset, normalizeStylesheet } from "../../model/stylesheet";
@@ -42,7 +43,7 @@ export interface ScoreCrudDeps {
   score: Score;
   cursor: CursorPosition;
   selection: SelectionRange | null;
-  transact: (label: string, recipe: (draft: Score) => void) => Score;
+  transact: (label: string, recipe: (draft: Score) => void, options?: EditTransactionOptions) => Score;
   setCursor: (cursor: CursorPosition) => void;
   setSelection: (selection: SelectionRange | null) => void;
   setMultiVoiceEdit: (updater: boolean | ((value: boolean) => boolean)) => void;
@@ -87,7 +88,7 @@ export function createScoreCrudHandlers(deps: ScoreCrudDeps): ScoreCrudHandlers 
   function handleSongInfoChange(field: keyof SongInfo, value: string) {
     transact("Edit song info", (draft) => {
       draft.meta[field] = value;
-    });
+    }, { group: `song-info:${field}` });
   }
 
   function handleTrackChange(
@@ -215,17 +216,13 @@ export function createScoreCrudHandlers(deps: ScoreCrudDeps): ScoreCrudHandlers 
   }
 
   function handleDisplayModeChange(displayMode: DisplayMode) {
-    transact("Change display mode", (draft) => {
-      draft.documentSettings.displayMode = displayMode;
-    });
+    useViewStore.getState().setDisplayMode(displayMode);
   }
 
   function handleZoomChange(zoom: number) {
     const nextZoom = clampNumber(Math.round(zoom / 5) * 5, 25, 300);
 
-    transact("Change zoom", (draft) => {
-      draft.documentSettings.zoom = nextZoom;
-    });
+    useViewStore.getState().setZoom(nextZoom);
   }
 
   function handleTrackDelete(trackId: string) {

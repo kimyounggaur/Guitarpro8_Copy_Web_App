@@ -35,33 +35,59 @@ export function findTrackTieOrigin(track: Track, path: NotePath): NotePath | nul
   };
 }
 
-export function normalizeTies(score: Score): InvariantIssue[] {
-  const warnings: InvariantIssue[] = [];
-  for (const track of score.tracks) {
+interface TieRepair {
+  trackIndex: number;
+  path: NotePath;
+  fret?: number;
+  issue?: InvariantIssue;
+}
+
+export function inspectTies(score: Score): TieRepair[] {
+  const repairs: TieRepair[] = [];
+  const correctedFrets = new Map<object, number>();
+  score.tracks.forEach((track, trackIndex) => {
     track.bars.forEach((bar, barIndex) => {
       bar.voices.forEach((voice, voiceIndex) => {
         voice.beats.forEach((beat, beatIndex) => {
           beat.notes.forEach((note, noteIndex) => {
             if (!note.tiedFromPrevious) return;
             const location = { trackId: track.id, barIndex, voiceIndex, beatIndex };
-            const origin = findTrackTieOrigin(track, { ...location, noteIndex });
-            if (origin) {
-              if (track.kind === "stringed") {
-                note.fret = track.bars[origin.barIndex].voices[origin.voiceIndex].beats[origin.beatIndex].notes[origin.noteIndex].fret;
-              }
-            } else {
-              delete note.tiedFromPrevious;
-              warnings.push({
+            const path = { ...location, noteIndex };
+            const origin = findTrackTieOrigin(track, path);
+            if (!origin) {
+              repairs.push({ trackIndex, path, issue: {
                 code: "tie-orphan",
                 severity: "warning",
                 message: "A tie has no preceding note on the same string and was removed.",
                 location
-              });
+              } });
+            } else if (track.kind === "stringed") {
+              const predecessor = track.bars[origin.barIndex].voices[origin.voiceIndex].beats[origin.beatIndex].notes[origin.noteIndex];
+              const fret = correctedFrets.get(predecessor) ?? predecessor.fret;
+              if (fret !== note.fret) {
+                correctedFrets.set(note, fret);
+                repairs.push({ trackIndex, path, fret });
+              }
             }
           });
         });
       });
     });
+  });
+  return repairs;
+}
+
+export function applyTieRepairs(score: Score, repairs: TieRepair[]): void {
+  for (const { trackIndex, path, fret, issue } of repairs) {
+    const note = score.tracks[trackIndex].bars[path.barIndex].voices[path.voiceIndex]
+      .beats[path.beatIndex].notes[path.noteIndex];
+    if (issue) delete note.tiedFromPrevious;
+    else if (fret !== undefined) note.fret = fret;
   }
-  return warnings;
+}
+
+export function normalizeTies(score: Score): InvariantIssue[] {
+  const repairs = inspectTies(score);
+  applyTieRepairs(score, repairs);
+  return repairs.flatMap(({ issue }) => issue ? [issue] : []);
 }

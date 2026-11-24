@@ -1,3 +1,5 @@
+import { memo, useCallback, useLayoutEffect, useRef } from "react";
+import { useDocumentStore } from "../../store/documentStore";
 import type { PngScale } from "../../io/print/imageExport";
 import type { InputHTMLAttributes, MouseEvent, ReactNode } from "react";
 import { barTheoreticalTicks } from "../../model/derive";
@@ -455,6 +457,8 @@ function InspectorPanel(props: EditorShellProps) {
               <input
                 value={props.score.meta[field]}
                 onChange={(event) => props.onSongInfoChange(field, event.target.value)}
+                onBlur={() => useDocumentStore.getState().endEditGroup()}
+                onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
               />
             </label>
           ))}
@@ -598,6 +602,10 @@ function InspectorPanel(props: EditorShellProps) {
 }
 
 function GlobalView(props: EditorShellProps) {
+  const onJump = useRef(props.onGlobalJump);
+  useLayoutEffect(() => { onJump.current = props.onGlobalJump; }, [props.onGlobalJump]);
+  const jump = useCallback((id: string, bar: number) => onJump.current(id, bar), []);
+  const barCount = props.score.masterBars.length;
   return (
     <section className="globalView" aria-label="Global view">
       <div className="globalTracks">
@@ -624,32 +632,31 @@ function GlobalView(props: EditorShellProps) {
           <TrackMixerStrip key={track.id} track={track} {...props} />
         ))}
       </div>
-      <div className="globalGrid" style={{ gridTemplateColumns: `repeat(${props.score.masterBars.length}, 42px)` }}>
-        {props.score.masterBars.map((_, barIndex) => (
-          <span key={`header-${barIndex}`} className="globalHeader">
-            {barIndex + 1}
-          </span>
+      <div className="globalGrid" style={{ gridTemplateColumns: `repeat(${barCount}, 42px)` }}>
+        <GlobalMeasureHeader count={barCount} />
+        {props.score.tracks.map(({ id, name, color }) => (
+          <GlobalMeasureRow key={id} id={id} name={name} color={color} count={barCount}
+            selectedBar={id === props.cursor.trackId ? props.cursor.barIndex : -1} onJump={jump} />
         ))}
-        {props.score.tracks.flatMap((track) =>
-          props.score.masterBars.map((_, barIndex) => (
-            <button
-              key={`${track.id}-${barIndex}`}
-              type="button"
-              className={
-                track.id === props.cursor.trackId && barIndex === props.cursor.barIndex
-                  ? "globalCell activeCell"
-                  : "globalCell"
-              }
-              onClick={() => props.onGlobalJump(track.id, barIndex)}
-            >
-              <span style={{ background: track.color }} />
-            </button>
-          ))
-        )}
       </div>
     </section>
   );
 }
+
+const GlobalMeasureHeader = memo(function GlobalMeasureHeader({ count }: { count: number }) {
+  return <>{Array.from({ length: count }, (_, bar) => <span key={bar} className="globalHeader">{bar + 1}</span>)}</>;
+});
+
+const GlobalMeasureRow = memo(function GlobalMeasureRow({
+  id, name, color, count, selectedBar, onJump
+}: { id: string; name: string; color: string; count: number; selectedBar: number; onJump: (id: string, bar: number) => void }) {
+  return <>{Array.from({ length: count }, (_, bar) => (
+    <button key={bar} type="button" className={bar === selectedBar ? "globalCell activeCell" : "globalCell"}
+      aria-label={`${name}, measure ${bar + 1}`} onClick={() => onJump(id, bar)}>
+      <span style={{ background: color }} />
+    </button>
+  ))}</>;
+});
 
 function mixerRangeEvents(change: (value: number, phase: MixerEditPhase) => void): InputHTMLAttributes<HTMLInputElement> {
   return {

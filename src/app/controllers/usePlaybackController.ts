@@ -10,16 +10,17 @@ import { metronomeClicks, countInAt } from "../../engine/audio/metronome";
 import { setMeasureTempo, writtenBarStarts, writtenTempoMap } from "../../engine/audio/tempoMap";
 import { useDocumentStore } from "../../store/documentStore";
 import { useViewStore } from "../../store/viewStore";
-import { compilePlayback, type NoteEvent, type PlaybackCompilation } from "../../engine/audio/compile";
-import { PlaybackScheduler } from "../../engine/audio/scheduler";
+import type { NoteEvent, PlaybackCompilation } from "../../engine/audio/compile";
+import { PlaybackScheduler, unlockPlaybackAudio } from "../../engine/audio/scheduler";
 import { getPlaybackLoop } from "../../engine/audio/playbackLoop";
 import { PlaybackTransport } from "../../engine/audio/transport";
 import { createMixerState, type MixerState } from "../../engine/audio/mixer";
 import { compileMixerAutomation } from "../../engine/audio/mixerAutomation";
-import { unrollScore } from "../../engine/unroll/unrollScore";
+import { compilePlaybackOnMainThread, isLargePlaybackScore, preparePlaybackInWorker } from "../../engine/audio/playbackPreparation";
 import type { CursorPosition, SelectionRange } from "../../engine/editing/types";
 import type { Score } from "../../model/types";
 import { usePlaybackStore, type PlaybackStatus } from "../../store/playbackStore";
+import { usePlaybackCompilation } from "./usePlaybackCompilation";
 
 export interface UsePlaybackControllerParams {
   score: Score;
@@ -58,28 +59,23 @@ export function usePlaybackController(params: UsePlaybackControllerParams): Play
   } = params;
 
   const transportRef = useRef<PlaybackTransport | null>(null);
+  const startGeneration = useRef(0);
+  const tempoRequest = useRef<AbortController | null>(null);
   const mixerRef = useRef(mixer);
   mixerRef.current = mixer;
 
   useEffect(() => {
-    return () => transportRef.current?.stop();
+    return () => {
+      startGeneration.current++;
+      tempoRequest.current?.abort();
+      transportRef.current?.stop();
+    };
   }, []);
   useEffect(() => {
     transportRef.current?.setMixer(mixer, cursor.trackId);
   }, [mixer, cursor.trackId]);
 
-  const playbackCompilation = useMemo(
-    () =>
-      compilePlayback(
-        score,
-        unrollScore(score),
-        {
-          mode: "relative",
-          percent: speedPercent
-        }
-      ),
-    [score, speedPercent]
-  );
+  const { playbackCompilation, prepare } = usePlaybackCompilation(score, speedPercent);
 
   const loopRange = useMemo(() =>
     loopEnabled ? getPlaybackLoop(playbackCompilation, selection, cursor.barIndex) : null,
@@ -100,7 +96,19 @@ export function usePlaybackController(params: UsePlaybackControllerParams): Play
     : writtenBpmAtTick((writtenStarts[cursor.barIndex] ?? 0) + beatTickForCursor(score, cursor));
 
   async function startPlayback(startSec: number): Promise<void> {
-    await launchPlayback(score, playbackCompilation, startSec, countInEnabled);
+    const generation = ++startGeneration.current;
+    setPlaybackStatus("starting");
+    try {
+      const [compilation] = await Promise.all([prepare(), unlockPlaybackAudio()]);
+      if (generation !== startGeneration.current) return;
+      if (useDocumentStore.getState().score !== score) {
+        setPlaybackStatus("stopped");
+        return;
+      }
+      await launchPlayback(score, compilation, startSec, countInEnabled);
+    } catch {
+      if (generation === startGeneration.current) setPlaybackStatus("stopped");
+    }
   }
 
   async function launchPlayback(
@@ -158,14 +166,27 @@ export function usePlaybackController(params: UsePlaybackControllerParams): Play
       setMeasureTempo(draft, active ? playback.currentBarIndex : cursor.barIndex, bpm);
     });
     if (active && nextScore !== document.score) {
-      const compilation = compilePlayback(nextScore, unrollScore(nextScore),
-        { mode: "relative", percent: playback.speedPercent });
-      const time = compilation.tempoMap.ticksToSeconds(playback.currentTick);
-      void launchPlayback(nextScore, compilation, time, false);
+      tempoRequest.current?.abort();
+      const controller = new AbortController();
+      tempoRequest.current = controller;
+      const speed = playback.speedPercent;
+      const prepareTempo = isLargePlaybackScore(nextScore) && typeof Worker !== "undefined"
+        ? preparePlaybackInWorker(nextScore, speed, controller.signal).catch((error: unknown) => {
+            if (controller.signal.aborted) throw error;
+            return compilePlaybackOnMainThread(nextScore, speed);
+          })
+        : Promise.resolve(compilePlaybackOnMainThread(nextScore, speed));
+      void prepareTempo.then((compilation) => {
+        if (controller.signal.aborted || useDocumentStore.getState().score !== nextScore) return;
+        const time = compilation.tempoMap.ticksToSeconds(usePlaybackStore.getState().currentTick);
+        return launchPlayback(nextScore, compilation, time, false);
+      }).catch(() => undefined);
     }
   }
 
   function stopPlayback(): void {
+    startGeneration.current++;
+    tempoRequest.current?.abort();
     if (transportRef.current) {
       transportRef.current.stop();
     } else {

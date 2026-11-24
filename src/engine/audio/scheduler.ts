@@ -2,6 +2,7 @@ import type { NoteEvent } from "./compile";
 import { PlaybackEventQueue, wrappedPlaybackSecond, type PlaybackLoopRange } from "./playbackLoop";
 import type { MixerState } from "./mixer";
 import type { MixerAutomation } from "./mixerAutomation";
+import { PlaybackClock } from "./playbackClock";
 import { SimpleSynth, type ScheduledVoice } from "./sampler";
 
 export interface SchedulerPosition {
@@ -24,23 +25,19 @@ export interface SchedulerPlayOptions {
   onEnded: (sessionId: number) => void;
 }
 
-const LOOKAHEAD_SEC = 0.2;
+const LOOKAHEAD_SEC = 0.5;
 const SEEK_FADE_SEC = 0.01;
-const SCHEDULE_INTERVAL_MS = 25;
-const POSITION_INTERVAL_MS = 50;
 
 export class PlaybackScheduler {
   private context: AudioContext | null = null;
   private synth: SimpleSynth | null = null;
-  private scheduleTimer: number | null = null;
-  private positionTimer: number | null = null;
+  private readonly clock = new PlaybackClock();
   private scheduled = new Set<ScheduledVoice>();
   private eventQueue: PlaybackEventQueue | null = null;
   private nextLoopBoundary = Infinity;
   private startAudioTime = 0;
   private startSec = 0;
   private sessionId: number | null = null;
-  private timerGeneration = 0;
   private options: SchedulerPlayOptions | null = null;
 
   async play(options: SchedulerPlayOptions): Promise<void> {
@@ -61,7 +58,7 @@ export class PlaybackScheduler {
   }
 
   stop(): void {
-    this.clearTimers();
+    this.clock.stop();
     this.sessionId = null;
     this.options = null;
     this.eventQueue = null;
@@ -83,7 +80,7 @@ export class PlaybackScheduler {
       this.startSec = target;
       return;
     }
-    this.clearTimers();
+    this.clock.stop();
     this.clearVoices(this.context.currentTime + SEEK_FADE_SEC);
     this.scheduleFrom(target);
   }
@@ -130,23 +127,9 @@ export class PlaybackScheduler {
     this.eventQueue = new PlaybackEventQueue(opening, this.startSec, this.options.totalSeconds, this.options.loop ?? null, musicalEvents);
     this.nextLoopBoundary = this.options.loop?.endSec ?? Infinity;
 
-    const generation = this.timerGeneration;
-    this.scheduleTimer = window.setInterval(() => {
-      if (generation === this.timerGeneration) this.scheduleDueEvents();
-    }, SCHEDULE_INTERVAL_MS);
-    this.positionTimer = window.setInterval(() => {
-      if (generation === this.timerGeneration) this.emitPosition();
-    }, POSITION_INTERVAL_MS);
+    this.clock.start(() => this.scheduleDueEvents(), () => this.emitPosition());
     this.scheduleDueEvents();
     this.emitPosition();
-  }
-
-  private clearTimers(): void {
-    this.timerGeneration++;
-    if (this.scheduleTimer !== null) window.clearInterval(this.scheduleTimer);
-    if (this.positionTimer !== null) window.clearInterval(this.positionTimer);
-    this.scheduleTimer = null;
-    this.positionTimer = null;
   }
 
   private clearVoices(fadeEnd?: number): void {
@@ -240,6 +223,10 @@ function withCountIn(events: NoteEvent[], clicks: NoteEvent[], start: number): N
 }
 
 let sharedAudioContext: AudioContext | null = null;
+
+export async function unlockPlaybackAudio(): Promise<void> {
+  await audioContext().resume();
+}
 
 function audioContext(): AudioContext {
   if (sharedAudioContext) return sharedAudioContext;

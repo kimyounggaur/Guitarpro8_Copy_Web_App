@@ -1,7 +1,8 @@
-import type { Score, Stylesheet } from "../../model/types";
+import type { DisplayMode, Score, Stylesheet } from "../../model/types";
 import { normalizeStylesheet, renderHeaderToken, resolvePageMetrics, type PageMetrics } from "../../model/stylesheet";
 import { validateBarDurations } from "../validate";
 import { createMeasureContents } from "./measureContents";
+import { trackLayoutInputs, type LayoutCache } from "./layoutCache";
 import { layoutPages } from "./pageLayout";
 import type { SceneGraph, ScenePrimitive } from "./sceneGraph";
 import { breakSystems } from "./systemBreaker";
@@ -9,31 +10,43 @@ import { SYSTEM_LABEL_WIDTH } from "./metrics";
 import { systemPrimitives } from "./trackScene";
 
 export interface LayoutScoreOptions {
-  editingBar?: { trackId?: string; barIndex: number };
+  cache?: LayoutCache;
+  displayMode?: DisplayMode;
   concertTone?: boolean;
-  activeVoiceIndex?: number;
-  multiVoiceEdit?: boolean;
+  groupHorizontalSystems?: boolean;
 }
 
 export function layoutScore(score: Score, options: LayoutScoreOptions = {}): SceneGraph {
-  const stylesheet = normalizeStylesheet(score.stylesheet);
-  const metrics = resolvePageMetrics(stylesheet, score.documentSettings.displayMode);
-  const measureContents = createMeasureContents(score, stylesheet.notation);
-  const systems = breakSystems(measureContents, metrics.contentWidth - SYSTEM_LABEL_WIDTH, stylesheet.page);
-  const durationIssues = validateBarDurations(score);
-  const pages = layoutPages(systems, score.tracks, stylesheet, metrics, (system) =>
-    systemPrimitives(score, system.measures, 0, 0, {
-      durationIssues,
-      editingBar: options.editingBar,
-      concertTone: options.concertTone ?? score.documentSettings.concertTone,
-      activeVoiceIndex: options.activeVoiceIndex,
-      multiVoiceEdit: options.multiVoiceEdit,
-      trackGap: metrics.trackGap
-    })
-  );
+  const { cache } = options;
+  const stylesheet = cache?.stylesheet(score.stylesheet) ?? normalizeStylesheet(score.stylesheet);
+  const metrics = resolvePageMetrics(stylesheet, options.displayMode);
+  const contents = cache?.measureContents(score, stylesheet.notation) ?? createMeasureContents(score, stylesheet.notation);
+  const width = metrics.contentWidth - SYSTEM_LABEL_WIDTH;
+  const systems = cache?.breakSystems(contents, width, stylesheet.page) ?? breakSystems(contents, width, stylesheet.page);
+  const groupSystems = options.groupHorizontalSystems && options.displayMode === "horizontal-screen";
+  const concertTone = options.concertTone ?? score.documentSettings.concertTone;
+  let durationIssues: ReturnType<typeof validateBarDurations> | undefined;
+  const sharedInputs = cache && [
+    stylesheet,
+    metrics.trackGap,
+    concertTone,
+    score.masterBars[0]?.anacrusis,
+    score.masterBars.at(-1)?.anacrusis,
+    ...score.tracks.flatMap(trackLayoutInputs)
+  ];
+  const pages = layoutPages(systems, score.tracks, stylesheet, metrics, (system) => {
+    const draw = () => systemPrimitives(score, system.measures, 0, 0, {
+      durationIssues: durationIssues ??= validateBarDurations(score),
+      concertTone,
+      trackGap: metrics.trackGap,
+      stylesheet,
+      cache
+    });
+    return cache && sharedInputs ? cache.drawSystem(score, system, sharedInputs, draw) : draw();
+  }, groupSystems);
 
-  return {
-    pages: pages.map((page) => ({
+  const scenePages = pages.map((page) => {
+    const draw = () => ({
       id: `page-${page.index}`,
       width: page.width,
       height: page.height,
@@ -42,8 +55,12 @@ export function layoutScore(score: Score, options: LayoutScoreOptions = {}): Sce
         ...pageTextPrimitives(score, stylesheet, metrics, page.index, pages.length, page.height),
         ...page.primitives
       ]
-    }))
-  };
+    });
+    return cache?.page(page.index, [score.meta, stylesheet, page.width, page.height, pages.length,
+      metrics.marginLeft, metrics.marginRight, metrics.marginTop, metrics.marginBottom], page.primitives, draw) ?? draw();
+  });
+  cache?.finishPages(scenePages.length);
+  return { pages: scenePages };
 }
 
 function pageBackground(

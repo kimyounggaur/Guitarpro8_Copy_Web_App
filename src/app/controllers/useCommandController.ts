@@ -1,3 +1,4 @@
+import { useViewStore } from "../../store/viewStore";
 // Command controller — the Command Palette free-text grammar interpreter
 // (`handleCommandPaletteSubmit` and everything it delegates to) plus
 // `runMenuAction`/`runAppAction`/`dispatchEditorCommand`.
@@ -393,10 +394,10 @@ export function runAppAction(deps: CommandControllerDeps, action: string, label 
       deps.openStylesheetPanel();
       return { handled: true, message: label };
     case "view.zoomIn":
-      deps.handleZoomChange(deps.score.documentSettings.zoom + 10);
+      deps.handleZoomChange(useViewStore.getState().zoom + 10);
       return { handled: true, message: label };
     case "view.zoomOut":
-      deps.handleZoomChange(deps.score.documentSettings.zoom - 10);
+      deps.handleZoomChange(useViewStore.getState().zoom - 10);
       return { handled: true, message: label };
     default:
       break;

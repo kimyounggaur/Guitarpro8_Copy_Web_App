@@ -1,3 +1,4 @@
+import { useViewStore } from "../../store/viewStore";
 import { useLayoutEffect, useRef, useState, type MouseEventHandler, type RefObject } from "react";
 import { beatDurationTicks, barTheoreticalTicks } from "../../model/derive";
 import type { DisplayMode } from "../../model/types";
@@ -28,7 +29,8 @@ export function TopToolbar(props: TopToolbarProps) {
   const requiredRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const currentTrack = props.score.tracks.find((track) => track.id === props.cursor.trackId);
-  const { zoom, displayMode } = props.score.documentSettings;
+  const zoom = useViewStore((state) => state.zoom);
+  const displayMode = useViewStore((state) => state.displayMode);
   const { cursor } = props;
   const [tempoDraft, setTempoDraft] = useState<string | null>(null);
   const tempoEditing = useRef(false);

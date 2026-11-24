@@ -41,6 +41,7 @@ export interface HitMetadata {
 
 interface PrimitiveBase {
   id: string;
+  voiceIndex?: number;
   hit?: HitMetadata;
   pointerEvents?: "none";
 }

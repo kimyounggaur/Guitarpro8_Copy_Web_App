@@ -1,3 +1,4 @@
+import { getDocumentView } from "../../store/viewStore";
 // File I/O controller — File System Access API, the hidden <input> fallback,
 // import/export/download, and score drag & drop.
 //
@@ -39,7 +40,6 @@ type PendingFileLoad = { kind: "native" } | { kind: "import"; format: ImportForm
 export interface UseFileControllerParams {
   score: Score;
   activeTrackId: string | null;
-  multiVoiceEdit: boolean;
   loadScore: (score: Score, options?: LoadScoreOptions) => void;
   setSelection: (selection: SelectionRange | null) => void;
   setCursor: (cursor: CursorPosition) => void;
@@ -65,7 +65,7 @@ export interface FileController {
 }
 
 export function useFileController(params: UseFileControllerParams): FileController {
-  const { score, activeTrackId, multiVoiceEdit, loadScore, setSelection, setCursor, openFileIoPanel, closeFileIoPanel } =
+  const { score, activeTrackId, loadScore, setSelection, setCursor, openFileIoPanel, closeFileIoPanel } =
     params;
 
   const [fileIoStatus, setFileIoStatus] = useState(
@@ -192,6 +192,8 @@ export function useFileController(params: UseFileControllerParams): FileControll
     if (saving.current) return false;
     saving.current = true;
     const snapshot = useDocumentStore.getState();
+    const view = getDocumentView();
+    snapshot.endEditGroup();
     const generation = loadingGeneration.current;
     const savedAt = new Date();
     const picker = (window as BrowserFilePickerWindow).showSaveFilePicker;
@@ -211,7 +213,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
       }
 
       const blob = new Blob(
-        [writeScoreFile(snapshot.score, snapshot.activeId, savedAt)],
+        [writeScoreFile(snapshot.score, snapshot.activeId, savedAt, view)],
         { type: "application/json" }
       );
       if (handle) {
@@ -286,10 +288,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
         return;
       }
 
-      const exportScene = layoutScore({
-        ...score,
-        documentSettings: { ...score.documentSettings, displayMode: "vertical-page", zoom: 100 }
-      }, { concertTone: score.documentSettings.concertTone, multiVoiceEdit });
+      const exportScene = layoutScore(score, { displayMode: "vertical-page", concertTone: score.documentSettings.concertTone });
 
       if (format === "pdf") {
         setFileIoStatus("Choose ‘Save as PDF’ in the printer destination.");
@@ -377,7 +376,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
       if (loaded && LEGACY_NATIVE_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) {
         warnings.push(`Save this score again with the ${NATIVE_EXTENSION} extension.`);
       }
-      replaceScore(nextScore, loaded ? { documentId: loaded.documentId } : {}, loaded && hasCurrentExtension ? handle : null);
+      replaceScore(nextScore, loaded ? { documentId: loaded.documentId, view: loaded.view } : {}, loaded && hasCurrentExtension ? handle : null);
       if (loaded?.savedAt) {
         void discardRecoverySnapshot(loaded.documentId, loaded.savedAt).catch(() => {});
       }

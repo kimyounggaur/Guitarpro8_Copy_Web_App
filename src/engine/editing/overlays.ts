@@ -1,25 +1,28 @@
-import type { SceneGraph, ScenePrimitive } from "../layout/sceneGraph";
+import type { ScenePrimitive } from "../layout/sceneGraph";
 import type { CursorPosition, SelectionRange } from "./types";
 import { positionToY } from "../notation/staffPosition";
 import { VOICE_CURSOR_COLORS } from "./types";
 
-export function withEditorOverlays(
-  scene: SceneGraph,
-  cursor: CursorPosition,
-  selection: SelectionRange | null,
-  playbackBarIndex: number | null = null
-): SceneGraph {
-  return {
-    pages: scene.pages.map((page) => ({
-      ...page,
-      primitives: [
-        ...page.primitives,
-        ...playbackPrimitives(page.primitives, playbackBarIndex),
-        ...selectionPrimitives(page.primitives, selection),
-        ...cursorPrimitives(page.primitives, cursor)
-      ]
-    }))
-  };
+export interface EditorOverlayState {
+  cursor: CursorPosition;
+  selection: SelectionRange | null;
+  playbackBarIndex: number | null;
+  multiVoiceEdit: boolean;
+}
+
+export function editorOverlayPrimitives(
+  primitives: ScenePrimitive[],
+  { cursor, selection, playbackBarIndex }: EditorOverlayState
+): ScenePrimitive[] {
+  const editingBar = primitives.find(({ hit }) => hit?.kind === "bar"
+    && hit.ref.trackId === cursor.trackId && hit.ref.barIndex === cursor.barIndex)?.hit;
+
+  return [
+    ...(editingBar ? [cursorRect("editor-active-bar", editingBar.bbox, "#3b82f6", 0.05)] : []),
+    ...playbackPrimitives(primitives, playbackBarIndex),
+    ...selectionPrimitives(primitives, selection),
+    ...cursorPrimitives(primitives, cursor)
+  ];
 }
 
 function playbackPrimitives(

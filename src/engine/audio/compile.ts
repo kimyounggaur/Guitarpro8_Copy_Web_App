@@ -95,9 +95,12 @@ export function compilePlayback(
     }
   }
   const sortedEvents = voicedEvents.sort((left, right) => left.timeSec - right.timeSec || left.midiPitch - right.midiPitch);
+  return assemblePlaybackCompilation(unrolled, sortedEvents, tempoMap);
+}
 
+export function assemblePlaybackCompilation(unrolled: UnrollResult, events: NoteEvent[], tempoMap: TempoMap): PlaybackCompilation {
   return {
-    events: sortedEvents,
+    events,
     segments: unrolled.segments,
     tempoMap,
     totalSeconds: tempoMap.totalSeconds,
