@@ -26,3 +26,14 @@ test("[C2] command search omits unsupported commands and executes an available o
   await search.press("Enter");
   expect((await state(page)).score.masterBars).toHaveLength(bars + 2);
 });
+
+test("[C8] planning-only features are hidden while working chords remain reachable", async ({ page }) => {
+  await openApp(page);
+  const edition = page.getByRole("complementary", { name: "Edition palette" });
+  await expect(edition.getByText("Design", { exact: true })).toHaveCount(0);
+  await expect(edition.getByText("Lyrics", { exact: true })).toHaveCount(0);
+  const nav = page.getByRole("navigation", { name: "Application menus" });
+  await nav.getByRole("button", { name: "Tools", exact: true }).click();
+  await nav.getByRole("button", { name: /^Chords/ }).click();
+  await expect(page.getByRole("region", { name: "Tool window" })).toBeVisible();
+});

@@ -336,9 +336,6 @@ function EditionPalette({
           {multiVoiceEdit ? "On" : "Off"}
         </button>
       </PaletteGroup>
-      {["Design", "Lyrics", "Chords"].map((title) => (
-        <PaletteGroup key={title} title={title} disabled />
-      ))}
       <PaletteGroup title="Bar symbols">
         {barSymbolButtons.map(([label, command]) => (
           <button key={command} type="button" onClick={() => dispatchCommand(command)}>
