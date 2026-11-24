@@ -1,3 +1,4 @@
+import { EditorWindow } from "../overlays/EditorWindow";
 import { t } from "../i18n/messages.en";
 import { useState } from "react";
 import type { PngScale } from "../../io/print/imageExport";
@@ -42,13 +43,8 @@ export function FileIoPanel(props: FileIoPanelProps) {
   }
 
   return (
-    <section className="fileIoPanel" aria-label={t("files.fileImportAndExport")}>
-      <header className="toolPanelHeader">
-        <strong>{t("files.fileIO")}</strong>
-        <button type="button" onClick={props.onClose} title={t("files.closeFileIO")} aria-label={t("files.closeFileIO")}>
-          x
-        </button>
-      </header>
+    <EditorWindow regionLabel={t("files.fileImportAndExport")} kind="file" id="file" modal title={t("files.fileIO")} closeLabel={t("files.closeFileIO")} description="Open, save, import, or export the current score." onClose={props.onClose}>
+    <section className="fileIoPanel">
       <div className="fileIoBody">
         <section className="fileIoColumn">
           <h2>{t("files.native")}</h2>
@@ -106,5 +102,6 @@ export function FileIoPanel(props: FileIoPanelProps) {
       </div>
       <footer className="fileIoStatus">{props.status}</footer>
     </section>
+    </EditorWindow>
   );
 }

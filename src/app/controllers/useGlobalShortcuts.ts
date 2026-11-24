@@ -1,3 +1,4 @@
+import { useOverlayStore } from "../../store/overlayStore";
 import { useEffect } from "react";
 import type { ApplicationShortcutId } from "../../commands/commandIds";
 import { commandIdForKeyEvent } from "../../commands/keymap";
@@ -13,6 +14,19 @@ export function useGlobalShortcuts(actions: Record<GlobalShortcutId, () => unkno
 
       const target = event.target instanceof HTMLElement ? event.target : null;
       const editingText = target?.closest("input, select, textarea") || target?.isContentEditable;
+      if (target?.closest("[data-anchored-popover], [data-command-menu]")) return;
+      if (document.querySelector("dialog[data-editor-window]:modal")) return;
+      if (event.key === "Escape" && !target?.closest('[data-testid="command-palette"]')) {
+        const { stack, dismiss } = useOverlayStore.getState();
+        const top = stack[stack.length - 1];
+        if (top) {
+          const panel = document.querySelector('[data-editor-window="' + top.kind + '"]');
+          if (panel) panel.dispatchEvent(new Event("editor-window-dismiss"));
+          else dismiss(top.kind);
+          event.preventDefault();
+          return;
+        }
+      }
       if (editingText && event.key !== "Escape") {
         return;
       }

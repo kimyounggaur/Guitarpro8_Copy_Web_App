@@ -1,7 +1,12 @@
+import { layoutScore } from "../../engine/layout/layoutScore";
+import { SvgRenderer } from "../../engine/render/SvgRenderer";
+import { FileDialog } from "../overlays/FileDialog";
+import { EditorWindow } from "../overlays/EditorWindow";
+import { useDocumentStore } from "../../store/documentStore";
 import { useViewStore } from "../../store/viewStore";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePreferencesStore } from "../../store/preferencesStore";
-import { normalizeStylesheet, PAPER_SIZES, withPaperSize } from "../../model/stylesheet";
+import { applyStylePreset, normalizeStylesheet, PAPER_SIZES, withPaperSize } from "../../model/stylesheet";
 import type { DisplayMode, HeaderFooterVisibility, PageOrientation, Score, Stylesheet, StylesheetPresetName } from "../../model/types";
 
 export interface StylesheetPanelProps {
@@ -40,14 +45,30 @@ export function StylesheetPanel(props: StylesheetPanelProps) {
   const displayMode = useViewStore((state) => state.displayMode);
   const [activeTab, setActiveTab] = useState<TabId>("page");
   const [saveStatus, setSaveStatus] = useState("");
-  const stylesheet = useMemo(() => normalizeStylesheet(props.score.stylesheet), [props.score.stylesheet]);
+  const savedStyle = useMemo(() => normalizeStylesheet(props.score.stylesheet), [props.score.stylesheet]);
 
+  const [draft, setDraft] = useState<Stylesheet | null>(null);
+  const [confirmClose, setConfirmClose] = useState<"window" | "preview" | null>(null);
+  const documentId = useDocumentStore((state) => state.activeId);
+  useEffect(() => { setDraft(null); setConfirmClose(null); }, [documentId]);
+  const stylesheet = draft ?? savedStyle;
+  const dirtyDraft = draft !== null && JSON.stringify(draft) !== JSON.stringify(savedStyle);
+  useEffect(() => { if (!props.open) { setDraft(null); setConfirmClose(null); } }, [props.open]);
+  function close() {
+    if (dirtyDraft) setConfirmClose("window");
+    else props.onClose();
+  }
+  function apply() {
+    if (draft && dirtyDraft) props.onChange(draft);
+    setDraft(null);
+  }
   if (!props.open) {
     return null;
   }
 
   function patch<K extends StylesheetSection>(section: K, value: Partial<Stylesheet[K]>): void {
-    props.onChange({
+    const change = draft ? setDraft : props.onChange;
+    change({
       ...stylesheet,
       [section]: {
         ...stylesheet[section],
@@ -63,18 +84,22 @@ export function StylesheetPanel(props: StylesheetPanelProps) {
   }
 
   return (
-    <section className="stylesheetPanel" aria-label="Score stylesheet">
-      <header className="toolPanelHeader">
-        <strong>Score Stylesheet</strong>
-        <button type="button" onClick={props.onClose} aria-label="Close stylesheet" title="Close stylesheet">
-          x
-        </button>
-      </header>
+    <EditorWindow regionLabel="Score stylesheet" kind="style" id="style" modal={false} title="Score Stylesheet" closeLabel="Close stylesheet" description="Change the layout and notation of the current score." onClose={close}>
+    <section className="stylesheetPanel">
       <nav className="stylesheetTabs" aria-label="Stylesheet tabs">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
+            aria-pressed={activeTab === tab.id}
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+              event.preventDefault();
+              const next = (tabs.indexOf(tab) + (event.key === "ArrowLeft" ? -1 : 1) + tabs.length) % tabs.length;
+              setActiveTab(tabs[next].id);
+              event.currentTarget.parentElement?.querySelectorAll("button")[next]?.focus();
+            }}
             className={activeTab === tab.id ? "activeToggle" : ""}
             onClick={() => setActiveTab(tab.id)}
           >
@@ -82,6 +107,7 @@ export function StylesheetPanel(props: StylesheetPanelProps) {
           </button>
         ))}
       </nav>
+      <div className="styleEditBody">
       <div className="stylesheetBody">
         {activeTab === "page" ? (
           <section className="styleFormGrid">
@@ -188,7 +214,7 @@ export function StylesheetPanel(props: StylesheetPanelProps) {
                   key={preset}
                   type="button"
                   className={stylesheet.presetName === preset ? "activeToggle" : ""}
-                  onClick={() => props.onPreset(preset)}
+                  onClick={() => draft ? setDraft(applyStylePreset(draft, preset)) : props.onPreset(preset)}
                 >
                   {preset}
                 </button>
@@ -214,8 +240,39 @@ export function StylesheetPanel(props: StylesheetPanelProps) {
           </section>
         ) : null}
       </div>
+      {draft && <StylePreview score={props.score} draft={draft} />}
+      </div>
+      <footer className="styleEditBar">
+        {draft ? <>
+          <button type="button" onClick={apply}>Apply</button>
+          <button type="button" onClick={() => setDraft(savedStyle)} disabled={!dirtyDraft}>Reset draft</button>
+          <button type="button" onClick={() => dirtyDraft ? setConfirmClose("preview") : setDraft(null)}>Close preview</button>
+        </> : <button type="button" onClick={() => setDraft(savedStyle)}>Preview changes</button>}
+      </footer>
+      {confirmClose && <FileDialog title="Unapplied stylesheet changes" onCancel={() => setConfirmClose(null)}>
+        <p>Apply this preview to the score before closing?</p>
+        <div className="fileDecisionActions">
+          <button type="button" onClick={() => { apply(); setConfirmClose(null); if (confirmClose === "window") props.onClose(); }}>Apply and close</button>
+          <button type="button" onClick={() => { setDraft(null); setConfirmClose(null); if (confirmClose === "window") props.onClose(); }}>Discard and close</button>
+          <button type="button" onClick={() => setConfirmClose(null)}>Cancel</button>
+        </div>
+      </FileDialog>}
     </section>
+    </EditorWindow>
   );
+}
+
+function StylePreview({score, draft}: {score: Score; draft: Stylesheet}) {
+  const scene = useMemo(() => {
+    const sample = { ...score, stylesheet: draft, masterBars: score.masterBars.slice(0, 4),
+      tracks: score.tracks.slice(0, 2).map((track) => ({...track, bars: track.bars.slice(0, 4)})) };
+    const result = layoutScore(sample);
+    return { ...result, pages: result.pages.slice(0, 1).map((page) => ({...page, id: "style-preview-" + page.id,
+      primitives: page.primitives.map((item) => ({...item, id: "style-preview-" + item.id}))})) };
+  }, [score, draft]);
+  return <aside className="styleScorePreview" aria-label="Stylesheet preview">
+    <SvgRenderer scene={scene} displayMode="vertical-page" zoom={25} />
+  </aside>;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -242,26 +299,27 @@ function NumberField({
   step?: number;
   onChange: (value: number) => void;
 }) {
-  return (
-    <Field label={label}>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(clamp(Number(event.target.value), min, max))}
-      />
-    </Field>
-  );
+  return <DraftField label={label} value={String(value)} type="number" min={min} max={max} step={step}
+    onCommit={(input) => { if (input && Number.isFinite(Number(input))) onChange(clamp(Number(input), min, max)); }} />;
 }
 
 function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <Field label={label}>
-      <input value={value} onChange={(event) => onChange(event.target.value)} />
-    </Field>
-  );
+  return <DraftField label={label} value={value} type="text" onCommit={onChange} />;
+}
+
+function DraftField({ label, value, type, min, max, step, onCommit }: {
+  label: string; value: string; type: "text" | "number"; min?: number; max?: number; step?: number; onCommit: (value: string) => void;
+}) {
+  const [text, setText] = useState(value);
+  const editing = useRef(false);
+  useEffect(() => { if (!editing.current) setText(value); }, [value]);
+  return <Field label={label}><input type={type} value={text} min={min} max={max} step={step}
+    onFocus={() => { editing.current = true; }} onChange={(event) => setText(event.target.value)}
+    onBlur={(event) => {
+      editing.current = false;
+      if (text !== value && (type === "text" || (text && event.currentTarget.validity.valid))) onCommit(text);
+      else setText(value);
+    }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></Field>;
 }
 
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {

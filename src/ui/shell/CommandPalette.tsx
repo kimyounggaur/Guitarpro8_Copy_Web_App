@@ -1,5 +1,5 @@
 import { t } from "../i18n/messages.en";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useEffect, useMemo, useRef, useState } from "react";
 import type { Command } from "../../commands/registry";
 import {
   COMMAND_PALETTE_PLACEHOLDER,
@@ -10,6 +10,9 @@ import {
   type PaletteEntry
 } from "../../commands/paletteCommands";
 import type { EditorCommandContext } from "../../commands/editingCommands";
+import { OverlayPortal } from "../overlays/OverlayPortal";
+import { rankPaletteMatches, readCommandHistory, rememberCommand } from "../overlays/paletteSearch";
+import { shortcutLabel } from "../../commands/keymap";
 import { useDialogFocus } from "../overlays/useDialogFocus";
 
 export interface CommandPaletteResult {
@@ -35,14 +38,19 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const [value, setValue] = useState(initialValue);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<string[]>(readCommandHistory);
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const [flowMode, setFlowMode] = useState(false);
   const [status, setStatus] = useState(t("palette.ready"));
-  const dialogRef = useRef<HTMLElement>(null);
-  useDialogFocus(dialogRef, open, "overlay");
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const selectedByNavigation = useRef(false);
+  const historyDraft = useRef("");
+  const list = useRef<HTMLDivElement>(null);
+  const parsed = parsePaletteInput(value);
+  useDialogFocus(dialogRef, open, "native");
   const suggestions = useMemo(
-    () => suggestPaletteEntries(value, registeredCommands as Array<Command<unknown>>).slice(0, 12),
+    () => rankPaletteMatches(suggestPaletteEntries(value, registeredCommands as Array<Command<unknown>>),
+      parsed.mode === "action" || parsed.mode === "expression" ? parsed.args : value).slice(0, 80),
     [registeredCommands, value]
   );
   const usage = commandUsage(value);
@@ -52,13 +60,29 @@ export function CommandPalette({
     if (open) {
       setValue(initialValue);
       setSelectedIndex(0);
+      setHistoryIndex(null);
     }
   }, [initialValue, open]);
 
   useEffect(() => {
     setSelectedIndex(0);
-    setHistoryIndex(null);
+    selectedByNavigation.current = false;
   }, [value]);
+
+  useLayoutEffect(() => {
+    if (!open || !dialogRef.current) return;
+    const tabs = document.querySelector('[data-testid="tab-bar"]');
+    const place = () => dialogRef.current?.style.setProperty("--palette-anchor", ((tabs?.getBoundingClientRect().bottom ?? 80) + 6) + "px");
+    place();
+    window.addEventListener("resize", place);
+    const observer = new ResizeObserver(place);
+    if (tabs) observer.observe(tabs);
+    return () => { window.removeEventListener("resize", place); observer.disconnect(); };
+  }, [open]);
+
+  useEffect(() => {
+    if (selectedByNavigation.current) list.current?.children[selectedIndex]?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
 
   if (!open) {
     return null;
@@ -87,7 +111,8 @@ export function CommandPalette({
     setStatus(result.message);
 
     if (result.handled) {
-      setHistory((items) => [trimmed, ...items.filter((item) => item !== trimmed)].slice(0, 20));
+      setHistory((items) => rememberCommand(trimmed, items));
+      setHistoryIndex(null);
 
       if (!flowMode && !result.keepOpen) {
         onClose();
@@ -109,37 +134,39 @@ export function CommandPalette({
       }
     }
 
+    const up = event.key === "ArrowUp";
+    const down = event.key === "ArrowDown";
+    if ((up || down) && history.length && (event.altKey || historyIndex !== null || (up && !value))) {
+      event.preventDefault();
+      if (historyIndex === null) historyDraft.current = value;
+      const next = Math.min(history.length - 1, Math.max(-1, (historyIndex ?? -1) + (up ? 1 : -1)));
+      setHistoryIndex(next < 0 ? null : next);
+      setValue(next < 0 ? historyDraft.current : history[next]);
+      return;
+    }
+    const last = Math.max(0, suggestions.length - 1);
+    const index = { ArrowUp: Math.max(0, selectedIndex - 1), ArrowDown: Math.min(last, selectedIndex + 1),
+      PageUp: Math.max(0, selectedIndex - 8), PageDown: Math.min(last, selectedIndex + 8), Home: 0, End: last }[event.key];
+    if (index !== undefined && suggestions.length && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
+      event.preventDefault();
+      selectedByNavigation.current = true;
+      setSelectedIndex(index);
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
-      run(event.currentTarget.value);
-      return;
-    }
-
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-
-      if (suggestions.length > 0) {
-        setSelectedIndex((index) => (index + 1) % suggestions.length);
-      }
-      return;
-    }
-
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-
-      if (history.length > 0) {
-        const nextIndex = historyIndex === null ? 0 : Math.min(history.length - 1, historyIndex + 1);
-        setHistoryIndex(nextIndex);
-        setValue(history[nextIndex]);
-      } else if (suggestions.length > 0) {
-        setSelectedIndex((index) => (index - 1 + suggestions.length) % suggestions.length);
-      }
+      const selected = suggestions[selectedIndex];
+      if (selected && selectedByNavigation.current) {
+        if (selected.requiresArgument) completeSuggestion(selected);
+        else run(paletteInputForEntry(selected));
+      } else run(event.currentTarget.value);
     }
   }
 
   return (
-    <section ref={dialogRef} className="commandPalette" role="dialog" aria-modal="true"
+    <OverlayPortal><dialog ref={dialogRef} className="commandPalette remasteredPalette" role="dialog" aria-modal="true"
       aria-label={t("palette.commandPalette")} data-testid="command-palette" tabIndex={-1}
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -149,14 +176,14 @@ export function CommandPalette({
       }}
     >
       <div className="commandPaletteInputRow">
-        <span className="commandPrompt" aria-hidden="true">{parsePaletteInput(value).prefix}</span>
+        <span className="commandPrompt" aria-hidden="true">{parsed.mode === "command" ? "Quick" : parsed.mode}</span>
         <input
           data-testid="command-palette-input"
           data-dialog-initial-focus
           aria-label={t("palette.searchCommands")}
           value={value}
           placeholder={COMMAND_PALETTE_PLACEHOLDER}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(event) => { setHistoryIndex(null); setValue(event.target.value); }}
           onKeyDown={handleKeyDown}
         />
         <button type="button" aria-pressed={flowMode} className={flowMode ? "activeToggle" : ""} onClick={() => setFlowMode((enabled) => !enabled)}>
@@ -166,11 +193,14 @@ export function CommandPalette({
           <span aria-hidden="true">×</span>
         </button>
       </div>
-      <div className="commandSuggestionList">
+      <div className="commandSuggestionList" ref={list}>
         {suggestions.map((entry, index) => (
           <button
             key={`${entry.kind}-${entry.prefix}-${index}`}
             type="button"
+            aria-current={index === selectedIndex}
+            disabled={entry.disabled}
+            onMouseEnter={() => { selectedByNavigation.current = true; setSelectedIndex(index); }}
             className={[
               "commandSuggestion",
               index === selectedIndex ? "selectedSuggestion" : "",
@@ -180,7 +210,7 @@ export function CommandPalette({
           >
             <strong>{entry.prefix}</strong>
             <span>{entry.description}</span>
-            {entry.requiresArgument ? <em aria-hidden="true">↹</em> : null}
+            <em aria-hidden="true">{entry.disabled ? "Unavailable" : entry.requiresArgument ? "Argument ↹" : (entry.commandId && shortcutLabel(entry.commandId)) || entry.kind}</em>
           </button>
         ))}
       </div>
@@ -189,7 +219,7 @@ export function CommandPalette({
         <span>{usage}</span>
       </div>
       {preview ? <div className="commandPatternPreview">{preview}</div> : null}
-    </section>
+    </dialog></OverlayPortal>
   );
 }
 
