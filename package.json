@@ -1,5 +1,5 @@
 {
-  "name": "guitar-pro-clone-webapp",
+  "name": "tabscore-webapp",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,12 @@
     "test:watch": "vitest --config vitest.config.ts",
     "test:e2e": "playwright test --project=chromium",
     "test:visual": "playwright test --project=visual-1024x768 --project=visual-1280x768 --project=visual-1440x900 --project=visual-1920x1080",
-    "test:visual:update": "playwright test --project=visual-1024x768 --project=visual-1280x768 --project=visual-1440x900 --project=visual-1920x1080 --update-snapshots"
+    "test:visual:update": "playwright test --project=visual-1024x768 --project=visual-1280x768 --project=visual-1440x900 --project=visual-1920x1080 --update-snapshots",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "test:audio": "playwright test --project=audio",
+    "test:perf": "playwright test --project=perf"
   },
   "dependencies": {
     "immer": "^10.1.1",
@@ -19,14 +24,18 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "1.61.1",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "terser": "^5.49.0",
     "typescript": "^5.7.3",
-    "vite": "^6.0.5",
-    "vitest": "^2.1.8"
+    "vite": "^6.4.4",
+    "vitest": "^4.1.12"
+  },
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": "24.x"
   }
 }
