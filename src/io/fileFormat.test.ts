@@ -6,7 +6,7 @@ import v1Demo from "../test/fixtures/files/v1-demo.json";
 import { NATIVE_SCORE_FORMAT, serializeNativeScore } from "./nativeScore";
 
 describe("TabScore native files", () => {
-  it("round-trips the demo and a stable document ID through a compact v5 envelope", () => {
+  it("round-trips the demo and a stable document ID through a compact v6 envelope", () => {
     const score = createDemoScore();
     const saveTime = new Date("2026-11-23T03:00:00.000Z");
     const payload = writeScoreFile(score, "doc_fixture", saveTime);
@@ -14,7 +14,7 @@ describe("TabScore native files", () => {
 
     expect(payload).not.toContain("\n");
     expect(JSON.parse(payload)).toMatchObject({ format: APP_FILE_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION });
-    expect(migrated).toEqual({ score, documentId: "doc_fixture", savedAt: saveTime.toISOString(), warnings: [] });
+    expect(migrated).toEqual({ score, documentId: "doc_fixture", savedAt: saveTime.toISOString(), warnings: [], view: { zoom: 100, displayMode: "vertical-page" } });
   });
 
   it("[A8][B5] migrates v4 volume units and round-trips the score's selected mix", () => {
@@ -125,7 +125,7 @@ describe("TabScore native files", () => {
     expect(() => readScoreFile(JSON.stringify({ ...stripped, stylesheet: { page: { width: "wide" } } })))
       .toThrow(/stylesheet\.page\.width/);
     expect(() => readScoreFile(JSON.stringify({ ...stripped, documentSettings: { displayMode: false } })))
-      .toThrow(/documentSettings\.displayMode/);
+      .toThrow(/view\.displayMode/);
   });
 
   it("rejects malformed JSON, newer files, and out-of-range fret positions", () => {
@@ -186,4 +186,40 @@ describe("TabScore native files", () => {
     delete encodedPiano.midiPitch;
     expect(() => readScoreFile(JSON.stringify(encoded))).toThrow(/cannot be opened/);
   });
+  it("[C5] migrates v5 view settings without restoring them to the score model", () => {
+    const score = createEmptyScore();
+    const legacy = {
+      format: APP_FILE_FORMAT, schemaVersion: 5, app: { name: "TabScore", version: "0.0.0" },
+      documentId: "doc_view", score: { ...score, documentSettings: { ...score.documentSettings, zoom: 145, displayMode: "grid" } }
+    };
+    const opened = readScoreFile(JSON.stringify(legacy));
+    expect(opened.view).toEqual({ zoom: 145, displayMode: "grid" });
+    expect(opened.score.documentSettings).toEqual(score.documentSettings);
+
+    const written = JSON.parse(writeScoreFile(opened.score, opened.documentId, new Date(), opened.view));
+    expect(written.view).toEqual(opened.view);
+    expect(written.score.documentSettings?.zoom).toBeUndefined();
+    expect(readScoreFile(JSON.stringify(written)).view).toEqual(opened.view);
+  });
+
+  it("[B18] omits unchanged defaults and rehydrates a large score within the file-size target", () => {
+    const score = createEmptyScore();
+    score.masterBars = Array.from({ length: 100 }, () => createMasterBar());
+    score.tracks = Array.from({ length: 8 }, () => createTrack(undefined, score.masterBars.length));
+    for (const track of score.tracks) {
+      for (const bar of track.bars) {
+        bar.voices[0].beats = Array.from({ length: 4 }, () => createBeat({
+          rest: false, notes: Array.from({ length: 6 }, (_, index) => createNote(index + 1, index))
+        }));
+      }
+    }
+    score.tracks[0].bars[0].voices[0].beats[0].notes[0].deadNote = true;
+    const payload = writeScoreFile(score, "doc_large");
+    expect(new TextEncoder().encode(payload).length).toBeLessThanOrEqual(1_500_000);
+    const data = JSON.parse(payload);
+    expect(data.score.tracks[0].bars[0].voices[0].beats[0].notes[0]).toEqual({ string: 1, fret: 0, deadNote: true });
+    expect(data.score.tracks[0].bars[0].voices[0].beats[0].notes[1]).toEqual({ string: 2, fret: 1 });
+    expect(readScoreFile(payload).score).toEqual(score);
+  });
+
 });

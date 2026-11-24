@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit",
     "check": "pnpm typecheck && pnpm test && pnpm build",
     "test:audio": "playwright test --project=audio",
-    "test:perf": "playwright test --project=perf"
+    "test:perf": "playwright test --config playwright.perf.config.ts"
   },
   "dependencies": {
     "fflate": "^0.8.3",

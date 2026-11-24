@@ -1,5 +1,5 @@
 import { expect, test as base, type ConsoleMessage, type Page } from "@playwright/test";
-import type { Score } from "../../model/types";
+import type { DocumentViewSettings, Score } from "../../model/types";
 
 export const test = base.extend<{ failOnConsoleError: void }>({
   failOnConsoleError: [
@@ -17,13 +17,17 @@ export const test = base.extend<{ failOnConsoleError: void }>({
   ]
 });
 
-export async function openApp(page: Page, { fixture }: { fixture?: Score } = {}): Promise<void> {
+export async function openApp(
+  page: Page,
+  { fixture, view }: { fixture?: Score; view?: DocumentViewSettings } = {}
+): Promise<void> {
   await page.goto("/?testMode=e2e");
   await expect(page.getByTestId("gp-shell")).toBeVisible();
   await page.waitForFunction(() => (window.__GPW_TEST__?.getScore().tracks.length ?? 0) > 0);
   await page.waitForFunction(() => document.fonts.ready.then(() => true));
   if (fixture) {
-    await page.evaluate((json) => window.__GPW_TEST__!.loadScoreJson(json), JSON.stringify(fixture));
+    await page.evaluate(({ json, viewOverride }) => window.__GPW_TEST__!.loadScoreJson(json, viewOverride),
+      { json: JSON.stringify(fixture), viewOverride: view });
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   }
 }
@@ -46,6 +50,7 @@ export function state(page: Page) {
     }
     return {
       score: hooks.getScore(),
+      view: hooks.getView(),
       cursor: hooks.getCursor(),
       selection: hooks.getSelection(),
       playback: hooks.getPlayback(),

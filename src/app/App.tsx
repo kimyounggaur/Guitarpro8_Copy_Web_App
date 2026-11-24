@@ -6,7 +6,7 @@ import { SpecialPasteDialog } from "../ui/overlays/SpecialPasteDialog";
 // refactor followed.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { defaultCursor } from "../engine/editing/operations";
-import { withEditorOverlays } from "../engine/editing/overlays";
+import { LayoutCache } from "../engine/layout/layoutCache";
 import { layoutScore } from "../engine/layout/layoutScore";
 import { SvgRenderer } from "../engine/render/SvgRenderer";
 import { detectPlatform } from "../commands/keymap";
@@ -41,7 +41,7 @@ function App() {
   function restore(snapshot: RecoverySnapshot) {
     try {
       const loaded = readScoreFile(snapshot.payload, { documentId: snapshot.documentId });
-      useDocumentStore.getState().loadScore(loaded.score, { documentId: loaded.documentId, recovered: true });
+      useDocumentStore.getState().loadScore(loaded.score, { documentId: loaded.documentId, recovered: true, view: loaded.view });
       const view = useViewStore.getState();
       view.setSelection(null);
       view.setCursor(defaultCursor(loaded.score));
@@ -120,13 +120,13 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   const undoDocument = useDocumentStore((state) => state.undo);
   const redoDocument = useDocumentStore((state) => state.redo);
   const cursor = useViewStore((state) => state.cursor);
+  const zoom = useViewStore((state) => state.zoom);
+  const displayMode = useViewStore((state) => state.displayMode);
   const selection = useViewStore((state) => state.selection);
   const setCursor = useViewStore((state) => state.setCursor);
   const setSelection = useViewStore((state) => state.setSelection);
   const playbackStatus = usePlaybackStore((state) => state.status);
   const playbackBarIndex = usePlaybackStore((state) => state.currentBarIndex);
-  const playbackTick = usePlaybackStore((state) => state.currentTick);
-  const playbackTimeSec = usePlaybackStore((state) => state.currentTimeSec);
   const loopEnabled = usePlaybackStore((state) => state.loopEnabled);
   const metronomeEnabled = usePlaybackStore((state) => state.metronomeEnabled);
   const countInEnabled = usePlaybackStore((state) => state.countInEnabled);
@@ -194,7 +194,6 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   const file = useFileController({
     score,
     activeTrackId: cursor.trackId,
-    multiVoiceEdit: editor.multiVoiceEdit,
     loadScore,
     setSelection,
     setCursor,
@@ -260,8 +259,8 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
     "panels.automation": () => togglePanel("automationView"),
     "view.stylesheet": toolWindow.toggleStylesheetPanel,
     "view.multitrack": editor.handleToggleMultiTrackView,
-    "view.zoomIn": () => editor.handleZoomChange(useDocumentStore.getState().score.documentSettings.zoom + 10),
-    "view.zoomOut": () => editor.handleZoomChange(useDocumentStore.getState().score.documentSettings.zoom - 10),
+    "view.zoomIn": () => editor.handleZoomChange(useViewStore.getState().zoom + 10),
+    "view.zoomOut": () => editor.handleZoomChange(useViewStore.getState().zoom - 10),
     "track.add": () => toolWindow.setActiveTrackPanel("wizard"),
     "voice.toggleMulti": () => {
       editor.handleToggleMultiVoice();
@@ -298,6 +297,7 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
     scoreViewportRef,
     followingPlayback ? `[id^="playback-bar-${playbackBarIndex}-"]` : "#editor-cursor-primary",
     followingPlayback ? String(playbackBarIndex) : `${cursor.trackId}:${cursor.barIndex}:${cursor.voiceIndex}:${cursor.beatIndex}:${cursor.staffLine}`,
+    followingPlayback ? playbackBarIndex : cursor.barIndex,
     startupReady
   );
   useEffect(() => {
@@ -306,36 +306,28 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
     }
   }, [score.tracks.length, startupReady]);
 
+  const isolatedTrackId = editor.multiTrackView ? null : cursor.trackId;
   const scoreForLayout = useMemo(() => {
     const visibleTracks = score.tracks.filter((track) => trackVisibility[track.id] !== false);
-    if (editor.multiTrackView) {
+    if (isolatedTrackId === null) {
       return visibleTracks.length === score.tracks.length ? score : { ...score, tracks: visibleTracks };
     }
 
-    const activeTrack = visibleTracks.find((track) => track.id === cursor.trackId);
+    const activeTrack = visibleTracks.find((track) => track.id === isolatedTrackId);
     return { ...score, tracks: activeTrack ? [activeTrack] : visibleTracks };
-  }, [cursor.trackId, editor.multiTrackView, score, trackVisibility]);
-
-  const baseScene = useMemo(
-    () =>
-      layoutScore(scoreForLayout, {
-        editingBar: { barIndex: cursor.barIndex, trackId: cursor.trackId ?? undefined },
-        concertTone: score.documentSettings.concertTone,
-        activeVoiceIndex: cursor.voiceIndex,
-        multiVoiceEdit: editor.multiVoiceEdit
-      }),
-    [score.documentSettings.concertTone, scoreForLayout, cursor, editor.multiVoiceEdit]
-  );
-  const scene = useMemo(
-    () =>
-      withEditorOverlays(
-        baseScene,
-        cursor,
-        selection,
-        playbackStatus === "playing" ? playbackBarIndex : null
-      ),
-    [baseScene, cursor, playbackBarIndex, playbackStatus, selection]
-  );
+  }, [isolatedTrackId, score, trackVisibility]);
+  const layoutCache = useMemo(() => new LayoutCache(), []);
+  const baseScene = useMemo(() => layoutScore(scoreForLayout, {
+    displayMode,
+    groupHorizontalSystems: true,
+    cache: layoutCache
+  }), [scoreForLayout, displayMode, layoutCache]);
+  const overlays = useMemo(() => ({
+    cursor,
+    selection,
+    playbackBarIndex: playbackStatus === "playing" ? playbackBarIndex : null,
+    multiVoiceEdit: editor.multiVoiceEdit
+  }), [cursor, selection, playbackStatus, playbackBarIndex, editor.multiVoiceEdit]);
 
   return (
     <>
@@ -351,8 +343,6 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
         panelVisibility={panelVisibility}
         playbackStatus={playbackStatus}
         playbackBarIndex={playbackBarIndex}
-        playbackTick={playbackTick}
-        playbackTimeSec={playbackTimeSec}
         currentTempo={playback.currentTempo}
         onTempoChange={playback.changeTempo}
         loopEnabled={loopEnabled}
@@ -440,9 +430,11 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
             onDrop={(event) => void file.handleScoreDrop(event)}
           >
             <SvgRenderer
-              scene={scene}
-              displayMode={score.documentSettings.displayMode}
-              zoom={score.documentSettings.zoom}
+              scene={baseScene}
+              overlays={overlays}
+              editorViewport={scoreViewportRef}
+              displayMode={displayMode}
+              zoom={zoom}
             />
           </div>
         }

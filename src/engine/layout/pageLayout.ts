@@ -10,9 +10,10 @@ export function layoutPages(
   tracks: Track[],
   stylesheet: Stylesheet,
   metrics: PageMetrics,
-  drawSystem: (system: LayoutSystem) => ScenePrimitive[]
+  drawSystem: (system: LayoutSystem) => ScenePrimitive[],
+  groupSystems = false
 ): StackedPage[] {
   const systemHeight = tracks.reduce((height, track) => height + trackStack(track, stylesheet).height, 0)
     + Math.max(0, tracks.length - 1) * metrics.trackGap;
-  return stackPages(systems.map((system) => measureSystem(drawSystem(system), systemHeight)), metrics);
+  return stackPages(systems.map((system) => measureSystem(drawSystem(system), systemHeight)), metrics, groupSystems);
 }

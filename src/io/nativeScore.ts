@@ -76,8 +76,7 @@ function normalizeDocumentSettings(settings: DocumentSettings | undefined): Docu
 
   return {
     ...fallback,
-    ...(settings ?? {}),
-    zoom: clampNumber(settings?.zoom ?? fallback.zoom, 25, 300)
+    ...(settings ?? {})
   };
 }
 
@@ -97,12 +96,4 @@ function isScoreLike(value: unknown): value is Score {
     Array.isArray((value as Score).masterBars) &&
     Array.isArray((value as Score).tracks)
   );
-}
-
-function clampNumber(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) {
-    return min;
-  }
-
-  return Math.min(max, Math.max(min, value));
 }

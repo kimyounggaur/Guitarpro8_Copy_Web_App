@@ -95,9 +95,12 @@ export interface Score {
   masterMix: MasterMix;
 }
 
-export interface DocumentSettings {
+export interface DocumentViewSettings {
   zoom: number;
   displayMode: DisplayMode;
+}
+
+export interface DocumentSettings {
   engine: PlaybackEngine;
   concertTone: boolean;
 }

@@ -65,3 +65,31 @@
   }
 }
 
+
+@layer layout {
+  .scorePageSlot {
+    flex: none;
+  }
+
+  .scorePageSlot:not([data-mounted="true"]) {
+    background: var(--surface-paper);
+  }
+
+  .scorePageSlot .scorePage {
+    display: block;
+  }
+
+  .scorePages[data-active-voice="0"] [data-hit-kind="staffInput"]:not([data-score-voice="0"]),
+  .scorePages[data-active-voice="1"] [data-hit-kind="staffInput"]:not([data-score-voice="1"]),
+  .scorePages[data-active-voice="2"] [data-hit-kind="staffInput"]:not([data-score-voice="2"]),
+  .scorePages[data-active-voice="3"] [data-hit-kind="staffInput"]:not([data-score-voice="3"]) {
+    pointer-events: none;
+  }
+
+  .scorePages[data-highlight-voice="0"] [data-score-voice]:not([data-score-voice="0"]),
+  .scorePages[data-highlight-voice="1"] [data-score-voice]:not([data-score-voice="1"]),
+  .scorePages[data-highlight-voice="2"] [data-score-voice]:not([data-score-voice="2"]),
+  .scorePages[data-highlight-voice="3"] [data-score-voice]:not([data-score-voice="3"]) {
+    opacity: 0.45;
+  }
+}

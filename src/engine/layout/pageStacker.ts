@@ -17,7 +17,27 @@ export interface StackedPage {
   primitives: ScenePrimitive[];
 }
 
+const measured = new WeakMap<ScenePrimitive[], { minHeight: number; system: MeasuredSystem }>();
+const placed = new WeakMap<MeasuredSystem, { left: number; top: number; scale: number; primitives: ScenePrimitive[] }>();
+const placedPrimitives = new WeakMap<ScenePrimitive, { left: number; top: number; scale: number; primitive: ScenePrimitive }>();
+
+const scalingLabels = new WeakMap<MeasuredSystem, ScenePrimitive>();
+
+function layoutScaleLabel(system: MeasuredSystem, index: number, x: number, y: number, text: string): ScenePrimitive {
+  const id = `system-${index}-scale`;
+  const existing = scalingLabels.get(system);
+  if (existing?.type === "text" && existing.id === id && existing.x === x && existing.y === y && existing.text === text) {
+    return existing;
+  }
+  const label = { id, type: "text", x, y, text, fontSize: 10, anchor: "end", fill: "#634593" } satisfies ScenePrimitive;
+  scalingLabels.set(system, label);
+  return label;
+}
+
 export function measureSystem(primitives: ScenePrimitive[], minHeight: number): MeasuredSystem {
+  const reused = measured.get(primitives);
+  if (reused?.minHeight === minHeight) return reused.system;
+
   let top = 0;
   let bottom = minHeight;
   let left = 0;
@@ -29,10 +49,12 @@ export function measureSystem(primitives: ScenePrimitive[], minHeight: number): 
     left = Math.min(left, bounds.x);
     right = Math.max(right, bounds.x + bounds.width);
   }
-  return { primitives, bounds: { x: left, y: top, width: right - left, height: bottom - top } };
+  const system = { primitives, bounds: { x: left, y: top, width: right - left, height: bottom - top } };
+  measured.set(primitives, { minHeight, system });
+  return system;
 }
 
-export function stackPages(systems: MeasuredSystem[], metrics: PageMetrics): StackedPage[] {
+export function stackPages(systems: MeasuredSystem[], metrics: PageMetrics, groupSystems = false): StackedPage[] {
   const pages: StackedPage[] = [];
   let primitives: ScenePrimitive[] = [];
   const top = metrics.marginTop + metrics.headerHeight;
@@ -45,27 +67,20 @@ export function stackPages(systems: MeasuredSystem[], metrics: PageMetrics): Sta
     const scale = metrics.continuous || height <= space ? 1 : Math.max(MINIMUM_SCALE, space / height);
     const effectiveHeight = height * scale;
 
-    if (!metrics.continuous && primitives.length > 0 && y + effectiveHeight > bottom + 0.01) {
-      pages.push({ index: pages.length, width: metrics.pageWidth, height: metrics.pageHeight, primitives });
+    if ((!metrics.continuous || groupSystems) && primitives.length > 0 && y + effectiveHeight > bottom + 0.01) {
+      const height = groupSystems ? Math.max(metrics.pageHeight, y - metrics.systemGap + metrics.marginBottom) : metrics.pageHeight;
+      pages.push({ index: pages.length, width: metrics.pageWidth, height, primitives });
       primitives = [];
       y = top;
     }
 
     const originY = y - system.bounds.y * scale;
-    primitives.push(...system.primitives.map((primitive) => placePrimitive(primitive, metrics.marginLeft, originY, scale)));
+    primitives.push(...placeSystem(system, metrics.marginLeft, originY, scale));
     if (scale < 1) {
-      primitives.push({
-        id: `system-${index}-scale`,
-        type: "text",
-        x: metrics.pageWidth - metrics.marginRight,
-        y: y - 3,
-        fontSize: 10,
-        anchor: "end",
-        fill: "#634593",
-        text: effectiveHeight > space + 0.01
-          ? "System exceeds the page. Use a track view for more space."
-          : `System shown at ${Math.round(scale * 100)}%.`
-      });
+      const message = effectiveHeight > space + 0.01
+        ? "System exceeds the page. Use a track view for more space."
+        : `System shown at ${Math.round(scale * 100)}%.`;
+      primitives.push(layoutScaleLabel(system, index, metrics.pageWidth - metrics.marginRight, y - 3, message));
     }
     y += effectiveHeight + metrics.systemGap;
   }
@@ -127,6 +142,21 @@ function boxFromPoints(xs: number[], ys: number[], padding: number): BoundingBox
   const x = Math.min(...xs) - padding;
   const y = Math.min(...ys) - padding;
   return { x, y, width: Math.max(...xs) + padding - x, height: Math.max(...ys) + padding - y };
+}
+
+function placeSystem(system: MeasuredSystem, left: number, top: number, scale: number): ScenePrimitive[] {
+  const reused = placed.get(system);
+  if (reused?.left === left && reused.top === top && reused.scale === scale) return reused.primitives;
+
+  const primitives = system.primitives.map((primitive) => {
+    const known = placedPrimitives.get(primitive);
+    if (known?.left === left && known.top === top && known.scale === scale) return known.primitive;
+    const transformed = placePrimitive(primitive, left, top, scale);
+    placedPrimitives.set(primitive, { left, top, scale, primitive: transformed });
+    return transformed;
+  });
+  placed.set(system, { left, top, scale, primitives });
+  return primitives;
 }
 
 function placePrimitive(primitive: ScenePrimitive, left: number, top: number, scale: number): ScenePrimitive {

@@ -15,7 +15,7 @@ export interface LayoutSystem {
   width: number;
 }
 
-interface SystemSpacingOptions {
+export interface SystemSpacingOptions {
   rhythmProportion: number;
   firstSystemIndent: number;
   minMeasureWidth: number;
@@ -32,7 +32,8 @@ const defaults: SystemSpacingOptions = {
 export function breakSystems(
   measures: MeasureContent[],
   contentWidth: number,
-  options: SystemSpacingOptions = defaults
+  options: SystemSpacingOptions = defaults,
+  startSystemIndex = 0
 ): LayoutSystem[] {
   const groups: MeasureContent[][] = [];
   let current: MeasureContent[] = [];
@@ -40,7 +41,7 @@ export function breakSystems(
 
   for (const measure of measures) {
     const candidate = [...current, measure];
-    const available = groups.length === 0 ? contentWidth - indent : contentWidth;
+    const available = startSystemIndex + groups.length === 0 ? contentWidth - indent : contentWidth;
     const width = spacingFor(candidate, options).reduce((sum, spacing) => sum + spacing.ideal, 0);
     if (current.length > 0 && width > available && !current.at(-1)?.preventBreak) {
       groups.push(current);
@@ -57,13 +58,14 @@ export function breakSystems(
     groups.push(current);
   }
 
-  return groups.map((group, index) => {
+  return groups.map((group, localIndex) => {
+    const index = startSystemIndex + localIndex;
     const origin = index === 0 ? indent : 0;
     const available = contentWidth - origin;
     const spacings = spacingFor(group, options);
     const ideal = spacings.reduce((sum, spacing) => sum + spacing.ideal, 0);
     const fixed = spacings.reduce((sum, spacing) => sum + spacing.fixed, 0);
-    const justify = index < groups.length - 1 || options.justifyLastSystem || ideal >= available * 0.75;
+    const justify = localIndex < groups.length - 1 || options.justifyLastSystem || ideal >= available * 0.75;
     const factor = justify && ideal > fixed ? Math.max(1, (available - fixed) / (ideal - fixed)) : 1;
 
     let x = origin;

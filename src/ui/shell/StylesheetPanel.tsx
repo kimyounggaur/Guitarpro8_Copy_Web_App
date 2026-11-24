@@ -1,3 +1,4 @@
+import { useViewStore } from "../../store/viewStore";
 import { useMemo, useState, type ReactNode } from "react";
 import { normalizeStylesheet } from "../../model/stylesheet";
 import type {
@@ -46,6 +47,8 @@ const displayModes: Array<[DisplayMode, string]> = [
 ];
 
 export function StylesheetPanel(props: StylesheetPanelProps) {
+  const zoom = useViewStore((state) => state.zoom);
+  const displayMode = useViewStore((state) => state.displayMode);
   const [activeTab, setActiveTab] = useState<TabId>("page");
   const [saved, setSaved] = useState(false);
   const stylesheet = useMemo(() => normalizeStylesheet(props.score.stylesheet), [props.score.stylesheet]);
@@ -265,7 +268,7 @@ export function StylesheetPanel(props: StylesheetPanelProps) {
             </button>
             <Field label="Display mode">
               <select
-                value={props.score.documentSettings.displayMode}
+                value={displayMode}
                 onChange={(event) => props.onDisplayModeChange(event.target.value as DisplayMode)}
               >
                 {displayModes.map(([mode, label]) => (
@@ -275,7 +278,7 @@ export function StylesheetPanel(props: StylesheetPanelProps) {
                 ))}
               </select>
             </Field>
-            <NumberField label="Zoom" value={props.score.documentSettings.zoom} min={25} max={300} onChange={props.onZoomChange} />
+            <NumberField label="Zoom" value={zoom} min={25} max={300} onChange={props.onZoomChange} />
             <ToggleField label="Chord names" checked={stylesheet.symbols.showChordNames} onChange={(showChordNames) => patch("symbols", { showChordNames })} />
             <ToggleField label="Chord diagrams" checked={stylesheet.symbols.showChordDiagrams} onChange={(showChordDiagrams) => patch("symbols", { showChordDiagrams })} />
             <NumberField label="Chord scale" value={stylesheet.symbols.chordDiagramScale} min={0.6} max={1.8} step={0.05} onChange={(chordDiagramScale) => patch("symbols", { chordDiagramScale })} />

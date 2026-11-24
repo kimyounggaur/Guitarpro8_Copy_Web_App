@@ -1,22 +1,14 @@
+import { applyPatches, produceWithPatches } from "immer";
 import { create } from "zustand";
 import { cloneScore, normaliseCursor } from "../engine/editing/operations";
 import type { CursorPosition } from "../engine/editing/types";
 import { createEmptyScore } from "../model/factory";
 import { checkInvariants, type InvariantIssue } from "../model/invariants";
 import { newId } from "../model/ids";
-import { normalizeTies } from "../model/ties";
-import type { Score } from "../model/types";
+import { applyTieRepairs, inspectTies } from "../model/ties";
+import type { DocumentViewSettings, Score } from "../model/types";
+import { appendEdit, type EditTransaction } from "./history";
 import { useViewStore } from "./viewStore";
-
-export interface EditTransaction {
-  label: string;
-  before: Score;
-  after: Score;
-  revisionBefore: number;
-  revisionAfter: number;
-  cursorBefore: CursorPosition;
-  cursorAfter: CursorPosition;
-}
 
 export interface DocumentTabState {
   id: string;
@@ -28,11 +20,13 @@ export interface DocumentTabState {
 export interface LoadScoreOptions {
   documentId?: string;
   recovered?: boolean;
+  view?: DocumentViewSettings;
 }
 
 export interface EditTransactionOptions {
   cursorAfter?: () => CursorPosition;
   coalesceRevision?: number;
+  group?: string;
 }
 
 interface DocumentStore {
@@ -47,6 +41,7 @@ interface DocumentStore {
   lastRejection: { label: string; issues: InvariantIssue[] } | null;
   loadScore: (score: Score, options?: LoadScoreOptions) => void;
   setScore: (score: Score) => void;
+  endEditGroup: () => void;
   markSaved: (documentId: string, revision: number) => void;
   transact: (label: string, recipe: (score: Score) => void, options?: EditTransactionOptions) => Score;
   undo: () => Score;
@@ -54,6 +49,7 @@ interface DocumentStore {
 }
 
 let nextRevision = 0;
+let editGroup = 0;
 const initialId = newId("doc");
 const initialScore = createEmptyScore();
 
@@ -63,14 +59,16 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   undoStack: [],
   redoStack: [],
   lastRejection: null,
-  loadScore: (score, { documentId = newId("doc"), recovered = false } = {}) => {
+  loadScore: (score, { documentId = newId("doc"), recovered = false, view } = {}) => {
     const revision = ++nextRevision;
     set({
       score: cloneScore(score),
       ...documentState(score, documentId, revision, recovered ? null : revision),
       undoStack: [],
-      redoStack: []
+      redoStack: [],
+      lastRejection: null
     });
+    useViewStore.getState().setDocumentView(view);
   },
   setScore: (score) =>
     set((state) => ({
@@ -79,6 +77,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       undoStack: [],
       redoStack: []
     })),
+  endEditGroup: () => { editGroup++; },
   markSaved: (documentId, revision) => {
     const state = get();
     if (state.activeId === documentId) {
@@ -89,37 +88,46 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     const state = get();
     const view = useViewStore.getState();
     const cursorBefore = { ...view.cursor };
-    const before = cloneScore(state.score);
-    const after = cloneScore(before);
-    recipe(after);
-    const issues = [...normalizeTies(after), ...checkInvariants(after)];
+    const [edited, forward, inverse] = produceWithPatches(state.score, (draft) => {
+      recipe(draft);
+    });
+    if (forward.length === 0) {
+      if (state.lastRejection) set({ lastRejection: null });
+      if (options?.cursorAfter) {
+        view.setCursor(normaliseCursor(state.score, options.cursorAfter()));
+      }
+      return state.score;
+    }
+
+    const tieRepairs = inspectTies(edited, true);
+    const [after, repairs, revertRepairs] = tieRepairs.length > 0
+      ? produceWithPatches(edited, (draft) => { applyTieRepairs(draft, tieRepairs); })
+      : [edited, [], []] as const;
+    const issues = [...tieRepairs.flatMap(({ issue }) => issue ? [issue] : []), ...checkInvariants(after)];
     if (issues.some(({ severity }) => severity === "fatal")) {
       set({ lastRejection: { label, issues } });
       return state.score;
     }
+
     const revision = ++nextRevision;
     const cursorAfter = normaliseCursor(after, options?.cursorAfter?.() ?? cursorBefore);
-    const previous = state.undoStack[state.undoStack.length - 1];
-    const coalesce = previous
-      && previous.label === label
-      && previous.revisionAfter === state.revision
-      && options?.coalesceRevision === state.revision
-      && state.savedRevision !== state.revision;
     const transaction: EditTransaction = {
       label,
-      before: coalesce ? previous.before : before,
-      after: cloneScore(after),
-      revisionBefore: coalesce ? previous.revisionBefore : state.revision,
+      patches: [...forward, ...repairs],
+      inversePatches: [...revertRepairs, ...inverse],
+      revisionBefore: state.revision,
       revisionAfter: revision,
-      cursorBefore: coalesce ? previous.cursorBefore : cursorBefore,
-      cursorAfter
+      cursorBefore,
+      cursorAfter,
+      time: Date.now(),
+      repeatable: options?.cursorAfter !== undefined,
+      group: options?.group === undefined ? undefined : `${editGroup}:${options.group}`
     };
-
     set({
       score: after,
       lastRejection: null,
       ...documentState(after, state.activeId, revision, state.savedRevision),
-      undoStack: [...(coalesce ? state.undoStack.slice(0, -1) : state.undoStack), transaction],
+      undoStack: appendEdit(state.undoStack, transaction, state.savedRevision, options?.coalesceRevision),
       redoStack: []
     });
     if (options?.cursorAfter) view.setCursor({ ...cursorAfter });
@@ -131,7 +139,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     const transaction = state.undoStack[state.undoStack.length - 1];
     if (!transaction) return state.score;
 
-    const score = cloneScore(transaction.before);
+    const score = applyPatches(state.score, transaction.inversePatches);
     set({
       score,
       ...documentState(score, state.activeId, transaction.revisionBefore, state.savedRevision),
@@ -148,7 +156,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
     const transaction = state.redoStack[state.redoStack.length - 1];
     if (!transaction) return state.score;
 
-    const score = cloneScore(transaction.after);
+    const score = applyPatches(state.score, transaction.patches);
     set({
       score,
       ...documentState(score, state.activeId, transaction.revisionAfter, state.savedRevision),

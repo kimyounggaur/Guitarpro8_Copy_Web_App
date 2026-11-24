@@ -6,21 +6,17 @@ import { exportAsciiTab, importAsciiTab } from "./asciiTab";
 import { buildExportFileName, sanitizeFileName } from "./exportNames";
 import { exportMidi, importMidi } from "./midi";
 import { exportMusicXml, importMusicXml } from "./musicXml";
-import { parseNativeScore, serializeNativeScore } from "./nativeScore";
+import { readScoreFile, writeScoreFile } from "./fileFormat";
 import { sceneFirstPageSvg, sceneToSvgDocument } from "./vectorExport";
 
 describe("Phase 12 file I/O", () => {
   it("round-trips the native score envelope with document settings", () => {
     const score = createDemoScore();
-    score.documentSettings.zoom = 135;
-    score.documentSettings.displayMode = "grid";
-
-    const parsed = parseNativeScore(serializeNativeScore(score, new Date("2026-07-03T00:00:00.000Z")));
-
-    expect(parsed.meta.title).toBe(score.meta.title);
-    expect(parsed.tracks).toHaveLength(score.tracks.length);
-    expect(parsed.documentSettings.zoom).toBe(135);
-    expect(parsed.documentSettings.displayMode).toBe("grid");
+    const view = { zoom: 135, displayMode: "grid" } as const;
+    const parsed = readScoreFile(writeScoreFile(score, "doc_fixture", new Date("2026-07-03T00:00:00.000Z"), view));
+    expect(parsed.score.meta.title).toBe(score.meta.title);
+    expect(parsed.score.tracks).toHaveLength(score.tracks.length);
+    expect(parsed.view).toEqual(view);
   });
 
   it("exports and imports ASCII tablature", () => {

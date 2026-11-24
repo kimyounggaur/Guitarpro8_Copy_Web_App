@@ -40,8 +40,7 @@ test("[B11] sounding pitch follows a chromatic step and Enter chooses a string",
 
 test("[B11] clicking the zoomed staff converts SVG position to a playable guitar note", async ({ page }) => {
   const fixture = guitarWithBars([[]]);
-  fixture.documentSettings.zoom = 140;
-  await openApp(page, { fixture });
+  await openApp(page, { fixture, view: { zoom: 140, displayMode: "vertical-page" } });
   await clickStaffPosition(page, page.locator('[data-hit-kind="staffInput"]').first(), 3);
 
   const result = await state(page);

@@ -1,3 +1,4 @@
+import { getDocumentView } from "../../store/viewStore";
 import { useEffect, useState } from "react";
 import { CURRENT_SCHEMA_VERSION, writeScoreFile } from "../../io/fileFormat";
 import {
@@ -62,7 +63,7 @@ export function useScoreRecovery() {
           title: state.score.meta.title || "Untitled Score",
           schemaVersion: CURRENT_SCHEMA_VERSION,
           savedAt: savedAt.toISOString(),
-          payload: writeScoreFile(state.score, state.activeId, savedAt)
+          payload: writeScoreFile(state.score, state.activeId, savedAt, getDocumentView())
         }).catch(onFailure);
       } catch {
         onFailure();

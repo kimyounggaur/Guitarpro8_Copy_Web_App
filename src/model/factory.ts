@@ -36,8 +36,6 @@ export function createEmptyScore(): Score {
     tracks: [],
     stylesheet: createDefaultStylesheet(),
     documentSettings: {
-      zoom: 100,
-      displayMode: "vertical-page",
       engine: "RSE",
       concertTone: false
     },

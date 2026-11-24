@@ -44,6 +44,7 @@ import {
   TUPLET_BRACKET_GAP
 } from "./metrics";
 import { tickToMeasureX } from "./measureContents";
+import { trackLayoutInputs, type LayoutCache } from "./layoutCache";
 import { noteBelongsToBand, trackStack, type StaffBand } from "./staffMetrics";
 import { layoutAccidentals, type AccidentalNote } from "../notation/accidentals";
 import { bendLabel } from "../notation/effects";
@@ -62,19 +63,17 @@ import type { SystemMeasure } from "./systemBreaker";
 
 export interface SystemPrimitiveOptions {
   durationIssues?: BarDurationIssue[];
-  editingBar?: { trackId?: string; barIndex: number };
   concertTone?: boolean;
-  activeVoiceIndex?: number;
-  multiVoiceEdit?: boolean;
   trackGap?: number;
+  stylesheet?: Stylesheet;
+  cache?: LayoutCache;
 }
 
 interface TrackPrimitiveOptions {
   concertTone: boolean;
-  activeVoiceIndex: number;
-  multiVoiceEdit: boolean;
   trackGap: number;
   stylesheet: Stylesheet;
+  cache?: LayoutCache;
   staffLineColor: string;
   staffLineThickness: number;
   barlineColor: string;
@@ -140,14 +139,13 @@ export function systemPrimitives(
 ): ScenePrimitive[] {
   const primitives: ScenePrimitive[] = [];
   const durationIssues = options.durationIssues ?? validateBarDurations(score);
-  const invalidBars = invalidBarKeySet(durationIssues, options.editingBar);
-  const stylesheet = normalizeStylesheet(score.stylesheet);
+  const invalidBars = invalidBarKeySet(durationIssues);
+  const stylesheet = options.stylesheet ?? normalizeStylesheet(score.stylesheet);
   const renderOptions: TrackPrimitiveOptions = {
     concertTone: options.concertTone ?? score.documentSettings.concertTone,
-    activeVoiceIndex: options.activeVoiceIndex ?? 0,
-    multiVoiceEdit: options.multiVoiceEdit ?? false,
     trackGap: options.trackGap ?? stylesheet.systems.trackGap,
     stylesheet,
+    cache: options.cache,
     staffLineColor: stylesheet.systems.staffLineColor,
     staffLineThickness: stylesheet.systems.staffLineThickness,
     barlineColor: stylesheet.systems.barlineColor,
@@ -202,79 +200,91 @@ function trackPrimitives(
     }
   }
 
+  const sharedMeasureInputs = options.cache && [
+    ...trackLayoutInputs(track), trackIndex, staffX, originY, options.concertTone, options.stylesheet
+  ];
   measures.forEach((measure) => {
-    const x = staffX + measure.x;
-    const masterBar = score.masterBars[measure.content.barIndex];
     const invalid = invalidBars.has(barKey(track.id, measure.content.barIndex));
+    const draw = () => {
+      const primitives: ScenePrimitive[] = [];
+      const x = staffX + measure.x;
+      const masterBar = score.masterBars[measure.content.barIndex];
 
-    if (invalid) {
+      if (invalid) {
+        primitives.push(
+          durationErrorRect(
+            track.id,
+            measure.content.barIndex,
+            x,
+            originY - 4,
+            measure.width,
+            trackBottom - originY + 8
+          )
+        );
+      }
+
       primitives.push(
-        durationErrorRect(
+        barlinePrimitive(
           track.id,
           measure.content.barIndex,
           x,
-          originY - 4,
-          measure.width,
-          trackBottom - originY + 8
+          originY,
+          staffBottom,
+          invalid ? "#ef4444" : options.barlineColor,
+          invalid ? options.barlineThickness + 0.5 : options.barlineThickness
         )
       );
-    }
-
-    primitives.push(
-      barlinePrimitive(
-        track.id,
-        measure.content.barIndex,
-        x,
-        originY,
-        staffBottom,
-        invalid ? "#ef4444" : options.barlineColor,
-        invalid ? options.barlineThickness + 0.5 : options.barlineThickness
-      )
-    );
-    primitives.push(barHitRect(track.id, measure.content.barIndex, x, originY, measure.width, staffBottom));
-    for (const band of notation) {
-      if (band.clef) {
-        primitives.push(...staffInputRects(
-          track, measure, x, originY + band.top, band.clef, options.activeVoiceIndex, band.side === "upper"
-        ));
+      primitives.push(barHitRect(track.id, measure.content.barIndex, x, originY, measure.width, staffBottom));
+      for (const band of notation) {
+        if (!band.clef) continue;
+        for (let voiceIndex = 0; voiceIndex < 4; voiceIndex++) {
+          primitives.push(...staffInputRects(
+            track, measure, x, originY + band.top, band.clef, voiceIndex, band.side === "upper"
+          ));
+        }
       }
-    }
 
-    if (trackIndex === 0) {
-      primitives.push(
-        ...masterBarSymbolPrimitives(masterBar, measure, x, measure.width, originY, staffBottom)
-      );
-    }
+      if (trackIndex === 0) {
+        primitives.push(
+          ...masterBarSymbolPrimitives(masterBar, measure, x, measure.width, originY, staffBottom)
+        );
+      }
 
-    const previous = score.masterBars[measure.content.barIndex - 1];
-    const firstInSystem = measure === measures[0];
-    for (const band of notation) {
-      const clef = band.clef;
-      if (!clef) continue;
-      const staffY = originY + band.top;
-      const signature = layoutStaffSignature({
-        clef, key: masterBar.keySignature, time: masterBar.timeSignature,
-        previousKey: previous?.keySignature, previousTime: previous?.timeSignature,
-        systemStart: firstInSystem, style: options.stylesheet.notation, staffSpace: STAFF_LINE_GAP
-      });
-      const id = `${track.id}-${measure.content.barIndex}${band.side === "lower" ? "-lower" : ""}`;
-      primitives.push(...staffSignaturePrimitives(id, signature, x + 8, staffY, STAFF_LINE_GAP, {
-        trackId: track.id, barIndex: measure.content.barIndex, staffKind: "standard", staffClef: clef
-      }));
-      primitives.push(...beatAndRhythmPrimitives(track, measure, x, staffY, tabY, masterBar, band,
-        Boolean(tab && notation.length === 1), options));
-    }
-    if (tab && notation.length !== 1) {
-      primitives.push(...beatAndRhythmPrimitives(track, measure, x, tabY, tabY, masterBar, undefined, true, options));
-    }
-    for (const band of stack.bands.filter((candidate) => candidate.kind === "slash")) {
-      const slashY = originY + band.top + STAFF_LINE_GAP * 2;
-      measure.content.beats.forEach((beat, index) => {
-        const beatX = x + tickToMeasureX(measure, beat.tick);
-        primitives.push(bracketLine(`${track.id}-${measure.content.barIndex}-slash-${index}`,
-          beatX - 4, slashY + 5, beatX + 4, slashY - 5, options.staffLineColor));
-      });
-    }
+      const previous = score.masterBars[measure.content.barIndex - 1];
+      const firstInSystem = measure === measures[0];
+      for (const band of notation) {
+        const clef = band.clef;
+        if (!clef) continue;
+        const staffY = originY + band.top;
+        const signature = layoutStaffSignature({
+          clef, key: masterBar.keySignature, time: masterBar.timeSignature,
+          previousKey: previous?.keySignature, previousTime: previous?.timeSignature,
+          systemStart: firstInSystem, style: options.stylesheet.notation, staffSpace: STAFF_LINE_GAP
+        });
+        const id = `${track.id}-${measure.content.barIndex}${band.side === "lower" ? "-lower" : ""}`;
+        primitives.push(...staffSignaturePrimitives(id, signature, x + 8, staffY, STAFF_LINE_GAP, {
+          trackId: track.id, barIndex: measure.content.barIndex, staffKind: "standard", staffClef: clef
+        }));
+        primitives.push(...beatAndRhythmPrimitives(track, measure, x, staffY, tabY, masterBar, band,
+          Boolean(tab && notation.length === 1), options));
+      }
+      if (tab && notation.length !== 1) {
+        primitives.push(...beatAndRhythmPrimitives(track, measure, x, tabY, tabY, masterBar, undefined, true, options));
+      }
+      for (const band of stack.bands.filter((candidate) => candidate.kind === "slash")) {
+        const slashY = originY + band.top + STAFF_LINE_GAP * 2;
+        measure.content.beats.forEach((beat, index) => {
+          const beatX = x + tickToMeasureX(measure, beat.tick);
+          primitives.push(bracketLine(`${track.id}-${measure.content.barIndex}-slash-${index}`,
+            beatX - 4, slashY + 5, beatX + 4, slashY - 5, options.staffLineColor));
+        });
+      }
+      return primitives;
+    };
+    const measurePrimitives = options.cache && sharedMeasureInputs
+      ? options.cache.drawMeasure(measure, track.id, [...sharedMeasureInputs, measure === measures[0], invalid], draw)
+      : draw();
+    primitives.push(...measurePrimitives);
   });
 
   for (const band of notation) {
@@ -538,7 +548,8 @@ function beatAndRhythmPrimitives(
   ));
   const marks = new Map(layoutAccidentals(accidentalBeats(voices), fifths).map((mark) => [mark.id, mark]));
 
-  for (const placements of voices) {
+  for (const [voiceIndex, placements] of voices.entries()) {
+    const voiceStart = primitives.length;
     const beamGroups = createBeamGroups(placements);
     if (band?.clef) alignStandardBeamStems(beamGroups);
     const beamedIds = new Set(
@@ -563,6 +574,9 @@ function beatAndRhythmPrimitives(
     if (band?.clef) primitives.push(...beamGroupPrimitives(beamGroups, "standard"));
     if (showTab) primitives.push(...beamGroupPrimitives(beamGroups, "tab"));
     if (band?.clef || showTab) primitives.push(...tupletPrimitives(placements));
+    for (let index = voiceStart; index < primitives.length; index++) {
+      primitives[index].voiceIndex = voiceIndex;
+    }
   }
   return primitives;
 }
@@ -631,7 +645,7 @@ function createVoicePlacements(
 
   beats.forEach((beat, beatIndex) => {
     const x = measureX + tickToMeasureX(measure, tick);
-    const color = voiceColor(voiceIndex, options);
+    const color = voiceColor(voiceIndex);
     const clef = band?.clef;
     const notePlacements: NotePlacement[] = beat.notes.flatMap((note, noteIndex) => {
       if (band && !noteBelongsToBand(track, note, band)) return [];
@@ -1466,7 +1480,7 @@ function tiePrimitivesForSystem(
             ref, x,
             y: staff?.y ?? staffY + (note.string - 1) * TAB_LINE_GAP + 4,
             voiceIndex,
-            color: voiceColor(voiceIndex, options)
+            color: voiceColor(voiceIndex)
           });
         });
 
@@ -1775,21 +1789,8 @@ function emptyPath(id: string): PathPrimitive {
   };
 }
 
-function invalidBarKeySet(
-  issues: BarDurationIssue[],
-  editingBar: SystemPrimitiveOptions["editingBar"]
-): Set<string> {
-  return new Set(
-    issues
-      .filter((issue) => {
-        if (!editingBar || editingBar.barIndex !== issue.barIndex) {
-          return true;
-        }
-
-        return editingBar.trackId !== undefined && editingBar.trackId !== issue.trackId;
-      })
-      .map((issue) => barKey(issue.trackId, issue.barIndex))
-  );
+function invalidBarKeySet(issues: BarDurationIssue[]): Set<string> {
+  return new Set(issues.map(({ trackId, barIndex }) => barKey(trackId, barIndex)));
 }
 
 function barKey(trackId: string, barIndex: number): string {
@@ -1808,11 +1809,7 @@ function noteRefKey(ref: NoteRef): string {
   return `${ref.trackId}:${ref.barIndex}:${ref.voiceIndex}:${ref.beatIndex}:${ref.noteIndex}`;
 }
 
-function voiceColor(voiceIndex: number, options?: TrackPrimitiveOptions): string {
-  if (options?.multiVoiceEdit && voiceIndex !== options.activeVoiceIndex) {
-    return INACTIVE_VOICE;
-  }
-
+function voiceColor(voiceIndex: number): string {
   if (voiceIndex >= 2) {
     return INACTIVE_VOICE;
   }

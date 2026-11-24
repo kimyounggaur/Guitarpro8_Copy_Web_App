@@ -7,6 +7,7 @@ export function useScoreFollow(
   viewportRef: RefObject<HTMLDivElement>,
   targetSelector: string,
   locationKey: string,
+  barIndex: number,
   ready: boolean
 ): void {
   const suspendedUntil = useRef(0);
@@ -41,11 +42,11 @@ export function useScoreFollow(
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || !ready) return;
-    const frame = requestAnimationFrame(() => {
-      if (performance.now() < suspendedUntil.current) return;
-      const target = viewport.querySelector(targetSelector);
-      if (!target) return;
+    let observer: MutationObserver | null = null;
+    let preciseFrame: number | undefined;
 
+    function follow(target: Element) {
+      if (!viewport || performance.now() < suspendedUntil.current) return;
       const view = viewport.getBoundingClientRect();
       const visibleWidth = viewport.clientWidth;
       const visibleHeight = viewport.clientHeight;
@@ -64,10 +65,39 @@ export function useScoreFollow(
         left,
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
       });
+    }
+
+    const frame = requestAnimationFrame(() => {
+      if (performance.now() < suspendedUntil.current) return;
+      const target = viewport.querySelector(targetSelector);
+      if (target) {
+        follow(target);
+        return;
+      }
+
+      const slot = Array.from(viewport.querySelectorAll<HTMLElement>('.scorePageSlot[data-mounted="false"][data-bar-start][data-bar-end]'))
+        .find(({ dataset }) => barIndex >= Number(dataset.barStart) && barIndex <= Number(dataset.barEnd));
+      if (!slot) return;
+
+      // Once scrolling mounts the page, move from its placeholder to the exact beat.
+      observer = new MutationObserver(() => {
+        if (slot.dataset.mounted !== "true") return;
+        observer?.disconnect();
+        preciseFrame = requestAnimationFrame(() => {
+          const precise = viewport.querySelector(targetSelector);
+          if (precise) follow(precise);
+        });
+      });
+      observer.observe(slot, { attributes: true, attributeFilter: ["data-mounted"] });
+      follow(slot);
     });
 
-    return () => cancelAnimationFrame(frame);
-  }, [locationKey, targetSelector, viewportRef, ready]);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (preciseFrame !== undefined) cancelAnimationFrame(preciseFrame);
+      observer?.disconnect();
+    };
+  }, [barIndex, locationKey, targetSelector, viewportRef, ready]);
 }
 
 function scrollDelta(start: number, contentSize: number, viewportSize: number): number {
