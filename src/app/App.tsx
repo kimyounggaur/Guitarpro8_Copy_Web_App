@@ -1,3 +1,6 @@
+import { ShortcutHelp } from "../ui/overlays/ShortcutHelp";
+import { AudioTrackDock } from "../ui/audio-track/AudioTrackDock";
+import { useLayoutStore } from "../store/layoutStore";
 import { DocumentTabs } from "../ui/shell/DocumentTabs";
 import { StartScreen } from "../ui/shell/StartScreen";
 import { SpecialPasteDialog } from "../ui/overlays/SpecialPasteDialog";
@@ -136,8 +139,13 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
   const trackVisibility = useViewStore((state) => state.trackVisibility);
   const trackControls = usePlaybackStore((state) => state.trackControls);
   const focusPreview = usePlaybackStore((state) => state.focusPreview);
-  const mixer = useMemo(() => createMixerState(score, trackVisibility, trackControls, focusPreview),
-    [score, trackVisibility, trackControls, focusPreview]);
+  const masterVolumePreview = usePlaybackStore((state) => state.masterVolumePreview);
+  const audioDockOpen = useLayoutStore((state) => state.audioVisible);
+  const toggleAudioDock = useLayoutStore((state) => state.toggleAudio);
+  const mixer = useMemo(() => {
+    const base = createMixerState(score, trackVisibility, trackControls, focusPreview);
+    return masterVolumePreview === null ? base : { ...base, master: { ...base.master, volume: masterVolumePreview } };
+  }, [score, trackVisibility, trackControls, focusPreview, masterVolumePreview]);
   const setPlaybackStatus = usePlaybackStore((state) => state.setStatus);
   const setPlaybackPosition = usePlaybackStore((state) => state.setPosition);
   const togglePlaybackLoop = usePlaybackStore((state) => state.toggleLoop);
@@ -253,6 +261,7 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     setActiveTrackPanel: toolWindow.setActiveTrackPanel,
     openStylesheetPanel: toolWindow.openStylesheetPanel,
     openFileIoPanel: toolWindow.openFileIoPanel,
+    openShortcutHelp: toolWindow.openShortcutHelp,
     openCommandPalette: toolWindow.openCommandPalette,
     togglePanel
   });
@@ -297,7 +306,7 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     "playback.toggle": () => editor.editorContext.togglePlayback(false),
     "view.closeOverlays": () => {
       if (!toolWindow.anyOverlayOpen) return false;
-      toolWindow.closeAllOverlays();
+      toolWindow.closeTopOverlay();
     },
     "panels.palette": () => togglePanel("palette"),
     "panels.songInspector": () => togglePanel("songInspector"),
@@ -392,6 +401,9 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
           onSelect={file.handleSelectDocument} onNew={() => file.handleNewFile()}
           onClose={(ids) => void closeDocuments(ids)} onSave={(id) => void file.handleSaveDocument(id)} />}
         score={score}
+        audioDockOpen={audioDockOpen}
+        onAudioDockToggle={toggleAudioDock}
+        audioDock={<AudioTrackDock visible={audioDockOpen} compilation={playback.playbackCompilation} onSeek={playback.seek} />}
         cursor={cursor}
         dirty={dirty}
         undoCount={undoCount}
@@ -506,6 +518,7 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
           onCreateTemplate={(template) => void file.openDemo(template)} />
         {file.fileIoStatus && <p className="homeFileStatus" role="status">{file.fileIoStatus}</p>}
       </>}
+      {toolWindow.shortcutHelpOpen && <ShortcutHelp onClose={toolWindow.closeShortcutHelp} />}
       {file.midiImportOpen && <MidiImportDialog onChoose={file.resolveMidiImport} />}
       {file.unsavedConfirmationOpen && <UnsavedChangesDialog onChoose={file.resolveUnsavedChoice} />}
       {editor.specialPasteOpen ? (

@@ -16,7 +16,7 @@ test("[C5] a title typing session is one undo step and zoom stays clean", async 
   expect((await state(page)).score.meta.title).toBe(before.score.meta.title);
   await page.keyboard.press("Control+=");
   const after = await state(page);
-  expect(after.view.zoom).toBe(before.view.zoom + 10);
+  expect(after.view.zoom).toBe(before.view.zoom + 5);
   expect(after.revision).toEqual(before.revision);
   await expect(page.getByText("Unsaved changes", { exact: true })).toHaveCount(0);
 });

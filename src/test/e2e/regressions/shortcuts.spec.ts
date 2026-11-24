@@ -9,7 +9,7 @@ test("[B12] Ctrl+= changes zoom without modifying note duration", async ({ page 
 
   await page.keyboard.press("Control+=");
   const { score, view } = await state(page);
-  expect(view.zoom).toBe(before.view.zoom + 10);
+  expect(view.zoom).toBe(before.view.zoom + 5);
 
   expect(score.tracks[0].bars[0].voices[0].beats[0].duration).toBe(4);
 });

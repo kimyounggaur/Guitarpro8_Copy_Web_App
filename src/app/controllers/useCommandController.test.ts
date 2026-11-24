@@ -50,6 +50,7 @@ function createDeps(overrides: Partial<CommandControllerDeps> = {}): CommandCont
     setActiveTrackPanel: vi.fn(),
     openStylesheetPanel: vi.fn(),
     openFileIoPanel: vi.fn(),
+    openShortcutHelp: vi.fn(),
     openCommandPalette: vi.fn(),
     togglePanel: vi.fn(),
     ...overrides

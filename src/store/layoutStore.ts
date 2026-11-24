@@ -22,6 +22,7 @@ export const dockLimits: Record<DockSize, readonly [number, number]> = {
 const storageKey = "tabscore.editor-layout.v1";
 
 interface LayoutState {
+  audioVisible: boolean;
   sizes: Record<DockSize, number>;
   activeInspectorTab: InspectorTab;
   paletteCollapsed: Record<string, boolean>;
@@ -29,6 +30,7 @@ interface LayoutState {
 }
 
 interface LayoutStore extends LayoutState {
+  toggleAudio: () => void;
   setDockSize: (dock: DockSize, size: number) => void;
   save: () => void;
   activateInspector: (tab: InspectorTab) => void;
@@ -37,6 +39,7 @@ interface LayoutStore extends LayoutState {
 }
 
 const defaultState: LayoutState = {
+  audioVisible: false,
   sizes: dockDefaults,
   activeInspectorTab: "song",
   paletteCollapsed: {},
@@ -45,6 +48,7 @@ const defaultState: LayoutState = {
 
 export const useLayoutStore = create<LayoutStore>((set, get) => ({
   ...loadLayout(),
+  toggleAudio: () => { set(state => ({ audioVisible: !state.audioVisible })); saveLayout(get()); },
   setDockSize: (dock, size) => set((state) => ({
     sizes: { ...state.sizes, [dock]: clampDock(dock, size) }
   })),
@@ -77,6 +81,7 @@ function loadLayout(): LayoutState {
     const stored = JSON.parse(localStorage.getItem(storageKey) ?? "null");
     if (stored?.version !== 1) return defaultState;
     return {
+      audioVisible: stored.audioVisible === true,
       sizes: {
         left: clampDock("left", stored.sizes?.left),
         right: clampDock("right", stored.sizes?.right),
@@ -97,10 +102,10 @@ function loadLayout(): LayoutState {
   }
 }
 
-function saveLayout({ sizes, activeInspectorTab, paletteCollapsed, paletteScroll }: LayoutState) {
+function saveLayout({ audioVisible, sizes, activeInspectorTab, paletteCollapsed, paletteScroll }: LayoutState) {
   try {
     localStorage.setItem(storageKey, JSON.stringify({
-      version: 1, sizes, activeInspectorTab, paletteCollapsed, paletteScroll
+      version: 1, audioVisible, sizes, activeInspectorTab, paletteCollapsed, paletteScroll
     }));
   } catch {
     // Panels remain usable without persistent browser storage.
