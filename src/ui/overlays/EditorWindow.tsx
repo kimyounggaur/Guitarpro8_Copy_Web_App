@@ -95,7 +95,7 @@ function WindowFrame({ id, title, description, regionLabel, closeLabel, modal, k
   }
   return <dialog ref={element} open={modal ? undefined : true} aria-modal={modal || undefined} tabIndex={-1}
     data-editor-window={kind} data-window-id={id} className="remasterWindow" aria-labelledby={titleId} aria-describedby={descriptionId}
-    onCancel={(event) => { event.preventDefault(); onClose(); }}
+    onCancel={(event) => { if (event.currentTarget === event.target) { event.preventDefault(); onClose(); } }}
     onPointerDownCapture={() => useOverlayStore.getState().activate(kind)}
     onFocusCapture={() => useOverlayStore.getState().activate(kind)}
     style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, zIndex: 850 + z }}>

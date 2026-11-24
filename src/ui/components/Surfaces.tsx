@@ -12,7 +12,7 @@ import {
   type ReactNode,
   type RefObject
 } from "react";
-import { createPortal } from "react-dom";
+import { OverlayPortal } from "../overlays/OverlayPortal";
 import { useDialogFocus } from "../overlays/useDialogFocus";
 import "../styles/primitives.css";
 
@@ -84,13 +84,14 @@ export function Tooltip({ text, children }: { text: string; children: ReactEleme
     <span
       ref={anchor}
       className="uiTooltipAnchor"
+      data-tooltip-open={open || undefined}
       onPointerEnter={show}
       onPointerLeave={hide}
       onFocus={show}
       onBlur={hide}
       onPointerDown={hide}
       onKeyDown={(event) => {
-        if (event.key === "Escape") hide();
+        if (open && event.key === "Escape") { event.preventDefault(); hide(); }
       }}
     >
       {cloneElement(children, {
@@ -98,14 +99,24 @@ export function Tooltip({ text, children }: { text: string; children: ReactEleme
           [children.props["aria-describedby"], open && id].filter(Boolean).join(" ") || undefined
       })}
       {open &&
-        createPortal(
+        <OverlayPortal anchor={anchor}>
           <div ref={body} id={id} role="tooltip" className="uiTooltip" style={style}>
             {text}
-          </div>,
-          document.body
-        )}
+          </div>
+        </OverlayPortal>}
     </span>
   );
+}
+
+// Maps portaled children back to their triggers for nested outside-click handling.
+const popoverAnchors = new Map<HTMLElement, HTMLElement>();
+function clickWithin(panel: HTMLElement, target: Node): boolean {
+  for (let node: Node | null = target; node;) {
+    if (panel.contains(node)) return true;
+    const owner: HTMLElement | null = node instanceof Element ? node.closest("[data-anchored-popover]") : null;
+    node = owner ? popoverAnchors.get(owner) ?? null : null;
+  }
+  return false;
 }
 
 export interface PopoverProps {
@@ -135,28 +146,61 @@ export function Popover({
   }, [onClose]);
   const style = useAnchoredStyle(anchor, panel, open, side);
   useEffect(() => {
-    if (!open) return;
+    const body = panel.current;
+    const trigger = anchor.current;
+    if (!open || !body || !trigger) return;
+    popoverAnchors.set(body, trigger);
+    const focusable = 'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]';
+    function portalTab(event: globalThis.KeyboardEvent) {
+      if (event.key !== "Tab" || event.defaultPrevented || !body || !trigger) return;
+      const controls = [...body.querySelectorAll<HTMLElement>(focusable)].filter((item) => item.tabIndex >= 0 && item.getClientRects().length);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (!event.shiftKey && document.activeElement === trigger && first) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        trigger.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        const scope = trigger.closest("dialog:modal") ?? document;
+        const reachable = [...scope.querySelectorAll<HTMLElement>(focusable)].filter((item) =>
+          item.tabIndex >= 0 && !body.contains(item) && !item.closest("[inert]") && item.getClientRects().length);
+        const next = reachable[reachable.indexOf(trigger) + 1];
+        if (next) {
+          event.preventDefault();
+          close.current();
+          next.focus();
+        }
+      }
+    }
     function outside(event: PointerEvent) {
       const target = event.target;
-      if (target instanceof Node && !panel.current?.contains(target) && !anchor.current?.contains(target))
+      if (target instanceof Node && body && !clickWithin(body, target) && !trigger?.contains(target))
         close.current();
     }
     function escape(event: globalThis.KeyboardEvent) {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
+      const stack = [...popoverAnchors.keys()];
+      if (event.key !== "Escape" || event.defaultPrevented || stack[stack.length - 1] !== body) return;
       event.preventDefault();
       close.current();
       anchor.current?.focus();
     }
+    trigger.addEventListener("keydown", portalTab);
+    body.addEventListener("keydown", portalTab);
     document.addEventListener("pointerdown", outside);
     document.addEventListener("keydown", escape);
     return () => {
+      popoverAnchors.delete(body);
+      trigger.removeEventListener("keydown", portalTab);
+      body.removeEventListener("keydown", portalTab);
       document.removeEventListener("pointerdown", outside);
       document.removeEventListener("keydown", escape);
     };
   }, [anchor, open]);
   if (!open) return null;
   return (
-    <div
+    <OverlayPortal anchor={anchor}><div
+      data-anchored-popover
       ref={panel}
       id={id}
       role="group"
@@ -165,7 +209,7 @@ export function Popover({
       className={`uiPopover ${className}`}
     >
       {children}
-    </div>
+    </div></OverlayPortal>
   );
 }
 
@@ -187,7 +231,7 @@ export function Dialog({
     text = useId();
   useDialogFocus(ref, open, "native");
   return open
-    ? createPortal(
+    ? <OverlayPortal>
         <dialog
           ref={ref}
           className="uiDialog"
@@ -201,9 +245,8 @@ export function Dialog({
           <h2 id={heading}>{title}</h2>
           {description && <p id={text}>{description}</p>}
           {children}
-        </dialog>,
-        document.body
-      )
+        </dialog>
+      </OverlayPortal>
     : null;
 }
 

@@ -28,8 +28,9 @@ export function ToolbarOverflowMenu({ groups }: { groups: ToolbarGroup[] }) {
       className="toolbarOverflow"
       style={{ order: 15 }}
       onBlur={(event) => {
-        if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget))
-          setOpen(false);
+        const target = event.relatedTarget;
+        if (target instanceof Node && !event.currentTarget.contains(target)
+          && !document.getElementById(id)?.contains(target)) setOpen(false);
       }}
     >
       <IconButton

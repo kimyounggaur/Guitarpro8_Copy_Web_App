@@ -119,3 +119,23 @@ test("stylesheet preview resets and applies edits without changing the score dur
   await confirm.getByRole("button",{name:"Discard and close"}).click();
   expect((await state(page)).score.stylesheet.headerFooter.firstPageTitle).toBe("New lesson title");
 });
+
+test("toolbar popup receives Escape before an already open non-modal window", async ({ page }) => {
+  await page.setViewportSize({width:1024,height:768});
+  await openApp(page, { fixture: guitarWithBars([[5]]) });
+  await focusScore(page);
+  await page.keyboard.press("F7");
+  const style = page.getByRole("region", {name:"Score stylesheet"});
+  const more = page.getByRole("button",{name:"More toolbar controls"});
+  await more.click();
+  const popup = page.locator("#editor-overlays [data-anchored-popover]").last();
+  await expect(popup).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(popup).toHaveCount(0);
+  await expect(style).toBeVisible();
+  await more.click();
+  await expect(popup).toBeVisible();
+  await style.getByRole("button",{name:"Page",exact:true}).click();
+  await expect(popup).toHaveCount(0);
+  await expect(style).toBeVisible();
+});

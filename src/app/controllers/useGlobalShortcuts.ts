@@ -18,6 +18,8 @@ export function useGlobalShortcuts(
       const target = event.target instanceof HTMLElement ? event.target : null;
       const editingText = target?.closest("input, select, textarea") || target?.isContentEditable;
       if (target?.closest("[data-anchored-popover], [data-command-menu]")) return;
+      // The toolbar preserves score focus on a pointer click. Escape still belongs to its popup.
+      if (event.key === "Escape" && (document.querySelector("[data-anchored-popover]") || target?.closest("[data-tooltip-open]"))) return;
       if (document.querySelector("dialog[data-editor-window]:modal")) return;
       if (event.key === "Escape" && !target?.closest('[data-testid="command-palette"]')) {
         const { stack, dismiss } = useOverlayStore.getState();
