@@ -713,7 +713,7 @@ export function toggleBarSymbolAtCursor(
       masterBar.freeTime = !masterBar.freeTime;
       break;
     case "tripletFeel":
-      masterBar.tripletFeel = masterBar.tripletFeel ? null : "8th swing";
+      masterBar.tripletFeel = masterBar.tripletFeel ? null : "8th";
       break;
     case "alternateEnding":
       masterBar.alternateEndings = nextAlternateEndingMask(masterBar.alternateEndings);
@@ -1153,7 +1153,7 @@ function toggleFermataAtBeat(score: Score, cursor: CursorPosition): void {
   });
 }
 
-function beatTickForCursor(score: Score, cursor: CursorPosition): number {
+export function beatTickForCursor(score: Score, cursor: CursorPosition): number {
   const voice = voiceForCursor(score, cursor);
 
   if (!voice) {

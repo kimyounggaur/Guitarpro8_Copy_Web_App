@@ -1,3 +1,4 @@
+import type { MasterMix, TrackMix } from "./mix";
 export const TICKS_PER_QUARTER = 480;
 export const VOICES_PER_BAR = 4;
 export const MIN_STRING_COUNT = 3;
@@ -91,6 +92,7 @@ export interface Score {
   stylesheet: Stylesheet;
   documentSettings: DocumentSettings;
   masterAutomations: Automation[];
+  masterMix: MasterMix;
 }
 
 export interface DocumentSettings {
@@ -247,7 +249,7 @@ export interface KeySignature {
 export interface MasterBar {
   timeSignature: TimeSignature;
   keySignature: KeySignature;
-  tripletFeel: string | null;
+  tripletFeel: "8th" | "16th" | null;
   freeTime: boolean;
   doubleBar: boolean;
   repeatOpen: boolean;
@@ -298,6 +300,7 @@ export interface Track {
   lyricsLines: LyricsLine[];
   automations: Automation[];
   bars: Bar[];
+  mix: TrackMix;
 }
 
 export interface Tuning {

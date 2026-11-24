@@ -1,6 +1,6 @@
 import { defaultCursor } from "../engine/editing/operations";
 import type { CursorPosition, SelectionRange } from "../engine/editing/types";
-import { parseNativeScore } from "../io/nativeScore";
+import { readScoreFile } from "../io/fileFormat";
 import type { Score } from "../model/types";
 import { useDocumentStore } from "../store/documentStore";
 import { usePlaybackStore } from "../store/playbackStore";
@@ -39,8 +39,8 @@ export function installTestHooks(): void {
       return { revision: state.undoStack.length, savedRevision: state.dirty ? null : state.undoStack.length };
     },
     loadScoreJson: (json) => {
-      const score = parseNativeScore(json);
-      useDocumentStore.getState().loadScore(score);
+      const { score, documentId } = readScoreFile(json);
+      useDocumentStore.getState().loadScore(score, { documentId });
       const view = useViewStore.getState();
       view.setSelection(null);
       view.setCursor(defaultCursor(score));

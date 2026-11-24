@@ -16,6 +16,7 @@ import type {
 import { createDefaultStylesheet } from "./stylesheet";
 import { newId } from "./ids";
 import { inferTrackNotation } from "./trackKind";
+import { defaultMasterMix, defaultTrackMix } from "./mix";
 
 export function createEmptyScore(): Score {
   return {
@@ -40,7 +41,8 @@ export function createEmptyScore(): Score {
       engine: "RSE",
       concertTone: false
     },
-    masterAutomations: []
+    masterAutomations: [],
+    masterMix: defaultMasterMix()
   };
 }
 
@@ -136,6 +138,7 @@ export function createTrack(
     chordLibrary: [],
     lyricsLines: [],
     automations: [],
+    mix: defaultTrackMix(instrumentPreset.name),
     bars: Array.from({ length: masterBarCount }, () => createBar())
   };
 }

@@ -1,80 +1,53 @@
 import { describe, expect, it } from "vitest";
 import { createEmptyScore, createTrack } from "../../model/factory";
-import { buildNoteMix, createDefaultMixerState, toggleEffectSlot } from "./mixer";
+import { createDefaultMixerState, faderToGain, normalizeVolume, resolveTrackOutput, toggleEffectSlot } from "./mixer";
 
-describe("Phase 7 mixer and automation", () => {
+describe("track output and automation", () => {
   it("applies solo mute masks before gain calculation", () => {
     const score = scoreWithTwoTracks();
     const mixer = createDefaultMixerState(score.tracks);
     const [guitar, bass] = score.tracks;
-
     mixer.tracks[bass.id].solo = true;
-
-    expect(buildNoteMix(score, guitar.id, 0, mixer, null).muted).toBe(true);
-    expect(buildNoteMix(score, bass.id, 0, mixer, null).muted).toBe(false);
+    expect(resolveTrackOutput(mixer, guitar.id, null).muted).toBe(true);
+    expect(resolveTrackOutput(mixer, bass.id, null).muted).toBe(false);
   });
 
-  it("combines volume, pan, automation, and focus", () => {
+  it("uses manual gain and pan and reduces unfocused tracks", () => {
     const score = scoreWithTwoTracks();
     const [guitar, bass] = score.tracks;
     const mixer = createDefaultMixerState(score.tracks);
-
-    score.masterAutomations = [
-      {
-        type: "volume",
-        scope: "master",
-        points: [{ tick: 0, value: 0.5, transition: "constant" }]
-      },
-      {
-        type: "pan",
-        scope: "master",
-        points: [{ tick: 0, value: 0.1, transition: "constant" }]
-      }
-    ];
-    guitar.automations = [
-      {
-        type: "volume",
-        scope: "track",
-        points: [
-          { tick: 0, value: 0.5, transition: "progressive" },
-          { tick: 960, value: 1, transition: "constant" }
-        ]
-      },
-      {
-        type: "pan",
-        scope: "track",
-        points: [{ tick: 0, value: -0.2, transition: "constant" }]
-      }
-    ];
-    mixer.tracks[guitar.id].volume = 1;
-    mixer.tracks[guitar.id].pan = 0.2;
+    mixer.tracks[guitar.id].volume = 0.75;
+    mixer.tracks[guitar.id].pan = 0.25;
     mixer.master.focusPercent = 50;
-
-    const focused = buildNoteMix(score, guitar.id, 480, mixer, guitar.id);
-    const unfocused = buildNoteMix(score, bass.id, 480, mixer, guitar.id);
-
-    expect(focused.gain).toBeCloseTo(0.375, 5);
-    expect(focused.pan).toBeCloseTo(0.1, 5);
+    const focused = resolveTrackOutput(mixer, guitar.id, guitar.id);
+    const unfocused = resolveTrackOutput(mixer, bass.id, guitar.id);
+    expect(focused).toMatchObject({ gain: 0.75, pan: 0.25 });
     expect(unfocused.gain).toBeLessThan(focused.gain);
   });
 
   it("toggles effect slots while respecting the chain cap", () => {
     const score = scoreWithTwoTracks();
     const mixer = createDefaultMixerState(score.tracks);
-    const trackId = score.tracks[0].id;
-    const withoutOverdrive = toggleEffectSlot(mixer, trackId, "overdrive");
-    const withDelay = toggleEffectSlot(withoutOverdrive, trackId, "delay");
+    const guitar = mixer.tracks[score.tracks[0].id];
+    expect(guitar).toMatchObject({ eq: "flat", effectChain: [] });
+    const driven = toggleEffectSlot(guitar.effectChain, "overdrive");
+    const dry = toggleEffectSlot(driven, "overdrive");
+    const delayed = toggleEffectSlot(dry, "delay");
+    expect(dry.some((slot) => slot.type === "overdrive")).toBe(false);
+    expect(delayed.some((slot) => slot.type === "delay")).toBe(true);
+    expect(delayed.length).toBeLessThanOrEqual(6);
+  });
 
-    expect(withoutOverdrive.tracks[trackId].effectChain.some((slot) => slot.type === "overdrive")).toBe(false);
-    expect(withDelay.tracks[trackId].effectChain.some((slot) => slot.type === "delay")).toBe(true);
-    expect(withDelay.tracks[trackId].effectChain.length).toBeLessThanOrEqual(6);
+  it("[A8] normalizes old percentages before applying the squared fader curve", () => {
+    expect(normalizeVolume(1.2)).toBe(1);
+    expect(normalizeVolume(1.08)).toBe(1);
+    expect(normalizeVolume(85)).toBe(0.85);
+    expect(faderToGain(0.75)).toBe(0.5625);
   });
 });
 
 function scoreWithTwoTracks() {
   const score = createEmptyScore();
-  score.tracks = [createTrack(undefined, 1), createTrack(undefined, 1)];
-  score.tracks[0].name = "Guitar";
-  score.tracks[1].name = "Bass";
+  score.tracks = [createTrack(), createTrack()];
   return score;
 }

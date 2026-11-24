@@ -37,7 +37,7 @@ export function createDemoScore(): Score {
       scope: "master",
       points: [
         { tick: 0, value: 0.95, transition: "constant" },
-        { tick: 3840, value: 1.08, transition: "progressive" },
+        { tick: 3840, value: 1, transition: "progressive" },
         { tick: 7680, value: 0.86, transition: "progressive" }
       ]
     },
@@ -79,7 +79,7 @@ export function createDemoScore(): Score {
       scope: "track",
       points: [
         { tick: 0, value: 0.88, transition: "constant" },
-        { tick: 3840, value: 1.12, transition: "progressive" },
+        { tick: 3840, value: 1, transition: "progressive" },
         { tick: 7680, value: 0.82, transition: "progressive" }
       ]
     },
@@ -120,7 +120,7 @@ export function createDemoScore(): Score {
 function applyPhase5MasterSymbols(score: Score): void {
   score.masterBars[0].section = { letter: "A", name: "Intro", boxed: true };
   score.masterBars[0].repeatOpen = true;
-  score.masterBars[0].tripletFeel = "8th swing";
+  score.masterBars[0].tripletFeel = "8th";
   score.masterBars[1].alternateEndings = 1;
   score.masterBars[1].fermatas = [{ beatTick: 960, glyph: "above", tempoScale: 0.75 }];
   score.masterBars[2].repeatClose = 2;

@@ -1,8 +1,9 @@
-import type { MouseEvent, ReactNode } from "react";
+import type { InputHTMLAttributes, MouseEvent, ReactNode } from "react";
 import { barTheoreticalTicks } from "../../model/derive";
 import { TICKS_PER_QUARTER, type AutomationPoint, type BeatDuration, type DisplayMode, type NotationType, type Score, type SongInfo, type StaffConfig, type Stylesheet, type StylesheetPresetName, type Track } from "../../model/types";
 import type { CursorPosition } from "../../engine/editing/types";
 import type { EffectSlotType, EqPreset, MixerState, TrackMixerState } from "../../engine/audio/mixer";
+import type { MixerEditPhase } from "../../store/playbackStore";
 import type { DocumentTabState } from "../../store/documentStore";
 import type { PanelVisibility } from "../../store/preferencesStore";
 import {
@@ -42,6 +43,8 @@ export interface EditorShellProps {
   playbackBarIndex: number;
   playbackTick: number;
   playbackTimeSec: number;
+  currentTempo: number;
+  onTempoChange: (bpm: number) => void;
   loopEnabled: boolean;
   metronomeEnabled: boolean;
   countInEnabled: boolean;
@@ -69,9 +72,9 @@ export interface EditorShellProps {
   onTrackDelete: (trackId: string) => void;
   onTrackMove: (trackId: string, direction: -1 | 1) => void;
   onGlobalJump: (trackId: string, barIndex: number) => void;
-  onMixerTrackChange: (trackId: string, patch: Partial<TrackMixerState>) => void;
+  onMixerTrackChange: (trackId: string, patch: Partial<TrackMixerState>, phase?: MixerEditPhase) => void;
   onMixerEffectToggle: (trackId: string, effect: EffectSlotType) => void;
-  onMasterFocusChange: (value: number) => void;
+  onMasterFocusChange: (value: number, phase?: MixerEditPhase) => void;
   onAutomationPointSet: (lane: AutomationLaneId, tick: number, value: number) => void;
   onAutomationPointRemove: (lane: AutomationLaneId, tick: number) => void;
   onAutomationTransitionToggle: (lane: AutomationLaneId, tick: number) => void;
@@ -611,7 +614,7 @@ function GlobalView(props: EditorShellProps) {
               max="100"
               step="1"
               value={props.mixer.master.focusPercent}
-              onChange={(event) => props.onMasterFocusChange(Number(event.target.value))}
+              {...mixerRangeEvents(props.onMasterFocusChange)}
             />
             <em>{props.mixer.master.focusPercent}</em>
           </label>
@@ -645,6 +648,16 @@ function GlobalView(props: EditorShellProps) {
       </div>
     </section>
   );
+}
+
+function mixerRangeEvents(change: (value: number, phase: MixerEditPhase) => void): InputHTMLAttributes<HTMLInputElement> {
+  return {
+    onChange: (event) => change(event.currentTarget.valueAsNumber, "preview"),
+    onPointerUp: (event) => change(event.currentTarget.valueAsNumber, "commit"),
+    onPointerCancel: (event) => change(event.currentTarget.valueAsNumber, "commit"),
+    onKeyUp: (event) => change(event.currentTarget.valueAsNumber, "commit"),
+    onBlur: (event) => change(event.currentTarget.valueAsNumber, "commit")
+  };
 }
 
 function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
@@ -729,10 +742,10 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
         <input
           type="range"
           min="0"
-          max="1.2"
+          max="1"
           step="0.01"
           value={mixer.volume}
-          onChange={(event) => props.onMixerTrackChange(track.id, { volume: Number(event.target.value) })}
+          {...mixerRangeEvents((volume, phase) => props.onMixerTrackChange(track.id, { volume }, phase))}
         />
         <em>{Math.round(mixer.volume * 100)}</em>
       </label>
@@ -744,7 +757,7 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
           max="1"
           step="0.01"
           value={mixer.pan}
-          onChange={(event) => props.onMixerTrackChange(track.id, { pan: Number(event.target.value) })}
+          {...mixerRangeEvents((pan, phase) => props.onMixerTrackChange(track.id, { pan }, phase))}
         />
         <em>{Math.round(mixer.pan * 100)}</em>
       </label>
@@ -807,7 +820,7 @@ function AutomationEditor(props: EditorShellProps) {
       id: "masterVolume",
       label: "M Vol",
       min: 0,
-      max: 1.2,
+      max: 1,
       points: automationPoints(props.score.masterAutomations, "volume", "master")
     },
     {
@@ -821,7 +834,7 @@ function AutomationEditor(props: EditorShellProps) {
       id: "trackVolume",
       label: "T Vol",
       min: 0,
-      max: 1.2,
+      max: 1,
       points: currentTrack ? automationPoints(currentTrack.automations, "volume", "track") : []
     },
     {

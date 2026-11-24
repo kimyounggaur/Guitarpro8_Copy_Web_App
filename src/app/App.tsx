@@ -13,6 +13,7 @@ import { createDemoScore } from "../model/demoScore";
 import { readScoreFile } from "../io/fileFormat";
 import { discardRecoverySnapshot, listRecoverySnapshots, type RecoverySnapshot } from "../store/autosave";
 import { useDocumentStore } from "../store/documentStore";
+import { createMixerState } from "../engine/audio/mixer";
 import { usePlaybackStore } from "../store/playbackStore";
 import { usePreferencesStore } from "../store/preferencesStore";
 import { useViewStore } from "../store/viewStore";
@@ -26,6 +27,7 @@ import { useFileController } from "./controllers/useFileController";
 import { useGlobalShortcuts } from "./controllers/useGlobalShortcuts";
 import { usePlaybackController } from "./controllers/usePlaybackController";
 import { useScoreRecovery } from "./controllers/useScoreRecovery";
+import { useScoreFollow } from "./controllers/useScoreFollow";
 import { useToolWindowController } from "./controllers/useToolWindowController";
 
 function App() {
@@ -128,14 +130,17 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   const metronomeEnabled = usePlaybackStore((state) => state.metronomeEnabled);
   const countInEnabled = usePlaybackStore((state) => state.countInEnabled);
   const speedPercent = usePlaybackStore((state) => state.speedPercent);
-  const mixer = usePlaybackStore((state) => state.mixer);
+  const trackVisibility = useViewStore((state) => state.trackVisibility);
+  const trackControls = usePlaybackStore((state) => state.trackControls);
+  const focusPreview = usePlaybackStore((state) => state.focusPreview);
+  const mixer = useMemo(() => createMixerState(score, trackVisibility, trackControls, focusPreview),
+    [score, trackVisibility, trackControls, focusPreview]);
   const setPlaybackStatus = usePlaybackStore((state) => state.setStatus);
   const setPlaybackPosition = usePlaybackStore((state) => state.setPosition);
   const togglePlaybackLoop = usePlaybackStore((state) => state.toggleLoop);
   const toggleMetronome = usePlaybackStore((state) => state.toggleMetronome);
   const toggleCountIn = usePlaybackStore((state) => state.toggleCountIn);
   const setPlaybackSpeedPercent = usePlaybackStore((state) => state.setSpeedPercent);
-  const syncMixerTracks = usePlaybackStore((state) => state.syncMixerTracks);
   const setTrackMixer = usePlaybackStore((state) => state.setTrackMixer);
   const setMasterFocusPercent = usePlaybackStore((state) => state.setMasterFocusPercent);
   const toggleTrackEffect = usePlaybackStore((state) => state.toggleTrackEffect);
@@ -144,10 +149,6 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   const togglePanel = usePreferencesStore((state) => state.togglePanel);
   const demoScore = useMemo(() => createDemoScore(), []);
   const platform = useMemo(() => detectPlatform(), []);
-
-  useEffect(() => {
-    syncMixerTracks(score.tracks);
-  }, [score.tracks, syncMixerTracks]);
 
   const playback = usePlaybackController({
     score,
@@ -291,6 +292,13 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   });
 
   const scoreViewportRef = useRef<HTMLDivElement>(null);
+  const followingPlayback = playbackStatus === "playing";
+  useScoreFollow(
+    scoreViewportRef,
+    followingPlayback ? `[id^="playback-bar-${playbackBarIndex}-"]` : "#editor-cursor-primary",
+    followingPlayback ? String(playbackBarIndex) : `${cursor.trackId}:${cursor.barIndex}:${cursor.voiceIndex}:${cursor.beatIndex}:${cursor.staffLine}`,
+    startupReady
+  );
   useEffect(() => {
     if (startupReady && score.tracks.length > 0 && document.activeElement === document.body) {
       scoreViewportRef.current?.focus({ preventScroll: true });
@@ -298,13 +306,14 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   }, [score.tracks.length, startupReady]);
 
   const scoreForLayout = useMemo(() => {
+    const visibleTracks = score.tracks.filter((track) => trackVisibility[track.id] !== false);
     if (editor.multiTrackView) {
-      return score;
+      return visibleTracks.length === score.tracks.length ? score : { ...score, tracks: visibleTracks };
     }
 
-    const activeTrack = score.tracks.find((track) => track.id === cursor.trackId);
-    return activeTrack ? { ...score, tracks: [activeTrack] } : score;
-  }, [cursor.trackId, editor.multiTrackView, score]);
+    const activeTrack = visibleTracks.find((track) => track.id === cursor.trackId);
+    return { ...score, tracks: activeTrack ? [activeTrack] : visibleTracks };
+  }, [cursor.trackId, editor.multiTrackView, score, trackVisibility]);
 
   const baseScene = useMemo(
     () =>
@@ -343,6 +352,8 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
         playbackBarIndex={playbackBarIndex}
         playbackTick={playbackTick}
         playbackTimeSec={playbackTimeSec}
+        currentTempo={playback.currentTempo}
+        onTempoChange={playback.changeTempo}
         loopEnabled={loopEnabled}
         metronomeEnabled={metronomeEnabled}
         countInEnabled={countInEnabled}

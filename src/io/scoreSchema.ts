@@ -1,3 +1,4 @@
+import { defaultMasterMix, defaultTrackMix } from "../model/mix";
 import { z } from "zod";
 import { createEmptyScore } from "../model/factory";
 import { normalizeStylesheet } from "../model/stylesheet";
@@ -133,8 +134,20 @@ const track: z.ZodType<Track> = z.object({
   chordLibrary: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
   lyricsLines: z.array(z.object({ text: z.string(), firstBar: offset, visible: z.boolean() })).default([]),
   automations: z.array(automation).default([]),
-  bars: z.array(z.object({ voices: z.tuple([voice, voice, voice, voice]) }))
-});
+  bars: z.array(z.object({ voices: z.tuple([voice, voice, voice, voice]) })),
+  mix: z.object({
+    volume: finite.min(0).max(1),
+    pan: finite.min(-1).max(1),
+    mute: z.boolean(),
+    solo: z.boolean(),
+    eq: z.enum(["flat", "bright", "warm", "bass"]),
+    effects: z.array(z.object({
+      type: z.enum(["overdrive", "chorus", "flanger", "phaser", "delay", "reverb", "wah", "compressor"]),
+      amount: finite.min(0).max(1),
+      bypassed: z.boolean()
+    })).max(6)
+  }).optional()
+}).transform((track) => ({ ...track, mix: track.mix ?? defaultTrackMix(track.name) }));
 
 const masterBar: z.ZodType<MasterBar> = z.object({
   timeSignature: z.object({
@@ -143,7 +156,7 @@ const masterBar: z.ZodType<MasterBar> = z.object({
     beamingPreset: z.string().default("default")
   }),
   keySignature: z.object({ key: z.string(), mode: z.enum(["major", "minor"]) }).default({ key: "C", mode: "major" }),
-  tripletFeel: z.string().nullable().default(null),
+  tripletFeel: z.enum(["8th", "16th"]).nullable().default(null),
   freeTime: z.boolean().default(false),
   doubleBar: z.boolean().default(false),
   repeatOpen: z.boolean().default(false),
@@ -233,5 +246,9 @@ export const scoreSchema: z.ZodType<Score> = z.object({
     engine: engine.default("RSE"),
     concertTone: z.boolean().default(false)
   }).default(defaults.documentSettings),
-  masterAutomations: z.array(automation).default([])
+  masterAutomations: z.array(automation).default([]),
+  masterMix: z.object({
+    volume: finite.min(0).max(1),
+    focusPercent: finite.min(-100).max(100)
+  }).default(defaultMasterMix)
 });

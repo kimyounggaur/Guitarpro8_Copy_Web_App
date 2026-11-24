@@ -1,4 +1,4 @@
-import { barTheoreticalTicks } from "../../model/derive";
+import { barTheoreticalTicks, beatDurationTicks } from "../../model/derive";
 import { TICKS_PER_QUARTER, type AutomationPoint, type Score } from "../../model/types";
 import type { PlaybackSegment } from "../unroll/unrollScore";
 
@@ -29,6 +29,7 @@ export interface TempoMap {
   totalTicks: number;
   totalSeconds: number;
   ticksToSeconds: (tick: number) => number;
+  bpmAtTick: (tick: number) => number;
   secondsToTicks: (seconds: number) => number;
 }
 
@@ -44,7 +45,7 @@ export function buildTempoMap(
     speedOverride.mode === "fixedBpm"
       ? [{ tick: 0, bpm: clampTempo(speedOverride.bpm), transition: "constant" as const }]
       : collectTempoPoints(score, segments, speedOverride);
-  const sections = buildTempoSections(points, totalTicks);
+  const sections = applyFermatas(buildTempoSections(points, totalTicks), fermataRanges(score, segments));
 
   return {
     points,
@@ -52,6 +53,11 @@ export function buildTempoMap(
     totalTicks,
     totalSeconds: sections[sections.length - 1]?.endSec ?? 0,
     ticksToSeconds: (tick) => ticksToSeconds(sections, clamp(tick, 0, totalTicks)),
+    bpmAtTick: (tick) => {
+      const position = clamp(tick, 0, totalTicks);
+      const section = sections.find((item) => position < item.endTick) ?? sections[sections.length - 1];
+      return section ? bpmAt(section, position) : points[0]?.bpm ?? DEFAULT_TEMPO;
+    },
     secondsToTicks: (seconds) => secondsToTicks(sections, Math.max(0, seconds))
   };
 }
@@ -124,6 +130,84 @@ function buildTempoSections(points: TempoPoint[], totalTicks: number): TempoSect
   return sections.filter((section) => section.endTick > section.startTick);
 }
 
+interface FermataRange {
+  startTick: number;
+  endTick: number;
+  scale: number;
+}
+
+function fermataRanges(score: Score, segments: PlaybackSegment[]): FermataRange[] {
+  return segments.flatMap((segment) => {
+    const bar = score.masterBars[segment.barIndex];
+    return bar.fermatas.flatMap(({ beatTick, tempoScale }) => {
+      if (!(beatTick >= 0 && beatTick < segment.durationTicks && tempoScale > 0 && Number.isFinite(tempoScale))) {
+        return [];
+      }
+
+      const duration = notatedBeatTicks(score, segment.barIndex, beatTick)
+        ?? TICKS_PER_QUARTER * 4 / bar.timeSignature.denominator;
+      return [{
+        startTick: segment.startTick + beatTick,
+        endTick: segment.startTick + Math.min(segment.durationTicks, beatTick + duration),
+        scale: tempoScale
+      }];
+    });
+  });
+}
+
+function notatedBeatTicks(score: Score, barIndex: number, beatTick: number): number | undefined {
+  let restDuration: number | undefined;
+  for (const track of score.tracks) {
+    for (const voice of track.bars[barIndex]?.voices ?? []) {
+      let tick = 0;
+      for (const beat of voice.beats) {
+        const duration = beatDurationTicks(beat);
+        if (tick === beatTick) {
+          if (!beat.rest) return duration;
+          restDuration = Math.min(restDuration ?? duration, duration);
+          break;
+        }
+        tick += duration;
+        if (tick > beatTick) break;
+      }
+    }
+  }
+  return restDuration;
+}
+
+function applyFermatas(sections: TempoSection[], ranges: FermataRange[]): TempoSection[] {
+  if (!ranges.length) return sections;
+
+  let elapsed = 0;
+  return sections.flatMap((section) => {
+    const overlapping = ranges.filter((range) => range.startTick < section.endTick && range.endTick > section.startTick);
+    const boundaries = [...new Set([
+      section.startTick,
+      section.endTick,
+      ...overlapping.flatMap((range) => [
+        Math.max(section.startTick, range.startTick),
+        Math.min(section.endTick, range.endTick)
+      ])
+    ])].sort((a, b) => a - b);
+    return boundaries.slice(0, -1).map((startTick, index) => {
+      const endTick = boundaries[index + 1];
+      const scale = overlapping.find((range) => range.startTick <= startTick && range.endTick > startTick)?.scale ?? 1;
+      const startBpm = bpmAt(section, startTick) * scale;
+      const endBpm = bpmAt(section, endTick) * scale;
+      const startSec = elapsed;
+      elapsed += secondsForTickRange(endTick - startTick, startBpm, endBpm, section.transition);
+
+      return { startTick, endTick, startBpm, endBpm, transition: section.transition, startSec, endSec: elapsed };
+    });
+  });
+}
+
+function bpmAt(section: TempoSection, tick: number): number {
+  if (section.transition === "constant") return section.startBpm;
+  const progress = (tick - section.startTick) / (section.endTick - section.startTick);
+  return section.startBpm + (section.endBpm - section.startBpm) * progress;
+}
+
 function ticksToSeconds(sections: TempoSection[], tick: number): number {
   const section = sectionForTick(sections, tick);
 
@@ -146,19 +230,18 @@ function secondsToTicks(sections: TempoSection[], seconds: number): number {
     return 0;
   }
 
-  if (section.transition === "constant" || section.startBpm === section.endBpm) {
-    const sec = clamp(seconds - section.startSec, 0, section.endSec - section.startSec);
-    return section.startTick + (sec * section.startBpm * TICKS_PER_QUARTER) / 60;
-  }
+  if (seconds <= section.startSec) return section.startTick;
+  if (seconds >= section.endSec) return section.endTick;
 
-  const ratio = section.endBpm / section.startBpm;
-  const durationTicks = section.endTick - section.startTick;
-  const normalizedSec = clamp(seconds - section.startSec, 0, section.endSec - section.startSec);
-  const quarterSecondsAtStart = 60 / section.startBpm;
-  const normalized =
-    Math.exp((normalizedSec * Math.log(ratio)) / ((durationTicks / TICKS_PER_QUARTER) * quarterSecondsAtStart)) - 1;
+  const elapsed = seconds - section.startSec;
+  const sectionTicks = section.endTick - section.startTick;
+  const bpmDelta = section.endBpm - section.startBpm;
+  const ticks = section.transition === "constant" || bpmDelta === 0
+    ? (elapsed * section.startBpm * TICKS_PER_QUARTER) / 60
+    : (sectionTicks * section.startBpm / bpmDelta) *
+      Math.expm1(elapsed * bpmDelta / ((sectionTicks / TICKS_PER_QUARTER) * 60));
 
-  return section.startTick + (durationTicks * normalized) / (ratio - 1);
+  return section.startTick + clamp(ticks, 0, sectionTicks);
 }
 
 function secondsForTickRange(
@@ -176,10 +259,9 @@ function secondsForTickRange(
     return (ticks / TICKS_PER_QUARTER) * (60 / startBpm);
   }
 
-  const start = startBpm;
-  const end = startBpm + ((endBpm - startBpm) * ticks) / sectionTicks;
   const bpmDelta = endBpm - startBpm;
-  return ((sectionTicks / TICKS_PER_QUARTER) * 60 * Math.log(end / start)) / bpmDelta;
+  const relativeChange = (bpmDelta * ticks) / (sectionTicks * startBpm);
+  return ((sectionTicks / TICKS_PER_QUARTER) * 60 * Math.log1p(relativeChange)) / bpmDelta;
 }
 
 function sectionForTick(sections: TempoSection[], tick: number): TempoSection | undefined {
@@ -209,7 +291,7 @@ function speedAdjustedTempo(bpm: number, speedOverride: PlaybackSpeedOverride): 
   return clampTempo(speedOverride.bpm);
 }
 
-function writtenBarStarts(score: Score): number[] {
+export function writtenBarStarts(score: Score): number[] {
   let tick = 0;
   return score.masterBars.map((masterBar) => {
     const start = tick;
@@ -228,4 +310,37 @@ function clamp(value: number, min: number, max: number): number {
 
 export function tempoAutomationPoint(tick: number, bpm: number, transition: AutomationPoint["transition"] = "constant"): AutomationPoint {
   return { tick, value: bpm, transition };
+}
+
+export function writtenTempoMap(score: Score, speedOverride: PlaybackSpeedOverride): TempoMap {
+  const starts = writtenBarStarts(score);
+  const segments = score.masterBars.map((bar, index) => ({
+    sequenceIndex: index,
+    barIndex: index,
+    startTick: starts[index],
+    durationTicks: barTheoreticalTicks(bar),
+    pass: 1,
+    visit: 1
+  }));
+  return buildTempoMap(score, segments, speedOverride);
+}
+
+export function setMeasureTempo(score: Score, barIndex: number, bpm: number): void {
+  const tick = writtenBarStarts(score)[barIndex];
+  if (tick === undefined) return;
+  let tempo = score.masterAutomations.find((automation) =>
+    automation.type === "tempo" && automation.scope === "master"
+  );
+  if (!tempo) {
+    tempo = { type: "tempo", scope: "master", points: [] };
+    score.masterAutomations.push(tempo);
+  }
+  const value = clampTempo(bpm);
+  const point = tempo.points.find((item) => item.tick === tick);
+  if (point) {
+    point.value = value;
+  } else {
+    tempo.points.push(tempoAutomationPoint(tick, value));
+    tempo.points.sort((left, right) => left.tick - right.tick);
+  }
 }

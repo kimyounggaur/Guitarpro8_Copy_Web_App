@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { compilePlayback } from "../../engine/audio/compile";
-import { buildNoteMix, createDefaultMixerState } from "../../engine/audio/mixer";
+import { createDefaultMixerState, resolveTrackOutput } from "../../engine/audio/mixer";
+import { compileMixerAutomation } from "../../engine/audio/mixerAutomation";
 import { buildTempoMap, tempoAutomationPoint } from "../../engine/audio/tempoMap";
 import { unrollScore } from "../../engine/unroll/unrollScore";
 import { createBeat, createEmptyScore, createMasterBar, createNote, createTrack } from "../../model/factory";
@@ -25,7 +26,7 @@ it("[B1] two tied quarter notes compile to one 960-tick sounding event", () => {
   expect(events.map(({ startTick, durationTicks }) => [startTick, durationTicks])).toEqual([[0, 960]]);
 });
 
-it.fails("[B2] To Coda applies only after the D.S. al Coda jump", () => {
+it("[B2] To Coda applies only after the D.S. al Coda jump", () => {
   const score = guitarScore(8);
   score.masterBars[1].directionTargets = ["Segno"];
   score.masterBars[3].directionJumps = ["DaCoda"];
@@ -36,7 +37,7 @@ it.fails("[B2] To Coda applies only after the D.S. al Coda jump", () => {
   expect(order).toEqual([1, 2, 3, 4, 5, 6, 2, 3, 4, 7, 8]);
 });
 
-it.fails("[B3] a progressive tempo section round trips with less than half a tick of error", () => {
+it("[B3] a progressive tempo section round trips with less than half a tick of error", () => {
   const score = guitarScore(17);
   const endTick = 16 * 4 * 480;
   score.masterAutomations = [{
@@ -50,26 +51,25 @@ it.fails("[B3] a progressive tempo section round trips with less than half a tic
   expect(Math.max(...errors)).toBeLessThan(0.5);
 });
 
-it.fails("[A8] legacy 120% volume automation does not drop to roughly 1% gain", () => {
+it("[A8] legacy 120% volume automation stays at the normalized full fader level", () => {
   const score = guitarScore(1);
   const track = score.tracks[0];
-  const mixer = createDefaultMixerState(score.tracks);
-  mixer.tracks[track.id].volume = 1;
   track.automations = [{
     type: "volume",
     scope: "track",
     points: [{ tick: 0, value: 1.2, transition: "constant" }]
   }];
-  expect(buildNoteMix(score, track.id, 0, mixer, null).gain).toBe(1);
+  const automation = compileMixerAutomation(score, compilePlayback(score, unrollScore(score)));
+  expect(automation.tracks[track.id].volume[0].value).toBe(1);
 });
 
-it.fails("[B5] hiding the notation of a track leaves its sounding gain intact", () => {
+it("[B5] hiding the notation of a track leaves its sounding gain intact", () => {
   const score = guitarScore(1);
   const { id } = score.tracks[0];
   const mixer = createDefaultMixerState(score.tracks);
-  const visible = buildNoteMix(score, id, 0, mixer, null);
+  const visible = resolveTrackOutput(mixer, id, null);
   expect(visible.gain).toBeGreaterThan(0);
 
   mixer.tracks[id].visible = false;
-  expect(buildNoteMix(score, id, 0, mixer, null)).toMatchObject({ muted: false, gain: visible.gain });
+  expect(resolveTrackOutput(mixer, id, null)).toMatchObject({ muted: false, gain: visible.gain });
 });

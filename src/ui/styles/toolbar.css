@@ -115,6 +115,20 @@
     border-radius: var(--radius-xs);
   }
 
+  .lcdTempo,
+  .lcdTempoInput {
+    box-sizing: border-box;
+    width: 52px;
+    color: inherit;
+  }
+
+  .lcdTempoInput {
+    background: var(--surface-input);
+    border: 1px solid var(--border-lcd);
+    border-radius: var(--radius-xs);
+    font: inherit;
+  }
+
   .lcdWarning {
     color: var(--danger);
   }

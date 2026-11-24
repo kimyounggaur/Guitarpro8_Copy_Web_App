@@ -61,7 +61,7 @@ import type { DisplayMode, Score, SongInfo, Stylesheet, StylesheetPresetName, Tr
 import type { TransposeOptions } from "../../engine/tools/transpose";
 import type { ChordVoicing } from "../../model/chords";
 import type { RetuneMode } from "../../model/instruments";
-import { usePlaybackStore, type PlaybackStatus } from "../../store/playbackStore";
+import { usePlaybackStore, type MixerEditPhase, type PlaybackStatus } from "../../store/playbackStore";
 import { useDocumentStore, type EditTransactionOptions } from "../../store/documentStore";
 import { useViewStore } from "../../store/viewStore";
 import type { AutomationLaneId } from "../../ui/shell/EditorShell";
@@ -89,7 +89,7 @@ export interface UseEditorControllerParams {
   toggleCountIn: () => void;
   speedPercent: number;
   setPlaybackSpeedPercent: (speedPercent: number) => void;
-  setTrackMixer: (trackId: string, patch: Partial<TrackMixerState>) => void;
+  setTrackMixer: (trackId: string, patch: Partial<TrackMixerState>, phase?: MixerEditPhase) => void;
   toggleTrackEffect: (trackId: string, effect: EffectSlotType) => void;
   /** Only touched by handleCreateTrack (closes the track wizard panel on
    * success) — the rest of the tool-window state is owned by
@@ -132,7 +132,7 @@ export interface EditorController {
   handleToggleMultiVoice: () => void;
   handleToggleMultiTrackView: () => void;
   handleGlobalJump: (trackId: string, barIndex: number) => void;
-  handleMixerTrackChange: (trackId: string, patch: Partial<TrackMixerState>) => void;
+  handleMixerTrackChange: (trackId: string, patch: Partial<TrackMixerState>, phase?: MixerEditPhase) => void;
   handleMixerEffectToggle: (trackId: string, effect: EffectSlotType) => void;
   handleAutomationPointSet: (lane: AutomationLaneId, tick: number, value: number) => void;
   handleAutomationPointRemove: (lane: AutomationLaneId, tick: number) => void;
@@ -415,7 +415,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       ),
     togglePlayback: (fromStart) => {
       const { status } = usePlaybackStore.getState();
-      if ((status === "playing") && !fromStart) {
+      if ((status === "playing" || status === "starting") && !fromStart) {
         stopPlayback();
         return;
       }
@@ -433,7 +433,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       setCursor(next);
 
       const { status } = usePlaybackStore.getState();
-      if (status === "playing") {
+      if (status === "playing" || status === "starting") {
         seekPlayback(playbackCompilation.secondAtBar(next.barIndex));
       }
     },
@@ -442,7 +442,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       setCursor(next);
 
       const { status } = usePlaybackStore.getState();
-      if (status === "playing") {
+      if (status === "playing" || status === "starting") {
         seekPlayback(playbackCompilation.secondAtBar(next.barIndex));
       }
     },
