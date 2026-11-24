@@ -300,7 +300,7 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     followingPlayback ? `[id^="playback-bar-${playbackBarIndex}-"]` : "#editor-cursor-primary",
     followingPlayback ? String(playbackBarIndex) : `${cursor.trackId}:${cursor.barIndex}:${cursor.voiceIndex}:${cursor.beatIndex}:${cursor.staffLine}`,
     followingPlayback ? playbackBarIndex : cursor.barIndex,
-    startupReady
+    startupReady && score.tracks.length > 0
   );
   useEffect(() => {
     if (startupReady && score.tracks.length > 0 && document.activeElement === document.body) {
