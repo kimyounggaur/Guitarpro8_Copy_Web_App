@@ -57,7 +57,7 @@ export function checkInvariants(score: Score): InvariantIssue[] {
             return;
           }
 
-          const usedStrings = new Set<number>();
+          const usedStrings = beat.notes.length > 1 ? new Set<number>() : null;
           for (const note of beat.notes) {
             if (!Number.isInteger(note.string) || note.string < 1 || note.string > track.tuning.strings.length) {
               issues.push({ code: "string-range", severity: "fatal", message: "악기의 줄 수를 벗어난 음이 있습니다.", location });
@@ -65,10 +65,10 @@ export function checkInvariants(score: Score): InvariantIssue[] {
             if (!Number.isInteger(note.fret) || note.fret < 0 || note.fret > DEFAULT_MAX_FRET) {
               issues.push({ code: "fret-range", severity: "fatal", message: "악기의 프렛 범위를 벗어난 음이 있습니다.", location });
             }
-            if (usedStrings.has(note.string)) {
+            if (usedStrings?.has(note.string)) {
               issues.push({ code: "string-collision", severity: "fatal", message: "한 박의 같은 줄에 여러 음이 있습니다.", location });
             }
-            usedStrings.add(note.string);
+            usedStrings?.add(note.string);
           }
         });
       });
@@ -97,6 +97,8 @@ export function checkInvariants(score: Score): InvariantIssue[] {
 }
 
 function validTuplet(tuplet: Tuplet | undefined): boolean {
+  if (!tuplet) return true;
+
   const seen = new Set<Tuplet>();
   while (tuplet) {
     if (seen.has(tuplet) || !Number.isInteger(tuplet.n) || tuplet.n < 1 || !Number.isInteger(tuplet.m) || tuplet.m < 1) {

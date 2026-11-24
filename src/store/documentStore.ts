@@ -99,7 +99,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       return state.score;
     }
 
-    const tieRepairs = inspectTies(edited);
+    const tieRepairs = inspectTies(edited, true);
     const [after, repairs, revertRepairs] = tieRepairs.length > 0
       ? produceWithPatches(edited, (draft) => { applyTieRepairs(draft, tieRepairs); })
       : [edited, [], []] as const;

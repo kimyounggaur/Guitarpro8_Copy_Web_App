@@ -127,8 +127,6 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   const setSelection = useViewStore((state) => state.setSelection);
   const playbackStatus = usePlaybackStore((state) => state.status);
   const playbackBarIndex = usePlaybackStore((state) => state.currentBarIndex);
-  const playbackTick = usePlaybackStore((state) => state.currentTick);
-  const playbackTimeSec = usePlaybackStore((state) => state.currentTimeSec);
   const loopEnabled = usePlaybackStore((state) => state.loopEnabled);
   const metronomeEnabled = usePlaybackStore((state) => state.metronomeEnabled);
   const countInEnabled = usePlaybackStore((state) => state.countInEnabled);
@@ -345,8 +343,6 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
         panelVisibility={panelVisibility}
         playbackStatus={playbackStatus}
         playbackBarIndex={playbackBarIndex}
-        playbackTick={playbackTick}
-        playbackTimeSec={playbackTimeSec}
         currentTempo={playback.currentTempo}
         onTempoChange={playback.changeTempo}
         loopEnabled={loopEnabled}

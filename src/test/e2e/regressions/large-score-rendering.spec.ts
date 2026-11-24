@@ -52,10 +52,12 @@ for (const mode of ["horizontal-page", "horizontal-screen"] as const) {
     const slots = page.locator(".scorePageSlot");
     await expect.poll(() => slots.count()).toBeGreaterThan(4);
 
-    await slots.last().scrollIntoViewIfNeeded();
+    const viewport = page.locator(".scoreViewport");
+    await expect(page.locator(`.display-${mode}`)).toBeAttached();
+    await viewport.evaluate((element) => element.scrollTo({ left: element.scrollWidth, top: 0, behavior: "instant" }));
     await expect(slots.last()).toHaveAttribute("data-mounted", "true");
     await expect(slots.first()).toHaveAttribute("data-mounted", "false");
-    expect(await page.locator(".scoreViewport").evaluate((viewport) => viewport.scrollLeft)).toBeGreaterThan(0);
+    expect(await viewport.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
   });
 }
 

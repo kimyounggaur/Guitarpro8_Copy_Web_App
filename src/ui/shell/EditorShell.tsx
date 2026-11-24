@@ -44,8 +44,6 @@ export interface EditorShellProps {
   panelVisibility: PanelVisibility;
   playbackStatus: string;
   playbackBarIndex: number;
-  playbackTick: number;
-  playbackTimeSec: number;
   currentTempo: number;
   onTempoChange: (bpm: number) => void;
   loopEnabled: boolean;

@@ -1,6 +1,6 @@
 import { noteTieIdentity } from "./trackKind";
 import type { InvariantIssue } from "./invariants";
-import type { Beat, NoteRef, Score, Track } from "./types";
+import type { Bar, Beat, NoteRef, Score, Track } from "./types";
 
 export type NotePath = NoteRef;
 
@@ -42,15 +42,22 @@ interface TieRepair {
   issue?: InvariantIssue;
 }
 
-export function inspectTies(score: Score): TieRepair[] {
+// Only the immutable editor transaction path can reuse a previous scan.
+const barsWithoutTies = new WeakSet<Bar>();
+
+export function inspectTies(score: Score, immutable = false): TieRepair[] {
   const repairs: TieRepair[] = [];
   const correctedFrets = new Map<object, number>();
   score.tracks.forEach((track, trackIndex) => {
     track.bars.forEach((bar, barIndex) => {
+      if (immutable && barsWithoutTies.has(bar)) return;
+
+      let hasTies = false;
       bar.voices.forEach((voice, voiceIndex) => {
         voice.beats.forEach((beat, beatIndex) => {
           beat.notes.forEach((note, noteIndex) => {
             if (!note.tiedFromPrevious) return;
+            hasTies = true;
             const location = { trackId: track.id, barIndex, voiceIndex, beatIndex };
             const path = { ...location, noteIndex };
             const origin = findTrackTieOrigin(track, path);
@@ -72,6 +79,7 @@ export function inspectTies(score: Score): TieRepair[] {
           });
         });
       });
+      if (immutable && !hasTies) barsWithoutTies.add(bar);
     });
   });
   return repairs;

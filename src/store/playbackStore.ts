@@ -45,7 +45,7 @@ export const usePlaybackStore = create<PlaybackStore>((set) => ({
   trackControls: {},
   focusPreview: null,
   setStatus: (status) => set({ status }),
-  setTempo: (tempo) => set({ tempo }),
+  setTempo: (tempo) => set((state) => state.tempo === tempo ? state : { tempo }),
   setPosition: ({ barIndex, tick, timeSec }) =>
     set({ currentBarIndex: barIndex, currentTick: tick, currentTimeSec: timeSec }),
   toggleLoop: () => set((state) => ({ loopEnabled: !state.loopEnabled })),

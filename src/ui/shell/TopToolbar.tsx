@@ -2,6 +2,7 @@ import { useViewStore } from "../../store/viewStore";
 import { useLayoutEffect, useRef, useState, type MouseEventHandler, type RefObject } from "react";
 import { beatDurationTicks, barTheoreticalTicks } from "../../model/derive";
 import type { DisplayMode } from "../../model/types";
+import { usePlaybackStore } from "../../store/playbackStore";
 import { shortcutLabel } from "../../commands/keymap";
 import type { EditorShellProps } from "./EditorShell";
 import { ToolbarOverflowMenu, type ToolbarGroup } from "./ToolbarOverflowMenu";
@@ -9,7 +10,7 @@ import { ToolbarOverflowMenu, type ToolbarGroup } from "./ToolbarOverflowMenu";
 type TopToolbarProps = Pick<EditorShellProps,
   | "score" | "cursor" | "platform" | "dispatchCommand" | "togglePanel"
   | "countInEnabled" | "metronomeEnabled" | "loopEnabled" | "speedPercent"
-  | "playbackStatus" | "playbackBarIndex" | "playbackTimeSec" | "currentTempo" | "onTempoChange"
+  | "playbackStatus" | "playbackBarIndex" | "currentTempo" | "onTempoChange"
   | "multiVoiceEdit" | "multiTrackView" | "onToggleMultiTrackView"
   | "onFileIoPanelOpen" | "onTrackPanelOpen" | "onCommandPaletteOpen"
   | "onStylesheetPanelOpen" | "onToolOpen" | "onDisplayModeChange" | "onZoomChange"
@@ -175,11 +176,11 @@ export function TopToolbar(props: TopToolbarProps) {
             <button type="button" aria-pressed={props.countInEnabled} className={props.countInEnabled ? "activeToggle" : ""} title="Count-in" onClick={() => props.dispatchCommand("playback.countIn")}>C</button>
             <button type="button" aria-pressed={props.metronomeEnabled} className={props.metronomeEnabled ? "activeToggle" : ""} title="Metronome" onClick={() => props.dispatchCommand("playback.metronome")}>M</button>
             <button type="button" aria-pressed={props.loopEnabled} className={props.loopEnabled ? "activeToggle" : ""} title={title("Loop", "playback.loop")} onClick={() => props.dispatchCommand("playback.loop")}>Loop</button>
-            <span className="playbackReadout">
-              {props.playbackStatus === "playing"
-                ? `Bar ${props.playbackBarIndex + 1} / ${props.playbackTimeSec.toFixed(1)}s`
-                : `Bar ${cursor.barIndex + 1} / Ready`}
-            </span>
+            {props.playbackStatus === "playing" ? (
+              <PlaybackReadout barIndex={props.playbackBarIndex} />
+            ) : (
+              <span className="playbackReadout">Bar {cursor.barIndex + 1} / Ready</span>
+            )}
           </div>
         </div>
         {groups.slice(0, visibleCount).map((group) => (
@@ -198,6 +199,11 @@ export function TopToolbar(props: TopToolbarProps) {
       <p className="toolbarNarrowNotice">편집 기능은 가로 1024px 이상 화면에서 지원합니다</p>
     </div>
   );
+}
+
+function PlaybackReadout({ barIndex }: { barIndex: number }) {
+  const seconds = usePlaybackStore((state) => state.currentTimeSec.toFixed(1));
+  return <span className="playbackReadout">Bar {barIndex + 1} / {seconds}s</span>;
 }
 
 function ToolbarGroupContent({
