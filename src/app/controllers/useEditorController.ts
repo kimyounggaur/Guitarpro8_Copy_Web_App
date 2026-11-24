@@ -19,12 +19,13 @@ import type { PlaybackCompilation } from "../../engine/audio/compile";
 import type { EffectSlotType, TrackMixerState } from "../../engine/audio/mixer";
 import type { EditorCommandContext } from "../../commands/editingCommands";
 import { handleEditorKeyDown } from "../../commands/editorKeymap";
+import { canPasteScoreRange, copyScoreRange, cutScoreRange, DEFAULT_PASTE, pasteScoreRange, type PasteOptions } from "../../engine/editing/clipboard";
+import { decodeClipboardText, encodeClipboardText } from "../../io/clipboardText";
 import { cursorFromHit } from "../../engine/editing/hitTest";
 import {
   applyStandardInput,
   canTieFromPrevious,
   changeDurationAtCursor,
-  cloneCurrentBar,
   copyPreviousBeat,
   cycleKeySignatureAtCursor,
   cycleTimeSignatureAtCursor,
@@ -39,7 +40,6 @@ import {
   moveRightWithScoreMutation,
   moveStandardCursor,
   normaliseCursor,
-  replaceTrackBars,
   setAccidentalAtCursor,
   setDynamicAtCursor,
   setDurationAtCursor,
@@ -55,7 +55,6 @@ import {
   transposeNoteAtCursor
 } from "../../engine/editing/operations";
 import type { ClipboardPayload, CursorPosition, SelectionRange } from "../../engine/editing/types";
-import { createBar } from "../../model/factory";
 import { DEFAULT_MAX_FRET } from "../../model/invariants";
 import type { DisplayMode, Score, SongInfo, Stylesheet, StylesheetPresetName, Track } from "../../model/types";
 import type { TransposeOptions } from "../../engine/tools/transpose";
@@ -100,6 +99,12 @@ export interface UseEditorControllerParams {
 export interface EditorController {
   editorContext: EditorCommandContext;
   editNotice: string;
+  specialPasteOpen: boolean;
+  applySpecialPaste: (options: PasteOptions) => void;
+  closeSpecialPaste: () => void;
+  handleScorePointerDown: (event: React.PointerEvent<HTMLElement>) => void;
+  handleScorePointerMove: (event: React.PointerEvent<HTMLElement>) => void;
+  handleScorePointerUp: () => void;
   multiVoiceEdit: boolean;
   multiTrackView: boolean;
   /** Raw setters, exposed alongside the `handleToggleMulti*` wrappers below
@@ -116,7 +121,7 @@ export interface EditorController {
   handleSongInfoChange: (field: keyof SongInfo, value: string) => void;
   handleTrackChange: (trackId: string, patch: Partial<Pick<Track, "name" | "shortName" | "color">>) => void;
   handleCreateTrack: (options: TrackCreateOptions) => void;
-  handleApplyTuning: (trackId: string, tuning: Track["tuning"], mode: RetuneMode) => void;
+  handleApplyTuning: (trackId: string, tuning: Track["tuning"], mode: RetuneMode) => number;
   handleTrackSystemPatch: (trackId: string, patch: Partial<Pick<Track, "notationTypes" | "staffConfig">>) => void;
   handleTrackTranspositionChange: (trackId: string, soundingOffset: number) => void;
   handleConcertToneToggle: () => void;
@@ -139,7 +144,7 @@ export interface EditorController {
   handleAutomationTransitionToggle: (lane: AutomationLaneId, tick: number) => void;
   handleInsertChordVoicing: (voicing: ChordVoicing, chordName: string) => void;
   handleFretboardNoteToggle: (string: number, fret: number, advance: boolean) => void;
-  handleTransposeRequest: (options: TransposeOptions) => void;
+  handleTransposeRequest: (options: TransposeOptions) => number;
   handleCleanupRequest: (request: CleanupRequest) => void;
 }
 
@@ -180,6 +185,9 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
   const [editNotice, setEditNotice] = useState("");
   const fretEntry = useRef<FretEntry | null>(null);
   const clipboardRef = useRef<ClipboardPayload | null>(null);
+  const [specialPaste, setSpecialPaste] = useState<ClipboardPayload | null>(null);
+  const drag = useRef<{ anchor: CursorPosition; x: number; y: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
 
   function editWithCursor(
     label: string,
@@ -206,7 +214,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
   function updateCursorSelection(nextCursor: CursorPosition, extendSelection: boolean): void {
     const view = useViewStore.getState();
     setCursor(nextCursor);
-    setSelection(extendSelection ? { anchor: view.selection?.anchor ?? view.cursor, head: nextCursor } : null);
+    setSelection(extendSelection ? { anchor: view.selection?.anchor ?? view.cursor, head: nextCursor, unit: "beat" } : null);
   }
 
   function endFretInput(): void {
@@ -234,95 +242,51 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     }
   }
 
-  function copySelection(mode: "single" | "multitrack", cut: boolean): void {
+  function copySelection(mode: ClipboardPayload["mode"], cut: boolean): void {
     const currentScore = useDocumentStore.getState().score;
+    const { cursor: current, selection: selected } = useViewStore.getState();
+    const payload = copyScoreRange(currentScore, current, selected, mode);
+    if (!payload) return;
+
+    clipboardRef.current = payload;
+    void navigator.clipboard?.writeText(encodeClipboardText(payload)).catch(() => {});
+    if (cut) transact("Cut range", (draft) => cutScoreRange(draft, current, selected, mode));
+  }
+
+  function applyPaste(payload: ClipboardPayload, options: PasteOptions): void {
     const current = useViewStore.getState().cursor;
-    const activeTrackIndex = currentScore.tracks.findIndex((track) => track.id === current.trackId);
-    const barIndex = current.barIndex;
-
-    if (mode === "single") {
-      const track = currentScore.tracks[activeTrackIndex];
-
-      if (!track) {
-        return;
-      }
-
-      clipboardRef.current = {
-        mode,
-        source: null,
-        barsJson: JSON.stringify({ bars: [cloneCurrentBar(track, barIndex)] })
-      };
-
-      if (cut) {
-        transact("Cut bar", (draft) => {
-          const draftTrack = draft.tracks[activeTrackIndex];
-          if (draftTrack) {
-            draftTrack.bars[barIndex] = createBar();
-          }
-        });
-      }
+    if (!canPasteScoreRange(useDocumentStore.getState().score, current, payload)) {
+      setEditNotice("Copy these notes into a matching set of instrument tracks.");
       return;
     }
-
-    clipboardRef.current = {
-      mode,
-      source: null,
-      barsJson: JSON.stringify({
-        masterBars: [currentScore.masterBars[barIndex]],
-        trackBars: currentScore.tracks.map((track) => cloneCurrentBar(track, barIndex))
-      })
-    };
-
-    if (cut) {
-      transact("Cut multitrack bar", (draft) => {
-        draft.tracks.forEach((track) => {
-          track.bars[barIndex] = createBar();
-        });
-      });
-    }
+    transact("Paste range", (draft) => { pasteScoreRange(draft, current, payload, options); });
   }
 
   function pasteClipboard(special: boolean): void {
-    const payload = clipboardRef.current;
-
-    if (!payload) {
+    const usePayload = (payload: ClipboardPayload | null) => {
+      if (!payload) {
+        setEditNotice("The clipboard does not contain a TabScore range.");
+        return;
+      }
+      if (special) setSpecialPaste(payload);
+      else applyPaste(payload, DEFAULT_PASTE);
+    };
+    if (clipboardRef.current) {
+      usePayload(clipboardRef.current);
       return;
     }
-
-    const repeatCount = special ? 2 : 1;
-    const current = useViewStore.getState().cursor;
-
-    transact(special ? "Special paste" : "Paste", (draft) => {
-      const activeTrackIndex = draft.tracks.findIndex((track) => track.id === current.trackId);
-      const data = JSON.parse(payload.barsJson) as {
-        bars?: ReturnType<typeof createBar>[];
-        masterBars?: typeof score.masterBars;
-        trackBars?: ReturnType<typeof createBar>[];
-      };
-
-      for (let repeat = 0; repeat < repeatCount; repeat += 1) {
-        const targetBar = current.barIndex + repeat;
-
-        if (payload.mode === "single" && data.bars) {
-          const track = draft.tracks[activeTrackIndex];
-          if (track) {
-            replaceTrackBars(track, targetBar, data.bars, false);
-          }
-        }
-
-        if (payload.mode === "multitrack" && data.trackBars) {
-          data.masterBars?.forEach((masterBar, offset) => {
-            draft.masterBars[targetBar + offset] = structuredClone(masterBar);
-          });
-          data.trackBars.forEach((bar, trackIndex) => {
-            const track = draft.tracks[trackIndex];
-            if (track) {
-              replaceTrackBars(track, targetBar, [bar], false);
-            }
-          });
-        }
-      }
-    });
+    const systemClipboard = navigator.clipboard;
+    if (!systemClipboard) {
+      usePayload(null);
+      return;
+    }
+    const documentAtRequest = useDocumentStore.getState().activeId;
+    void systemClipboard.readText().then(
+      (text) => {
+        if (useDocumentStore.getState().activeId === documentAtRequest) usePayload(decodeClipboardText(text));
+      },
+      () => usePayload(null)
+    );
   }
 
   function inputStandardString(stringNumber?: number): void {
@@ -343,7 +307,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       endFretInput();
       const currentScore = useDocumentStore.getState().score;
       const current = useViewStore.getState().cursor;
-      if (move === "right" && shouldMutateOnMoveRight(currentScore, current)) {
+      if (move === "right" && !extendSelection && shouldMutateOnMoveRight(currentScore, current)) {
         editWithCursor("Move right and extend score", moveRightWithScoreMutation, { extendSelection });
         return;
       }
@@ -358,7 +322,8 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
         barIndex: current.barIndex + direction,
         beatIndex: 0
       });
-      updateCursorSelection(next, true);
+      setSelection({ anchor: useViewStore.getState().selection?.anchor ?? current, head: next, unit: "bar" });
+      setCursor(next);
     },
     toggleStaffKind: () => {
       endFretInput();
@@ -482,7 +447,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
         barIndex: Math.max(0, currentScore.masterBars.length - 1),
         beatIndex: 0
       });
-      setSelection({ anchor, head });
+      setSelection({ anchor, head, unit: "bar" });
       setCursor(head);
     },
     copy: (mode, cut) => copySelection(mode, cut),
@@ -497,20 +462,15 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     }
   };
 
-  function handleScoreClick(event: React.MouseEvent<HTMLElement>) {
-    endFretInput();
-    const target = (event.target as Element).closest("[data-hit-ref]") as SVGElement | null;
-
-    if (!target) {
-      return;
-    }
+  function pointerHit(event: React.MouseEvent<HTMLElement>) {
+    const target = event.target instanceof Element
+      ? event.target.closest<SVGElement>("[data-hit-ref]") : null;
+    if (!target) return null;
 
     const ref = JSON.parse(target.dataset.hitRef ?? "{}") as Record<string, unknown>;
     const kind = target.dataset.hitKind as Parameters<typeof cursorFromHit>[2];
     const currentScore = useDocumentStore.getState().score;
     const current = useViewStore.getState().cursor;
-    // Transform the pointer back to page space so zoom and horizontal scrolling
-    // do not change the staff position selected by a click.
     const transform = target.ownerSVGElement?.getScreenCTM();
     const pageY = transform && kind === "staffInput"
       ? new DOMPoint(event.clientX, event.clientY).matrixTransform(transform.inverse()).y
@@ -518,10 +478,49 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     if (!ref.staffKind && target.id.endsWith("-head")) ref.staffKind = "standard";
     if (!ref.staffKind && target.id.endsWith("-tab")) ref.staffKind = "tab";
 
-    const nextCursor = cursorFromHit(currentScore, current, kind, ref, pageY);
+    return { cursor: cursorFromHit(currentScore, current, kind, ref, pageY), kind, pageY };
+  }
+
+  function handleScorePointerDown(event: React.PointerEvent<HTMLElement>): void {
+    if (event.button !== 0 || event.pointerType !== "mouse") return;
+    suppressClick.current = false;
+    const hit = pointerHit(event);
+    drag.current = hit ? { anchor: hit.cursor, x: event.clientX, y: event.clientY, moved: false } : null;
+  }
+
+  function handleScorePointerMove(event: React.PointerEvent<HTMLElement>): void {
+    const selection = drag.current;
+    if (!selection || !(event.buttons & 1)) return;
+    if (!selection.moved && Math.hypot(event.clientX - selection.x, event.clientY - selection.y) < 4) return;
+    const hit = pointerHit(event);
+    if (!hit) return;
+
+    selection.moved = true;
+    endFretInput();
+    setSelection({
+      anchor: selection.anchor,
+      head: hit.cursor,
+      unit: selection.anchor.barIndex === hit.cursor.barIndex ? "beat" : "bar"
+    });
+    setCursor(hit.cursor);
+  }
+
+  function handleScorePointerUp(): void {
+    suppressClick.current ||= drag.current?.moved ?? false;
+    drag.current = null;
+  }
+
+  function handleScoreClick(event: React.MouseEvent<HTMLElement>): void {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    endFretInput();
+    const hit = pointerHit(event);
+    if (!hit) return;
     setSelection(null);
-    setCursor(nextCursor);
-    if (kind === "staffInput" && pageY !== undefined) inputStandardString(nextCursor.string);
+    setCursor(hit.cursor);
+    if (hit.kind === "staffInput" && hit.pageY !== undefined) inputStandardString(hit.cursor.string);
   }
 
   function handleScoreKeyDown(event: React.KeyboardEvent<HTMLElement>) {
@@ -559,6 +558,15 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     editWithCursor,
     handleScoreClick,
     handleScoreKeyDown,
+    handleScorePointerDown,
+    handleScorePointerMove,
+    handleScorePointerUp,
+    specialPasteOpen: Boolean(specialPaste),
+    applySpecialPaste: (options) => {
+      if (specialPaste) applyPaste(specialPaste, options);
+      setSpecialPaste(null);
+    },
+    closeSpecialPaste: () => setSpecialPaste(null),
     handleToggleMultiVoice,
     handleToggleMultiTrackView,
     ...crud

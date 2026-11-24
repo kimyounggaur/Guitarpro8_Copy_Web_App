@@ -9,17 +9,17 @@ import { SCALE_DEFINITIONS } from "../../model/scales";
 import { centsBetween, detectPitchFromBuffer, midiToFrequency } from "../../model/tuner";
 import { useDocumentStore } from "../../store/documentStore";
 
-it.fails("[B6] Am is the minor triad A, C, E", () => {
+it("[B6] Am is the minor triad A, C, E", () => {
   expect(parseChordSymbol("Am")?.pitchClasses).toEqual([0, 4, 9]);
 });
 
-it.fails("[B7] the scale catalogue has one entry for each unique pitch set", () => {
+it("[B7] the scale catalogue has one entry for each unique pitch set", () => {
   const signatures = SCALE_DEFINITIONS.map(({ intervals }) => [...new Set(intervals.map((n) => n % 12))]
     .sort((a, b) => a - b).join(","));
   expect(new Set(signatures).size).toBe(signatures.length);
 });
 
-it.fails("[B8] an open Em voicing transposes down a tone by changing strings", () => {
+it("[B8] an open Em voicing transposes down a tone by changing strings", () => {
   const score = createEmptyScore();
   const track = createTrack();
   score.tracks = [track];
@@ -45,7 +45,7 @@ it.fails("[B8] an open Em voicing transposes down a tone by changing strings", (
   expect(result.chordId).toBe("Dm");
 });
 
-it.fails("[B9] reapplying the same tuning keeps the player's chosen fingering", () => {
+it("[B9] reapplying the same tuning keeps the player's chosen fingering", () => {
   const track = createTrack();
   track.bars[0].voices[0].beats = [
     createBeat({ duration: 1, rest: false, notes: [createNote(2, 5), createNote(1, 0)] })
@@ -78,7 +78,7 @@ it.fails("[B18] an edit in a 100-bar, 8-track score retains untouched bar object
   }
 });
 
-it.fails("[B19] the tuner detects low B0 with harmonics within two cents", () => {
+it("[B19] the tuner detects low B0 with harmonics within two cents", () => {
   const sampleRate = 48_000;
   const frequency = midiToFrequency(23);
   const samples = Float32Array.from({ length: 4_096 }, (_, index) => {

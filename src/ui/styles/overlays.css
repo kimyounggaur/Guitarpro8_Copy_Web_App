@@ -473,11 +473,15 @@
     align-items: center;
   }
   
-  .tuningEditor em {
-    color: var(--text-track);
-    font-size: 12px;
-    font-style: normal;
-    text-align: right;
+  .tuningPitchRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .tuningPitchRow label {
+    grid-template-columns: 48px minmax(0, 1fr);
   }
   
   .capoPreview {

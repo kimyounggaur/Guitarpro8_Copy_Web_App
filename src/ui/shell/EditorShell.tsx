@@ -101,7 +101,7 @@ export interface EditorShellProps {
   onCommandPaletteClose: () => void;
   onCommandPaletteSubmit: (input: string) => CommandPaletteResult;
   onCreateTrack: (options: TrackCreateOptions) => void;
-  onApplyTuning: (trackId: string, tuning: Track["tuning"], mode: RetuneMode) => void;
+  onApplyTuning: (trackId: string, tuning: Track["tuning"], mode: RetuneMode) => number;
   onVoiceSelect: (voiceIndex: number) => void;
   onMoveNoteToVoice: (voiceIndex: number) => void;
   onToggleMultiVoice: () => void;
@@ -109,7 +109,7 @@ export interface EditorShellProps {
   onDrumToggle: (mappingId: string, articulation: string) => void;
   onInsertChordVoicing: (voicing: ChordVoicing, chordName: string) => void;
   onFretboardNoteToggle: (string: number, fret: number, advance: boolean) => void;
-  onTransposeRequest: (options: TransposeOptions) => void;
+  onTransposeRequest: (options: TransposeOptions) => number;
   onCleanupRequest: (request: CleanupRequest) => void;
 }
 

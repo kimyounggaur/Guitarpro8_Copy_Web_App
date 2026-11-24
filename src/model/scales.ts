@@ -19,13 +19,13 @@ export interface ScaleMatch {
   extra: number[];
 }
 
-const CORE_SCALES: Array<Omit<ScaleDefinition, "id" | "keywords">> = [
-  { name: "Ionian", tags: ["major", "mode"], intervals: [0, 2, 4, 5, 7, 9, 11] },
+const CORE_SCALES: Array<Omit<ScaleDefinition, "id" | "keywords"> & { aliases?: string[] }> = [
+  { name: "Ionian", aliases: ["Major scale"], tags: ["major", "mode"], intervals: [0, 2, 4, 5, 7, 9, 11] },
   { name: "Dorian", tags: ["minor", "mode"], intervals: [0, 2, 3, 5, 7, 9, 10] },
   { name: "Phrygian", tags: ["minor", "mode"], intervals: [0, 1, 3, 5, 7, 8, 10] },
   { name: "Lydian", tags: ["major", "mode"], intervals: [0, 2, 4, 6, 7, 9, 11] },
   { name: "Mixolydian", tags: ["dominant", "mode"], intervals: [0, 2, 4, 5, 7, 9, 10] },
-  { name: "Aeolian", tags: ["minor", "mode"], intervals: [0, 2, 3, 5, 7, 8, 10] },
+  { name: "Aeolian", aliases: ["Natural minor"], tags: ["minor", "mode"], intervals: [0, 2, 3, 5, 7, 8, 10] },
   { name: "Locrian", tags: ["minor", "mode", "diminished"], intervals: [0, 1, 3, 5, 6, 8, 10] },
   { name: "Major pentatonic", tags: ["major", "pentatonic"], intervals: [0, 2, 4, 7, 9] },
   { name: "Minor pentatonic", tags: ["minor", "pentatonic"], intervals: [0, 3, 5, 7, 10] },
@@ -33,8 +33,8 @@ const CORE_SCALES: Array<Omit<ScaleDefinition, "id" | "keywords">> = [
   { name: "Major blues", tags: ["major", "blues"], intervals: [0, 2, 3, 4, 7, 9] },
   { name: "Harmonic minor", tags: ["minor", "harmonic"], intervals: [0, 2, 3, 5, 7, 8, 11] },
   { name: "Melodic minor", tags: ["minor", "jazz"], intervals: [0, 2, 3, 5, 7, 9, 11] },
-  { name: "Lydian dominant", tags: ["dominant", "jazz"], intervals: [0, 2, 4, 6, 7, 9, 10] },
-  { name: "Altered", tags: ["dominant", "jazz"], intervals: [0, 1, 3, 4, 6, 8, 10] },
+  { name: "Lydian dominant", aliases: ["Lydian b7", "Overtone"], tags: ["dominant", "jazz"], intervals: [0, 2, 4, 6, 7, 9, 10] },
+  { name: "Altered", aliases: ["Super Locrian", "Diminished whole tone"], tags: ["dominant", "jazz"], intervals: [0, 1, 3, 4, 6, 8, 10] },
   { name: "Bebop dominant", tags: ["dominant", "bebop"], intervals: [0, 2, 4, 5, 7, 9, 10, 11] },
   { name: "Bebop major", tags: ["major", "bebop"], intervals: [0, 2, 4, 5, 7, 8, 9, 11] },
   { name: "Whole tone", tags: ["symmetric"], intervals: [0, 2, 4, 6, 8, 10] },
@@ -52,25 +52,21 @@ const CORE_SCALES: Array<Omit<ScaleDefinition, "id" | "keywords">> = [
   { name: "Prometheus", tags: ["synthetic"], intervals: [0, 2, 4, 6, 9, 10] },
   { name: "Augmented", tags: ["symmetric"], intervals: [0, 3, 4, 7, 8, 11] },
   { name: "Six tone symmetric", tags: ["symmetric"], intervals: [0, 1, 4, 5, 8, 9] },
-  { name: "Phrygian dominant", tags: ["dominant", "harmonic"], intervals: [0, 1, 4, 5, 7, 8, 10] },
-  { name: "Romanian minor", tags: ["minor", "ethnic"], intervals: [0, 2, 3, 6, 7, 9, 10] },
+  { name: "Phrygian dominant", aliases: ["Harmonic minor fifth mode"], tags: ["dominant", "harmonic"], intervals: [0, 1, 4, 5, 7, 8, 10] },
+  { name: "Romanian minor", aliases: ["Dorian #4"], tags: ["minor", "ethnic"], intervals: [0, 2, 3, 6, 7, 9, 10] },
   { name: "Ukrainian Dorian", tags: ["minor", "ethnic"], intervals: [0, 2, 3, 6, 7, 9, 10] },
   { name: "Spanish eight tone", tags: ["ethnic", "dominant"], intervals: [0, 1, 3, 4, 5, 6, 8, 10] },
   { name: "Arabian", tags: ["ethnic"], intervals: [0, 2, 4, 5, 6, 8, 10] },
-  { name: "Hindu", tags: ["dominant", "ethnic"], intervals: [0, 2, 4, 5, 7, 8, 10] },
+  { name: "Hindu", aliases: ["Mixolydian b6", "Melodic major"], tags: ["dominant", "ethnic"], intervals: [0, 2, 4, 5, 7, 8, 10] },
   { name: "Leading whole tone", tags: ["jazz"], intervals: [0, 2, 4, 6, 8, 10, 11] },
   { name: "Lydian augmented", tags: ["major", "jazz"], intervals: [0, 2, 4, 6, 8, 9, 11] },
-  { name: "Locrian natural 2", tags: ["minor", "jazz"], intervals: [0, 2, 3, 5, 6, 8, 10] }
+  { name: "Locrian natural 2", aliases: ["Locrian #2"], tags: ["minor", "jazz"], intervals: [0, 2, 3, 5, 6, 8, 10] },
+  { name: "Locrian natural 6", tags: ["minor", "mode", "harmonic"], intervals: [0, 1, 3, 5, 6, 9, 10] },
+  { name: "Ionian augmented", tags: ["major", "mode", "harmonic"], intervals: [0, 2, 4, 5, 8, 9, 11] },
+  { name: "Lydian sharp 2", aliases: ["Lydian #2"], tags: ["major", "mode", "harmonic"], intervals: [0, 3, 4, 6, 7, 9, 11] },
+  { name: "Ultralocrian", tags: ["diminished", "mode", "harmonic"], intervals: [0, 1, 3, 4, 6, 8, 9] },
+  { name: "Dorian flat 2", aliases: ["Dorian b2", "Phrygian natural 6"], tags: ["minor", "mode", "melodic"], intervals: [0, 1, 3, 5, 7, 9, 10] }
 ];
-
-const VARIANTS = [
-  { suffix: "plain", shift: 0, tags: [] },
-  { suffix: "b2", shift: 1, tags: ["altered"] },
-  { suffix: "#2", shift: 2, tags: ["altered"] },
-  { suffix: "b5", shift: 5, tags: ["altered"] },
-  { suffix: "#5", shift: 7, tags: ["altered"] },
-  { suffix: "no 6", shift: 9, tags: ["hexatonic"] }
-] as const;
 
 export const SCALE_DEFINITIONS: ScaleDefinition[] = buildScaleDefinitions();
 
@@ -86,7 +82,9 @@ export function searchScales(options: ScaleSearchOptions = {}): ScaleDefinition[
       scale.name.toLowerCase().includes(query) ||
       scale.keywords.some((keyword) => keyword.includes(query));
     return tagMatch && textMatch;
-  }).slice(0, limit);
+  })
+    .sort((left, right) => Number(right.keywords.includes(query)) - Number(left.keywords.includes(query)))
+    .slice(0, limit);
 }
 
 export function scalePitchClasses(root: number, scale: ScaleDefinition): number[] {
@@ -117,43 +115,19 @@ export function matchScalesFromPitchClasses(pitchClasses: number[], root = 0, li
 }
 
 function buildScaleDefinitions(): ScaleDefinition[] {
-  const definitions: ScaleDefinition[] = [];
-
-  CORE_SCALES.forEach((scale) => {
-    VARIANTS.forEach((variant) => {
-      const intervals =
-        variant.suffix === "plain"
-          ? scale.intervals
-          : mutateIntervals(scale.intervals, variant.shift);
-      const name = variant.suffix === "plain" ? scale.name : `${scale.name} ${variant.suffix}`;
-      const tags = unique([...scale.tags, ...variant.tags]);
-      definitions.push({
-        id: slug(name),
-        name,
-        tags,
-        intervals,
-        keywords: unique([name.toLowerCase(), ...tags])
-      });
-    });
-  });
-
-  return dedupeByIntervals(definitions);
-}
-
-function mutateIntervals(intervals: number[], pivot: number): number[] {
-  if (!intervals.includes(pivot)) {
-    return intervals;
+  const byPitchSet = new Map<number, ScaleDefinition>();
+  for (const { name, tags, intervals, aliases = [] } of CORE_SCALES) {
+    const pitchSet = intervals.reduce((mask, pitchClass) => mask | (1 << pitchClass), 0);
+    const keywords = [name.toLowerCase(), ...tags, ...aliases.map((alias) => alias.toLowerCase())];
+    const previous = byPitchSet.get(pitchSet);
+    if (previous) {
+      previous.tags = unique([...previous.tags, ...tags]);
+      previous.keywords = unique([...previous.keywords, ...keywords]);
+    } else {
+      byPitchSet.set(pitchSet, { id: slug(name), name, tags, intervals, keywords });
+    }
   }
-
-  return unique(intervals.map((interval) => (interval === pivot ? mod(interval + 1, 12) : interval))).sort(
-    (left, right) => left - right
-  );
-}
-
-function dedupeByIntervals(definitions: ScaleDefinition[]): ScaleDefinition[] {
-  const byId = new Map<string, ScaleDefinition>();
-  definitions.forEach((definition) => byId.set(definition.id, definition));
-  return [...byId.values()];
+  return [...byPitchSet.values()];
 }
 
 function slug(value: string): string {

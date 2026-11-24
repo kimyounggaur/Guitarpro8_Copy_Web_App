@@ -395,6 +395,10 @@ export function insertBarsAt(score: Score, barIndex: number, count = 1): void {
   insertBars(score, barIndex, masterBars, (_track, offset) => createRestBar(masterBars[offset].timeSignature));
 }
 
+export function insertScoreBars(score: Score, barIndex: number, masterBars: MasterBar[]): void {
+  insertBars(score, barIndex, masterBars, (_track, offset) => createRestBar(masterBars[offset].timeSignature));
+}
+
 export function repeatBarAt(score: Score, barIndex: number, count: number): void {
   const masterBar = score.masterBars[barIndex];
   if (!masterBar) {

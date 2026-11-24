@@ -101,6 +101,8 @@ const automation = z.object({
   }))
 });
 
+export const clipboardBarSchema = z.object({ voices: z.tuple([voice, voice, voice, voice]) });
+
 const track: z.ZodType<Track> = z.object({
   id: z.string().default(""),
   kind: z.enum(["stringed", "pitched", "percussion"]),
@@ -134,7 +136,7 @@ const track: z.ZodType<Track> = z.object({
   chordLibrary: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
   lyricsLines: z.array(z.object({ text: z.string(), firstBar: offset, visible: z.boolean() })).default([]),
   automations: z.array(automation).default([]),
-  bars: z.array(z.object({ voices: z.tuple([voice, voice, voice, voice]) })),
+  bars: z.array(clipboardBarSchema),
   mix: z.object({
     volume: finite.min(0).max(1),
     pan: finite.min(-1).max(1),
@@ -149,7 +151,7 @@ const track: z.ZodType<Track> = z.object({
   }).optional()
 }).transform((track) => ({ ...track, mix: track.mix ?? defaultTrackMix(track.name) }));
 
-const masterBar: z.ZodType<MasterBar> = z.object({
+export const masterBarSchema: z.ZodType<MasterBar> = z.object({
   timeSignature: z.object({
     numerator: z.number().int().positive(),
     denominator: duration,
@@ -235,7 +237,7 @@ const stylesheet = z.object({
 
 export const scoreSchema: z.ZodType<Score> = z.object({
   meta: z.object(primitiveShape(defaults.meta)).partial().optional().transform((meta) => ({ ...defaults.meta, ...meta })),
-  masterBars: z.array(masterBar).min(1),
+  masterBars: z.array(masterBarSchema).min(1),
   tracks: z.array(track),
   audioTrack: z.object({ id: z.string(), name: z.string(), embedded: z.boolean() }).optional(),
   stylesheet,

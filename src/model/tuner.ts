@@ -1,4 +1,6 @@
+import { PitchDetector } from "pitchy";
 import { NOTE_NAMES_SHARP } from "./chords";
+import { frettedMidiPitch } from "./trackKind";
 import type { Tuning } from "./types";
 
 export interface PitchDetection {
@@ -17,53 +19,56 @@ export interface TuningTarget {
   cents: number;
 }
 
-export function detectPitchFromBuffer(samples: Float32Array, sampleRate: number): PitchDetection | null {
-  const rms = Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / Math.max(1, samples.length));
+export const TUNER_SAMPLE_COUNT = 4096;
+export const DEFAULT_PITCH_CLARITY = 0.9;
+export const DEFAULT_TUNER_MEDIAN_COUNT = 5;
 
-  if (rms < 0.01) {
+let measurement: { length: number; detector: PitchDetector<Float32Array> } | undefined;
+
+export function detectPitchFromBuffer(
+  samples: Float32Array,
+  sampleRate: number,
+  minimumClarity = DEFAULT_PITCH_CLARITY
+): PitchDetection | null {
+  if (samples.length < 2 || !Number.isFinite(sampleRate) || sampleRate <= 0) {
     return null;
   }
-
-  let bestOffset = -1;
-  let bestCorrelation = 0;
-  const minOffset = Math.floor(sampleRate / 1200);
-  const maxOffset = Math.min(samples.length - 1, Math.floor(sampleRate / 45));
-
-  for (let offset = minOffset; offset <= maxOffset; offset += 1) {
-    let correlation = 0;
-
-    for (let index = 0; index < samples.length - offset; index += 1) {
-      correlation += samples[index] * samples[index + offset];
-    }
-
-    correlation /= samples.length - offset;
-
-    if (correlation > bestCorrelation) {
-      bestCorrelation = correlation;
-      bestOffset = offset;
-    }
+  if (measurement?.length !== samples.length) {
+    const detector = PitchDetector.forFloat32Array(samples.length);
+    detector.minVolumeAbsolute = 0.01;
+    measurement = { detector, length: samples.length };
   }
 
-  if (bestOffset <= 0 || bestCorrelation < 0.001) {
+  const [frequency, clarity] = measurement.detector.findPitch(samples, sampleRate);
+  if (!Number.isFinite(frequency) || frequency <= 0 || !Number.isFinite(clarity) || clarity < minimumClarity) {
     return null;
   }
+  return pitchDetection(frequency, clarity);
+}
 
-  const frequency = sampleRate / bestOffset;
-  const midi = frequencyToMidi(frequency);
-  const nearestMidi = Math.round(midi);
-  return {
-    frequency,
-    midi: nearestMidi,
-    noteName: midiNoteName(nearestMidi),
-    cents: Math.round((midi - nearestMidi) * 100),
-    clarity: Math.min(1, bestCorrelation / Math.max(0.0001, rms * rms))
-  };
+export function medianPitch(
+  history: readonly PitchDetection[]
+): PitchDetection | null {
+  if (history.length === 0) return null;
+  const ordered = [...history].sort((left, right) => left.frequency - right.frequency);
+  const middle = Math.floor(ordered.length / 2);
+  if (ordered.length % 2 === 1) return ordered[middle];
+  return pitchDetection(
+    (ordered[middle - 1].frequency + ordered[middle].frequency) / 2,
+    Math.min(ordered[middle - 1].clarity, ordered[middle].clarity)
+  );
+}
+
+function pitchDetection(frequency: number, clarity: number): PitchDetection {
+  const pitch = frequencyToMidi(frequency);
+  const midi = Math.round(pitch);
+  return { frequency, midi, noteName: midiNoteName(midi), cents: Math.round((pitch - midi) * 100), clarity };
 }
 
 export function tuningTargets(tuning: Tuning): TuningTarget[] {
   return tuning.strings.map((midi, lowIndex) => {
     const string = tuning.strings.length - lowIndex;
-    const targetMidi = midi + tuning.capo;
+    const targetMidi = frettedMidiPitch(tuning, string, 0) ?? midi + tuning.capo;
     return {
       string,
       midi: targetMidi,

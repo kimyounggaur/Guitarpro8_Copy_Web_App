@@ -19,8 +19,8 @@ describe("Phase 9 tool engines", () => {
     expect(voicings[0].notes.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("provides a large searchable scale catalog and selection matching", () => {
-    expect(SCALE_DEFINITIONS.length).toBeGreaterThanOrEqual(200);
+  it("provides a curated searchable scale catalog and selection matching", () => {
+    expect(SCALE_DEFINITIONS.some((scale) => scale.name === "Harmonic minor")).toBe(true);
     expect(searchScales({ query: "blues" }).some((scale) => scale.name.toLowerCase().includes("blues"))).toBe(true);
 
     const matches = matchScalesFromPitchClasses([0, 2, 4, 5, 7, 9, 11], 0, 3);

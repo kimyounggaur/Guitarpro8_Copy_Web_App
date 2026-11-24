@@ -1,4 +1,5 @@
-import { tryNoteMidiPitch } from "./derive";
+import { assignFingerings, handPosition } from "./fingering";
+import { frettedMidiPitch } from "./trackKind";
 import type { NotationType, StaffConfig, Track, TrackClef, Tuning } from "./types";
 
 export type InstrumentCategory = "Stringed" | "Orchestra" | "Drums" | "MIDI";
@@ -77,7 +78,9 @@ export const TUNING_PRESETS: TuningPreset[] = [
   tuning("bass-5-standard", ["bass-5"], "5-string Bass", [23, 28, 33, 38, 43], "B E A D G"),
   tuning("ukulele-standard", ["ukulele"], "Ukulele Standard", [67, 60, 64, 69], "G C E A"),
   tuning("mandolin-standard", ["mandolin", "violin"], "Fifths", [55, 62, 69, 76], "G D A E"),
-  tuning("viola-standard", ["viola", "cello"], "Lower Fifths", [48, 55, 62, 69], "C G D A")
+  tuning("viola-standard", ["viola"], "Viola Standard", [48, 55, 62, 69], "C G D A"),
+  tuning("cello-standard", ["cello"], "Cello Standard", [36, 43, 50, 57], "C G D A"),
+  tuning("contrabass-standard", ["contrabass"], "Contrabass Standard", [28, 33, 38, 43], "E A D G")
 ];
 
 export const DRUM_MAPPINGS: DrumMapping[] = [
@@ -109,6 +112,20 @@ export function tuningMatchesPreset(strings: number[]): TuningPreset | null {
   ) ?? null;
 }
 
+export function tuningPresetsForTrack(track: Track, stringCount: number): TuningPreset[] {
+  if (track.kind !== "stringed") return [];
+  const namedInstrument = INSTRUMENT_DEFINITIONS.find((instrument) =>
+    instrument.name.toLowerCase() === track.name.trim().toLowerCase());
+  const soundCandidates = INSTRUMENT_DEFINITIONS.filter((instrument) =>
+    instrument.stringed && track.sounds.some((sound) => sound.id === `gm-${instrument.gmProgram}`));
+  const matchingSound = soundCandidates.find((instrument) => instrument.tuning.length === track.tuning.strings.length)
+    ?? soundCandidates[0];
+  const generic = track.icon === "bass" ? (track.tuning.strings.length === 5 ? "bass-5" : "bass")
+    : track.clef === "treble8vb" ? (track.tuning.strings.length === 7 ? "guitar-7" : "guitar") : "";
+  const instrument = namedInstrument?.id ?? matchingSound?.id ?? generic;
+  return TUNING_PRESETS.filter((preset) => preset.instrumentIds.includes(instrument) && preset.strings.length === stringCount);
+}
+
 export function tuningLabel(strings: number[]): string {
   return strings.map((midi) => midiName(midi).replace(/\d+$/, "")).join(" ");
 }
@@ -120,101 +137,69 @@ export function midiName(midi: number): string {
 }
 
 export function retuneTrack(track: Track, nextTuning: Tuning, mode: RetuneMode): number {
-  if (nextTuning.strings.length < track.tuning.strings.length) {
-    if (mode === "keep-fingering") {
-      throw new Error("줄 수를 줄일 때는 음을 옮기거나 삭제해야 합니다.");
-    }
-    return reduceTuning(track, nextTuning, mode);
+  const original = track.tuning;
+  const reducing = nextTuning.strings.length < original.strings.length;
+  if (track.kind !== "stringed" || sameFrettedPitches(original, nextTuning)) {
+    if (!sameTuningSettings(original, nextTuning)) track.tuning = nextTuning;
+    return 0;
   }
-
-  const previousTuning = structuredClone(track.tuning);
-
   if (mode === "keep-fingering") {
+    if (reducing) throw new Error("줄 수를 줄일 때는 음을 옮기거나 삭제해야 합니다.");
     track.tuning = nextTuning;
     return 0;
   }
 
-  const pitchRefs = track.bars.map((bar) =>
-    bar.voices.map((voice) =>
-      voice.beats.map((beat) =>
-        beat.notes.map((note) => ({
-          note,
-          midi: stringPitch(previousTuning, note.string) + previousTuning.capo + note.fret
-        }))
-      )
-    )
-  );
-
-  track.tuning = nextTuning;
-  pitchRefs.flat(4).forEach(({ note, midi }) => {
-    const placement = bestPlacement(nextTuning, midi);
-    note.string = placement.string;
-    note.fret = placement.fret;
-  });
-  return 0;
-}
-
-function reduceTuning(track: Track, nextTuning: Tuning, mode: Exclude<RetuneMode, "keep-fingering">): number {
-  const nextTrack = { ...track, tuning: nextTuning };
+  const previousFrets = [0, 0, 0, 0];
   let removed = 0;
-  for (const bar of track.bars) {
-    for (const voice of bar.voices) {
-      for (const beat of voice.beats) {
-        const usedStrings = new Set<number>();
-        const remaining = [];
-        for (const note of beat.notes) {
-          if (note.string <= nextTuning.strings.length) {
-            usedStrings.add(note.string);
-            remaining.push(note);
-          }
-        }
-        for (const note of beat.notes) {
-          if (note.string <= nextTuning.strings.length) continue;
-          const pitch = tryNoteMidiPitch(note, track);
-          const string = mode === "adjust-fingering" && pitch !== null
-            ? nextTuning.strings.findIndex((_, index) => {
-                const target = nextTuning.strings.length - index;
-                const open = tryNoteMidiPitch({ ...note, string: target, fret: 0, midiPitch: undefined, midiNumber: undefined }, nextTrack);
-                return !usedStrings.has(target) && open !== null && pitch - open >= 0 && pitch - open <= 24;
-              })
-            : -1;
-          if (string < 0 || pitch === null) {
-            removed += 1;
-            continue;
-          }
-          note.string = nextTuning.strings.length - string;
-          const open = tryNoteMidiPitch({ ...note, fret: 0, midiPitch: undefined, midiNumber: undefined }, nextTrack);
-          if (open === null) { removed += 1; continue; }
-          note.fret = pitch - open;
-          usedStrings.add(note.string);
-          remaining.push(note);
-        }
-        if (remaining.length !== beat.notes.length || mode === "adjust-fingering") {
-          beat.notes = remaining;
-          if (!remaining.length) beat.rest = true;
-        }
-        beat.graceNotes = beat.graceNotes.filter((note) => note.string <= nextTuning.strings.length);
-      }
-    }
-  }
+  const bars = track.bars.map((bar) => {
+    const voices: typeof bar.voices = [...bar.voices];
+    bar.voices.forEach((voice, voiceIndex) => {
+      voices[voiceIndex] = {
+        ...voice,
+        beats: voice.beats.map((beat) => {
+          const place = <T extends { string: number; fret: number }>(notes: T[]): T[] => {
+            if (mode === "remove-missing-strings") return notes.filter((note) => note.string <= nextTuning.strings.length);
+            return placeRetunedNotes(notes, original, nextTuning, previousFrets[voiceIndex]);
+          };
+          const notes = place(beat.notes);
+          const graceNotes = beat.graceNotes.flatMap((note) => place([note]));
+          removed += beat.notes.length - notes.length + beat.graceNotes.length - graceNotes.length;
+          if (notes.length) previousFrets[voiceIndex] = handPosition(notes);
+          return { ...beat, notes, graceNotes, rest: beat.rest || !notes.length };
+        })
+      };
+    });
+    return { ...bar, voices };
+  });
+
+  // A same-size tuning can make notes unplayable as well. Keep the score
+  // byte-for-byte until the user selects a viable tuning or Keep Fingering.
+  if (removed > 0 && !reducing && mode === "adjust-fingering") return removed;
+  track.bars = bars;
   track.tuning = nextTuning;
   return removed;
 }
 
-function bestPlacement(tuning: Tuning, midi: number): { string: number; fret: number } {
-  const candidates = tuning.strings
-    .map((open, lowIndex) => {
-      const string = tuning.strings.length - lowIndex;
-      return { string, fret: midi - open - tuning.capo };
-    })
-    .filter((candidate) => candidate.fret >= 0 && candidate.fret <= 24)
-    .sort((left, right) => Math.abs(left.fret - 5) - Math.abs(right.fret - 5) || left.string - right.string);
-
-  return candidates[0] ?? { string: 1, fret: Math.max(0, midi - (tuning.strings[tuning.strings.length - 1] ?? 64) - tuning.capo) };
+function placeRetunedNotes<T extends { string: number; fret: number }>(notes: T[], before: Tuning, after: Tuning, previousFret: number): T[] {
+  const positions = assignFingerings(after, notes.map((note) => ({
+    midi: frettedMidiPitch(before, note.string, note.fret)
+  })), previousFret);
+  return notes.flatMap((note, index) => {
+    const position = positions[index];
+    return position ? [{ ...note, string: position.string, fret: position.fret }] : [];
+  });
 }
 
-function stringPitch(tuning: Tuning, stringNumber: number): number {
-  return tuning.strings[tuning.strings.length - stringNumber] ?? tuning.strings[0] ?? 40;
+function sameTuningSettings(left: Tuning, right: Tuning): boolean {
+  return left.label === right.label && left.accidentalPreference === right.accidentalPreference &&
+    left.capo === right.capo && left.partialCapo?.fret === right.partialCapo?.fret &&
+    left.partialCapo?.strings.join(",") === right.partialCapo?.strings.join(",") &&
+    left.strings.length === right.strings.length && left.strings.every((note, index) => note === right.strings[index]);
+}
+
+function sameFrettedPitches(left: Tuning, right: Tuning): boolean {
+  return left.strings.length === right.strings.length && left.strings.every((_, index) =>
+    frettedMidiPitch(left, index + 1, 0) === frettedMidiPitch(right, index + 1, 0));
 }
 
 function stringed(

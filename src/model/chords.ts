@@ -1,3 +1,4 @@
+import { frettedMidiPitch } from "./trackKind";
 import type { Tuning } from "./types";
 
 export type ChordQuality =
@@ -16,13 +17,15 @@ export type ChordQuality =
   | "mMaj7"
   | "m7b5"
   | "dim7"
-  | "add9";
+  | "add9"
+  | "extended";
 
 export interface ParsedChord {
   symbol: string;
   root: number;
   rootName: string;
   quality: ChordQuality;
+  suffix: string;
   bass: number | null;
   bassName: string | null;
   intervals: number[];
@@ -75,10 +78,10 @@ const NOTE_NAME_TO_PC = new Map<string, number>(
   ]
 );
 
-const QUALITY_ALIASES: Array<[ChordQuality, string[], number[]]> = [
+const QUALITY_ALIASES: Array<[Exclude<ChordQuality, "extended">, string[], number[]]> = [
   ["maj", ["", "maj", "M"], [0, 4, 7]],
   ["min", ["m", "min", "-"], [0, 3, 7]],
-  ["dim", ["dim", "o"], [0, 3, 6]],
+  ["dim", ["dim", "o", "°"], [0, 3, 6]],
   ["aug", ["aug", "+"], [0, 4, 8]],
   ["sus2", ["sus2"], [0, 2, 7]],
   ["sus4", ["sus", "sus4"], [0, 5, 7]],
@@ -88,9 +91,9 @@ const QUALITY_ALIASES: Array<[ChordQuality, string[], number[]]> = [
   ["7", ["7", "dom7"], [0, 4, 7, 10]],
   ["maj7", ["maj7", "M7", "Δ7"], [0, 4, 7, 11]],
   ["m7", ["m7", "min7", "-7"], [0, 3, 7, 10]],
-  ["mMaj7", ["mMaj7", "mM7"], [0, 3, 7, 11]],
-  ["m7b5", ["m7b5", "ø", "halfdim"], [0, 3, 6, 10]],
-  ["dim7", ["dim7", "o7"], [0, 3, 6, 9]],
+  ["mMaj7", ["mMaj7", "mM7", "mmaj7", "mΔ7"], [0, 3, 7, 11]],
+  ["m7b5", ["m7b5", "ø", "ø7", "halfdim"], [0, 3, 6, 10]],
+  ["dim7", ["dim7", "o7", "°7"], [0, 3, 6, 9]],
   ["add9", ["add9"], [0, 4, 7, 14]]
 ];
 
@@ -110,21 +113,24 @@ export function parseChordSymbol(symbol: string): ParsedChord | null {
   }
 
   const qualityText = match[2] ?? "";
-  const qualityEntry = qualityFromText(qualityText);
+  const parsedQuality = parseChordQuality(qualityText);
+  if (!parsedQuality) return null;
+  const { quality, suffix, intervals, aliases } = parsedQuality;
   const bassName = match[3] ? normalizeNoteName(match[3]) : null;
   const bass = bassName ? NOTE_NAME_TO_PC.get(bassName) ?? null : null;
-  const pitchClasses = uniquePitchClasses(qualityEntry[2].map((interval) => root + interval));
-
+  const pitchClasses = uniquePitchClasses(intervals.map((interval) => root + interval));
+  const bassSuffix = bassName ? `/${bassName}` : "";
   return {
-    symbol: `${rootName}${canonicalQualitySuffix(qualityEntry[0])}${bassName ? `/${bassName}` : ""}`,
+    symbol: `${rootName}${suffix}${bassSuffix}`,
     root,
     rootName,
-    quality: qualityEntry[0],
+    quality,
+    suffix,
     bass,
     bassName,
-    intervals: qualityEntry[2],
+    intervals,
     pitchClasses,
-    aliases: equivalentChordNames(rootName, qualityEntry[0], bassName)
+    aliases: aliases.map((alias) => `${rootName}${alias}${bassSuffix}`)
   };
 }
 
@@ -144,9 +150,11 @@ export function enumerateChordVoicings(
   const rootWindows = Array.from({ length: Math.max(1, maxFret - startFret - window + 2) }, (_, index) => startFret + index);
   const voicings: ChordVoicing[] = [];
 
+  const withBass = chord.bass === null ? chord.pitchClasses : uniquePitchClasses([...chord.pitchClasses, chord.bass]);
+  const required = withBass.length <= tuning.strings.length ? withBass : essentialChordTones(chord);
   rootWindows.forEach((position) => {
     const candidates = stringCandidates(tuning, chord, position, Math.min(maxFret, position + window));
-    buildVoicings(candidates, [], 0, tuning.strings.length, chord, voicings, limit * 6);
+    buildVoicings(candidates, [], 0, required, chord.bass, voicings, limit * 6);
   });
 
   return dedupeVoicings(voicings)
@@ -179,7 +187,11 @@ export function transposeChordSymbol(symbol: string, semitones: number): string 
 
   const rootName = NOTE_NAMES_SHARP[mod(chord.root + semitones, 12)];
   const bassName = chord.bass === null ? null : NOTE_NAMES_SHARP[mod(chord.bass + semitones, 12)];
-  return `${rootName}${canonicalQualitySuffix(chord.quality)}${bassName ? `/${bassName}` : ""}`;
+  return `${rootName}${chord.suffix}${bassName ? `/${bassName}` : ""}`;
+}
+
+interface VoicingCandidate extends ChordVoicingNote {
+  midiPitch: number;
 }
 
 function stringCandidates(
@@ -187,22 +199,25 @@ function stringCandidates(
   chord: ParsedChord,
   startFret: number,
   endFret: number
-): Array<Array<ChordVoicingNote | null>> {
-  return tuning.strings.map((openPitch, lowIndex) => {
+): Array<Array<VoicingCandidate | null>> {
+  return tuning.strings.map((_, lowIndex) => {
     const stringNumber = tuning.strings.length - lowIndex;
-    const notes: Array<ChordVoicingNote | null> = [null];
+    const notes: Array<VoicingCandidate | null> = [null];
 
     for (let fret = 0; fret <= endFret; fret += 1) {
       if (fret > 0 && fret < startFret) {
         continue;
       }
 
-      const pitchClass = mod(openPitch + tuning.capo + fret, 12);
+      const midiPitch = frettedMidiPitch(tuning, stringNumber, fret);
+      if (midiPitch === null) continue;
+      const pitchClass = mod(midiPitch, 12);
 
-      if (chord.pitchClasses.includes(pitchClass)) {
+      if (chord.pitchClasses.includes(pitchClass) || pitchClass === chord.bass) {
         notes.push({
           string: stringNumber,
           fret,
+          midiPitch,
           pitchClass,
           role: roleForPitchClass(chord, pitchClass)
         });
@@ -214,11 +229,11 @@ function stringCandidates(
 }
 
 function buildVoicings(
-  candidates: Array<Array<ChordVoicingNote | null>>,
-  current: Array<ChordVoicingNote | null>,
+  candidates: Array<Array<VoicingCandidate | null>>,
+  current: Array<VoicingCandidate | null>,
   index: number,
-  stringCount: number,
-  chord: ParsedChord,
+  required: number[],
+  bass: number | null,
   voicings: ChordVoicing[],
   cap: number
 ): void {
@@ -227,18 +242,18 @@ function buildVoicings(
   }
 
   if (index >= candidates.length) {
-    const notes = current.filter((note): note is ChordVoicingNote => note !== null);
+    const notes = current.filter((note): note is VoicingCandidate => note !== null);
 
-    if (notes.length < Math.min(3, chord.pitchClasses.length)) {
+    if (notes.length < Math.min(3, required.length)) {
       return;
     }
 
     const sounded = uniquePitchClasses(notes.map((note) => note.pitchClass));
 
-    if (!sounded.includes(chord.root) || chord.pitchClasses.some((pc) => !sounded.includes(pc))) {
-      return;
-    }
+    if (required.some((pc) => !sounded.includes(pc))) return;
+    if (bass !== null && notes.reduce((lowest, note) => note.midiPitch < lowest.midiPitch ? note : lowest).pitchClass !== bass) return;
 
+    const stringCount = candidates.length;
     const mutedStrings = Array.from({ length: stringCount }, (_, lowIndex) => stringCount - lowIndex).filter(
       (string) => !notes.some((note) => note.string === string)
     );
@@ -267,7 +282,22 @@ function buildVoicings(
     return;
   }
 
-  candidates[index].forEach((candidate) => buildVoicings(candidates, [...current, candidate], index + 1, stringCount, chord, voicings, cap));
+  candidates[index].forEach((candidate) => buildVoicings(candidates, [...current, candidate], index + 1, required, bass, voicings, cap));
+}
+
+function essentialChordTones(chord: ParsedChord): number[] {
+  // Compact extended guitar voicings retain the third (or suspension),
+  // seventh, and highest color even when the full collection exceeds six strings.
+  const intervals = chord.intervals;
+  const third = intervals.find((interval) => interval > 0 && interval <= 5) ?? 0;
+  const seventh = intervals.find((interval) => interval === 10 || interval === 11) ?? 0;
+  return uniquePitchClasses([
+    chord.root,
+    chord.root + third,
+    chord.root + seventh,
+    chord.root + intervals[intervals.length - 1],
+    ...(chord.bass === null ? [] : [chord.bass])
+  ]);
 }
 
 function dedupeVoicings(voicings: ChordVoicing[]): ChordVoicing[] {
@@ -282,14 +312,72 @@ function dedupeVoicings(voicings: ChordVoicing[]): ChordVoicing[] {
   return [...byId.values()];
 }
 
-function qualityFromText(text: string): [ChordQuality, string[], number[]] {
-  const normalized = text.trim();
-  return (
-    [...QUALITY_ALIASES]
-      .sort((left, right) => longestAlias(right[1]) - longestAlias(left[1]))
-      .find(([, aliases]) => aliases.some((alias) => alias.toLowerCase() === normalized.toLowerCase())) ??
-    QUALITY_ALIASES[0]
-  );
+function parseChordQuality(text: string): {
+  quality: ChordQuality;
+  suffix: string;
+  intervals: number[];
+  aliases: string[];
+} | null {
+  // Quality is case-sensitive: m selects a minor third, M a major chord.
+  const fixed = QUALITY_ALIASES.find(([, aliases]) => aliases.includes(text));
+  if (fixed) {
+    const [quality, aliases, intervals] = fixed;
+    return { quality, suffix: canonicalQualitySuffix(quality), intervals: [...intervals], aliases: aliases.slice(0, 4) };
+  }
+
+  const match = /^(mMaj|mmaj|mM|mΔ|min|maj|dim|aug|sus[24]?|halfdim|dom|m|M|Δ|°|o|ø|\+|-)?(69|13|11|9|7|6)?(sus[24]?)?((?:[b#](?:13|11|9|5))*)(add(?:13|11|9))?$/.exec(text);
+  if (!match) return null;
+
+  const [, prefix = "", extension = "", trailingSus = "", changes = "", addition = ""] = match;
+  const startsSuspended = prefix.startsWith("sus");
+  if (trailingSus && prefix && prefix !== "dom") return null;
+  if (prefix === "dom" && !extension) return null;
+
+  const suspended = startsSuspended ? prefix : trailingSus;
+  const minorMajor = ["mMaj", "mmaj", "mM", "mΔ"].includes(prefix);
+  const minor = minorMajor || ["m", "min", "-"].includes(prefix);
+  const diminished = ["dim", "°", "o"].includes(prefix);
+  const halfDiminished = ["ø", "halfdim"].includes(prefix);
+  const augmented = prefix === "aug" || prefix === "+";
+  const majorSeventh = minorMajor || ["M", "maj", "Δ"].includes(prefix);
+  let triadMiddle = minor || diminished || halfDiminished ? 3 : 4;
+  if (suspended) triadMiddle = suspended === "sus2" ? 2 : 5;
+  const fifth = diminished || halfDiminished ? 6 : augmented ? 8 : 7;
+  const degrees = new Map<number, number[]>([[1, [0]], [3, [triadMiddle]], [5, [fifth]]]);
+  const extensionDegree = Number(extension);
+  if (extension === "6" || extension === "69") degrees.set(6, [9]);
+  if ((extensionDegree >= 7 && extension !== "69") || halfDiminished) {
+    degrees.set(7, [diminished ? 9 : majorSeventh ? 11 : 10]);
+  }
+  if (extensionDegree >= 9) degrees.set(9, [14]);
+  if (extensionDegree >= 11 && extension !== "69") degrees.set(11, [17]);
+  if (extension === "13") degrees.set(13, [21]);
+
+  const natural = new Map([[5, 7], [9, 14], [11, 17], [13, 21]]);
+  const altered = new Map<number, number[]>();
+  for (const [, accidental, degreeText] of changes.matchAll(/([b#])(13|11|9|5)/g)) {
+    const degree = Number(degreeText);
+    const interval = natural.get(degree)! + (accidental === "#" ? 1 : -1);
+    const intervals = altered.get(degree) ?? [];
+    if (!intervals.includes(interval)) intervals.push(interval);
+    altered.set(degree, intervals);
+  }
+  altered.forEach((intervals, degree) => degrees.set(degree, intervals));
+  if (addition) {
+    const degree = Number(addition.slice(3));
+    const interval = natural.get(degree)!;
+    degrees.set(degree, [...new Set([...(degrees.get(degree) ?? []), interval])]);
+  }
+
+  const qualityPrefix = minorMajor ? "mMaj" : minor ? "m" : diminished ? "dim" : halfDiminished ? "ø"
+    : augmented ? "aug" : majorSeventh ? "maj" : startsSuspended ? normalizeSuspension(prefix) : "";
+  const suffix = `${qualityPrefix}${extension}${normalizeSuspension(trailingSus)}${changes}${addition}`;
+  const intervals = [...degrees.values()].flat().sort((a, b) => a - b);
+  return { quality: "extended", suffix, intervals, aliases: [suffix] };
+}
+
+function normalizeSuspension(text: string): string {
+  return text === "sus" ? "sus4" : text;
 }
 
 function roleForPitchClass(chord: ParsedChord, pitchClass: number): ChordVoicingNote["role"] {
@@ -309,8 +397,8 @@ function suggestedBarre(notes: ChordVoicingNote[]): number | null {
   return barre?.[0] ?? null;
 }
 
-function canonicalQualitySuffix(quality: ChordQuality): string {
-  const suffixes: Record<ChordQuality, string> = {
+function canonicalQualitySuffix(quality: Exclude<ChordQuality, "extended">): string {
+  const suffixes: Record<Exclude<ChordQuality, "extended">, string> = {
     maj: "",
     min: "m",
     dim: "dim",
@@ -331,13 +419,8 @@ function canonicalQualitySuffix(quality: ChordQuality): string {
   return suffixes[quality];
 }
 
-function equivalentChordNames(rootName: string, quality: ChordQuality, bassName: string | null): string[] {
-  const aliases = QUALITY_ALIASES.find(([candidate]) => candidate === quality)?.[1] ?? [""];
-  return aliases.slice(0, 4).map((alias) => `${rootName}${alias}${bassName ? `/${bassName}` : ""}`);
-}
-
 function normalizeChordText(value: string): string {
-  return value.replace("♯", "#").replace("♭", "b").replace("Δ", "maj");
+  return value.replace(/♯/g, "#").replace(/♭/g, "b").replace(/\s+/g, "");
 }
 
 function normalizeNoteName(value: string): string {
@@ -348,10 +431,6 @@ function normalizeNoteName(value: string): string {
 
 function uniquePitchClasses(values: number[]): number[] {
   return [...new Set(values.map((value) => mod(value, 12)))].sort((left, right) => left - right);
-}
-
-function longestAlias(aliases: string[]): number {
-  return Math.max(...aliases.map((alias) => alias.length));
 }
 
 function mod(value: number, divisor: number): number {

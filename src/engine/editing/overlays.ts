@@ -85,20 +85,29 @@ function selectionPrimitives(
     return [];
   }
 
-  const startBar = Math.min(selection.anchor.barIndex, selection.head.barIndex);
-  const endBar = Math.max(selection.anchor.barIndex, selection.head.barIndex);
-  const trackId = selection.head.trackId;
+  const forward = selection.anchor.barIndex < selection.head.barIndex ||
+    (selection.anchor.barIndex === selection.head.barIndex && selection.anchor.beatIndex <= selection.head.beatIndex);
+  const first = forward ? selection.anchor : selection.head;
+  const last = forward ? selection.head : selection.anchor;
+  const trackIds = [...new Set(primitives.flatMap(({ hit }) =>
+    hit?.kind === "bar" && hit.ref.trackId ? [hit.ref.trackId] : []))];
+  const trackIndex1 = trackIds.indexOf(first.trackId ?? "");
+  const trackIndex2 = trackIds.indexOf(last.trackId ?? "");
+  const selectedTracks = new Set(trackIndex1 >= 0 && trackIndex2 >= 0
+    ? trackIds.slice(Math.min(trackIndex1, trackIndex2), Math.max(trackIndex1, trackIndex2) + 1)
+    : [first.trackId, last.trackId]);
 
+  const unit = selection.unit === "beat" ? "beat" : "bar";
   return primitives
-    .filter((primitive) => {
-      const ref = primitive.hit?.ref;
-      return (
-        primitive.hit?.kind === "bar" &&
-        ref?.trackId === trackId &&
-        typeof ref.barIndex === "number" &&
-        ref.barIndex >= startBar &&
-        ref.barIndex <= endBar
-      );
+    .filter(({ hit }) => {
+      const barIndex = hit?.ref.barIndex;
+      if (hit?.kind !== unit || !selectedTracks.has(hit.ref.trackId ?? null) ||
+        barIndex === undefined || barIndex < first.barIndex || barIndex > last.barIndex) return false;
+      if (unit === "bar") return true;
+      const beatIndex = hit.ref.beatIndex;
+      return beatIndex !== undefined &&
+        (barIndex > first.barIndex || beatIndex >= first.beatIndex) &&
+        (barIndex < last.barIndex || beatIndex <= last.beatIndex);
     })
     .map((primitive, index) =>
       cursorRect(`editor-selection-${index}`, primitive.hit!.bbox, "#3b82f6", 0.09)
