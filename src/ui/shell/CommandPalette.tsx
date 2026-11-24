@@ -8,6 +8,7 @@ import {
   type PaletteEntry
 } from "../../commands/paletteCommands";
 import type { EditorCommandContext } from "../../commands/editingCommands";
+import { useDialogFocus } from "../overlays/useDialogFocus";
 
 export interface CommandPaletteResult {
   handled: boolean;
@@ -36,7 +37,8 @@ export function CommandPalette({
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const [flowMode, setFlowMode] = useState(false);
   const [status, setStatus] = useState("Ready");
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(dialogRef, open, "overlay");
   const suggestions = useMemo(
     () => suggestPaletteEntries(value, registeredCommands as Array<Command<unknown>>).slice(0, 12),
     [registeredCommands, value]
@@ -48,7 +50,6 @@ export function CommandPalette({
     if (open) {
       setValue(initialValue);
       setSelectedIndex(0);
-      window.setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [initialValue, open]);
 
@@ -116,20 +117,15 @@ export function CommandPalette({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-
-    if (event.key === "Tab") {
-      event.preventDefault();
+    if (event.defaultPrevented) return;
+    if (event.key === "Tab" && !event.shiftKey && value.trim()) {
       const suggestion = suggestions[selectedIndex] ?? suggestions[0];
 
-      if (suggestion) {
+      if (suggestion && parsePaletteInput(value).prefix !== suggestion.prefix) {
+        event.preventDefault();
         completeSuggestion(suggestion);
+        return;
       }
-      return;
     }
 
     if (event.key === "Enter") {
@@ -161,22 +157,32 @@ export function CommandPalette({
   }
 
   return (
-    <section className="commandPalette" aria-label="Command palette" data-testid="command-palette">
+    <section ref={dialogRef} className="commandPalette" role="dialog" aria-modal="true"
+      aria-label="Command palette" data-testid="command-palette" tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }
+      }}
+    >
       <div className="commandPaletteInputRow">
-        <span className="commandPrompt">{parsePaletteInput(value).prefix}</span>
+        <span className="commandPrompt" aria-hidden="true">{parsePaletteInput(value).prefix}</span>
         <input
-          ref={inputRef}
           data-testid="command-palette-input"
+          data-dialog-initial-focus
+          aria-label="Search commands"
           value={value}
           placeholder={COMMAND_PALETTE_PLACEHOLDER}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={handleKeyDown}
         />
-        <button type="button" className={flowMode ? "activeToggle" : ""} onClick={() => setFlowMode((enabled) => !enabled)}>
+        <button type="button" aria-pressed={flowMode} className={flowMode ? "activeToggle" : ""} onClick={() => setFlowMode((enabled) => !enabled)}>
           Flow
         </button>
-        <button type="button" onClick={onClose} title="Close command palette">
-          x
+        <button type="button" onClick={onClose} title="Close command palette" aria-label="Close command palette">
+          <span aria-hidden="true">×</span>
         </button>
       </div>
       <div className="commandSuggestionList">
@@ -193,7 +199,7 @@ export function CommandPalette({
           >
             <strong>{entry.prefix}</strong>
             <span>{entry.description}</span>
-            {entry.requiresArgument ? <em>↹</em> : null}
+            {entry.requiresArgument ? <em aria-hidden="true">↹</em> : null}
           </button>
         ))}
       </div>

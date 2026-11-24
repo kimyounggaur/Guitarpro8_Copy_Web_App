@@ -29,6 +29,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "1.61.1",
     "@tonejs/midi": "^2.0.28",
     "@types/node": "^22.10.2",

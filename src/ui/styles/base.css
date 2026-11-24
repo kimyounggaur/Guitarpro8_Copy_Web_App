@@ -36,8 +36,13 @@
 
   button:focus-visible,
   input:focus-visible,
-  select:focus-visible {
-    outline: none;
+  select:focus-visible,
+  textarea:focus-visible,
+  a:focus-visible,
+  summary:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--accent-strong);
+    outline-offset: 2px;
     border-color: var(--accent-strong);
     box-shadow: 0 0 0 2px var(--focus-ring);
   }

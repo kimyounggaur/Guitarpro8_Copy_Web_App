@@ -67,7 +67,7 @@ export function ToolPanels(props: ToolPanelsProps) {
     <section className="toolPanel" aria-label="Tools">
       <header className="toolPanelHeader">
         <strong>{toolTitle(props.activeTool)}</strong>
-        <button type="button" onClick={props.onClose} title="Close tool">
+        <button type="button" onClick={props.onClose} title="Close tool" aria-label="Close tool">
           x
         </button>
       </header>

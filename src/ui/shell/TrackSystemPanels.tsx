@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FileDialog } from "../overlays/FileDialog";
 import {
   DRUM_MAPPINGS,
   INSTRUMENT_DEFINITIONS,
@@ -55,7 +56,7 @@ export function TrackSystemPanels(props: TrackSystemPanelsProps) {
     <section className="trackSystemPanel" aria-label="Track system">
       <header className="toolPanelHeader">
         <strong>{trackPanelTitle(props.activePanel)}</strong>
-        <button type="button" onClick={props.onClose} title="Close track panel">
+        <button type="button" onClick={props.onClose} title="Close track panel" aria-label="Close track panel">
           x
         </button>
       </header>
@@ -266,7 +267,10 @@ function TuningPanel({
           <p role="status" className="toolWarning">새 튜닝으로 옮길 수 없는 음 {unplayable}개를 발견해 기존 튜닝을 유지했습니다.</p>
         ) : null}
         {confirmReduction && reducing ? (
-          <section role="alertdialog" aria-label="줄 수 변경 확인">
+          <FileDialog title="줄 수 변경 확인" role="alertdialog" onCancel={() => {
+            setConfirmReduction(false);
+            setUnplayable(0);
+          }}>
             <p>없어지는 줄에 음 {removedNotes}개가 있습니다. 옮기기를 선택하면 연주할 수 없는 음 {unplayable}개가 삭제됩니다.</p>
             <button type="button" onClick={() => {
               onApplyTuning(track.id, tuning, "adjust-fingering");
@@ -278,8 +282,8 @@ function TuningPanel({
               setConfirmReduction(false);
               setUnplayable(0);
             }}>삭제</button>
-            <button type="button" onClick={() => { setConfirmReduction(false); setUnplayable(0); }}>취소</button>
-          </section>
+            <button type="button" autoFocus onClick={() => { setConfirmReduction(false); setUnplayable(0); }}>취소</button>
+          </FileDialog>
         ) : null}
       </section>
     </div>

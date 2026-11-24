@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { DEFAULT_PASTE, type PasteOptions } from "../../engine/editing/clipboard";
+import { useDialogFocus } from "./useDialogFocus";
 
 export function SpecialPasteDialog({
   onApply, onCancel
@@ -10,15 +11,7 @@ export function SpecialPasteDialog({
   const dialog = useRef<HTMLDialogElement>(null);
   const [options, setOptions] = useState<PasteOptions>(DEFAULT_PASTE);
 
-  useEffect(() => {
-    const opener = document.activeElement;
-    const element = dialog.current;
-    element?.showModal();
-    return () => {
-      element?.close();
-      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
-    };
-  }, []);
+  useDialogFocus(dialog, true, "native");
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();

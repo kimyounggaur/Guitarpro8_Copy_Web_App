@@ -44,7 +44,7 @@ export function FileIoPanel(props: FileIoPanelProps) {
     <section className="fileIoPanel" aria-label="File import and export">
       <header className="toolPanelHeader">
         <strong>File I/O</strong>
-        <button type="button" onClick={props.onClose} title="Close file I/O">
+        <button type="button" onClick={props.onClose} title="Close file I/O" aria-label="Close file I/O">
           x
         </button>
       </header>

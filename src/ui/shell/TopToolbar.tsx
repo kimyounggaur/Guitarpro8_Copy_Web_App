@@ -120,20 +120,20 @@ export function TopToolbar(props: TopToolbarProps) {
             <button type="button" title="File I/O" onClick={props.onFileIoPanelOpen}>File</button>
           </div>
           <div className="toolbarGroup historyGroup">
-            <button type="button" title={title("Undo", "history.undo")} onClick={() => props.dispatchCommand("history.undo")}>↶</button>
-            <button type="button" title={title("Redo", "history.redo")} onClick={() => props.dispatchCommand("history.redo")}>↷</button>
+            <button type="button" aria-label="Undo" title={title("Undo", "history.undo")} onClick={() => props.dispatchCommand("history.undo")}>↶</button>
+            <button type="button" aria-label="Redo" title={title("Redo", "history.redo")} onClick={() => props.dispatchCommand("history.redo")}>↷</button>
           </div>
           <div className="toolbarGroup transportGroup">
-            <button type="button" title="First bar" onClick={() => props.dispatchCommand("cursor.firstBar")}>|&lt;</button>
-            <button type="button" title={title("Previous bar", "playback.previousBar")} onClick={() => props.dispatchCommand("playback.previousBar")}>&lt;</button>
+            <button type="button" aria-label="First bar" title="First bar" onClick={() => props.dispatchCommand("cursor.firstBar")}>|&lt;</button>
+            <button type="button" aria-label="Previous bar" title={title("Previous bar", "playback.previousBar")} onClick={() => props.dispatchCommand("playback.previousBar")}>&lt;</button>
             <button type="button" title="Play / stop Space" data-testid="transport-play-stop" onClick={() => props.dispatchCommand("playback.toggle")}>
               {(props.playbackStatus === "playing" || props.playbackStatus === "starting") ? "Stop" : "Play"}
             </button>
-            <button type="button" title={title("Next bar", "playback.nextBar")} onClick={() => props.dispatchCommand("playback.nextBar")}>&gt;</button>
-            <button type="button" title="Last bar" onClick={() => props.dispatchCommand("cursor.lastBar")}>&gt;|</button>
+            <button type="button" aria-label="Next bar" title={title("Next bar", "playback.nextBar")} onClick={() => props.dispatchCommand("playback.nextBar")}>&gt;</button>
+            <button type="button" aria-label="Last bar" title="Last bar" onClick={() => props.dispatchCommand("cursor.lastBar")}>&gt;|</button>
           </div>
           <div className="lcd" title={issue ? `Voice ${cursor.voiceIndex + 1}: ${actual}/${expected}` : "Bar duration ok"}>
-            <span className="trackColor" style={{ background: currentTrack?.color ?? "#64748b" }} />
+            <span aria-hidden="true" className="trackColor" style={{ background: currentTrack?.color ?? "#64748b" }} />
             <strong>{currentTrack?.shortName ?? "Track"}</strong>
             {tempoDraft === null ? (
               <button ref={tempoButton} type="button" className="lcdTempo" title="Edit measure tempo" data-testid="lcd-tempo" onClick={() => {
@@ -166,16 +166,16 @@ export function TopToolbar(props: TopToolbarProps) {
               />
             )}
             <span className={issue ? "lcdWarning" : ""}>{Math.round(actual)}/{Math.round(expected)}</span>
-            <button type="button" aria-pressed={props.multiTrackView} className={props.multiTrackView ? "activeToggle" : ""} title={title("Multitrack view", "view.multitrack")} onClick={props.onToggleMultiTrackView}>
+            <button type="button" aria-label={props.multiTrackView ? "Multi track view" : "1 track view"} aria-pressed={props.multiTrackView} className={props.multiTrackView ? "activeToggle" : ""} title={title("Multitrack view", "view.multitrack")} onClick={props.onToggleMultiTrackView}>
               {props.multiTrackView ? "Multi" : "1"}
             </button>
             <button type="button" disabled>♫</button>
             <button type="button" disabled>⚙</button>
           </div>
           <div className="toolbarGroup playbackTools">
-            <button type="button" aria-pressed={props.countInEnabled} className={props.countInEnabled ? "activeToggle" : ""} title="Count-in" onClick={() => props.dispatchCommand("playback.countIn")}>C</button>
-            <button type="button" aria-pressed={props.metronomeEnabled} className={props.metronomeEnabled ? "activeToggle" : ""} title="Metronome" onClick={() => props.dispatchCommand("playback.metronome")}>M</button>
-            <button type="button" aria-pressed={props.loopEnabled} className={props.loopEnabled ? "activeToggle" : ""} title={title("Loop", "playback.loop")} onClick={() => props.dispatchCommand("playback.loop")}>Loop</button>
+            <button type="button" aria-label="Count-in" aria-pressed={props.countInEnabled} className={props.countInEnabled ? "activeToggle" : ""} title="Count-in" onClick={() => props.dispatchCommand("playback.countIn")}>C</button>
+            <button type="button" aria-label="Metronome" aria-pressed={props.metronomeEnabled} className={props.metronomeEnabled ? "activeToggle" : ""} title="Metronome" onClick={() => props.dispatchCommand("playback.metronome")}>M</button>
+            <button type="button" aria-label="Loop" aria-pressed={props.loopEnabled} className={props.loopEnabled ? "activeToggle" : ""} title={title("Loop", "playback.loop")} onClick={() => props.dispatchCommand("playback.loop")}>Loop</button>
             {props.playbackStatus === "playing" ? (
               <PlaybackReadout barIndex={props.playbackBarIndex} />
             ) : (
@@ -228,6 +228,7 @@ function ToolbarGroupContent({
           title={measuring ? undefined : action.title}
           data-testid={measuring ? undefined : action.testId}
           aria-pressed={measuring ? undefined : action.pressed}
+          aria-label={measuring ? undefined : action.title}
           className={action.pressed ? "activeToggle" : undefined}
           onClick={measuring ? undefined : action.run}
         >
