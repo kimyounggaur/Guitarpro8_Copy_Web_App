@@ -1,4 +1,3 @@
-import type { TransportStatus } from "../engine/audio/transport";
 import type { CursorMove } from "../engine/editing/types";
 import type {
   BarSymbolCommand,
@@ -11,7 +10,7 @@ import type { EditorCommandId } from "./commandIds";
 
 export interface EditorCommandContext {
   staffKind: "tab" | "standard";
-  playbackStatus: TransportStatus;
+  playbackStatus: "playing" | "paused" | "stopped";
   moveCursor: (move: CursorMove, extendSelection?: boolean) => void;
   moveBarSelection: (direction: -1 | 1) => void;
   toggleStaffKind: () => void;

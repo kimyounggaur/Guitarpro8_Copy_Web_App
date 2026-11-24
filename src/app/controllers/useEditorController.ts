@@ -404,7 +404,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       ),
     togglePlayback: (fromStart) => {
       const { status } = usePlaybackStore.getState();
-      if ((status === "playing" || status === "starting") && !fromStart) {
+      if ((status === "playing") && !fromStart) {
         stopPlayback();
         return;
       }
@@ -422,7 +422,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       setCursor(next);
 
       const { status } = usePlaybackStore.getState();
-      if (status === "playing" || status === "starting") {
+      if (status === "playing") {
         seekPlayback(playbackCompilation.secondAtBar(next.barIndex));
       }
     },
@@ -431,7 +431,7 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       setCursor(next);
 
       const { status } = usePlaybackStore.getState();
-      if (status === "playing" || status === "starting") {
+      if (status === "playing") {
         seekPlayback(playbackCompilation.secondAtBar(next.barIndex));
       }
     },
