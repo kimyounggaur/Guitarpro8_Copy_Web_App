@@ -139,10 +139,11 @@ function TrackWizard({ onCreateTrack }: TrackSystemPanelsProps) {
         </label>
         <div className="notationChecks">
           {notationTypes.map((notation) => (
-            <label key={notation}>
+            <label key={notation} title={notation === "numbered" ? "This notation is planned" : undefined}>
               <input
                 type="checkbox"
                 checked={draft.notationTypes.includes(notation)}
+                disabled={notation === "numbered"}
                 onChange={(event) =>
                   setDraft({
                     ...draft,

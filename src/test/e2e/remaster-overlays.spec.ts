@@ -81,6 +81,8 @@ test("track wizard reviews an instrument before creating exactly one track", asy
   await window.getByRole("button",{name:"Next"}).click();
   await expect(window.locator(".instrumentList button").first()).toBeVisible();
   await window.getByRole("button",{name:"Next"}).click();
+  await expect(window.getByRole("checkbox", { name: "slash", exact: true })).toBeEnabled();
+  await expect(window.getByRole("checkbox", { name: "numbered", exact: true })).toBeDisabled();
   await window.getByRole("textbox",{name:"Name",exact:true}).fill("Lesson Kit");
   await window.getByRole("button",{name:"Next"}).click();
   await expect(window.locator(".wizardSummary")).toContainText("Lesson Kit");
