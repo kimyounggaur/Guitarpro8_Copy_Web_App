@@ -1,4 +1,4 @@
-import type { NoteRef, Score } from "./types";
+import type { Score } from "./types";
 
 export type IdKind = "doc" | "trk";
 
@@ -10,8 +10,8 @@ export function newId(kind: IdKind): string {
 
 /**
  * Repair ID collisions on a newly parsed score before making it active.
- * The first occurrence keeps its original ID. Within a renamed track, links
- * that pointed to the track itself follow its new ID as well.
+ * The first occurrence keeps its original ID. Native ties are relative, so
+ * assigning a new track ID needs no change to their notes.
  */
 export function ensureUniqueTrackIds(score: Score, warnings: string[]): void {
   const originalIds = new Set(score.tracks.map((track) => track.id));
@@ -32,23 +32,6 @@ export function ensureUniqueTrackIds(score: Score, warnings: string[]): void {
     track.id = nextId;
     seenIds.add(nextId);
     changed++;
-
-    const rewriteReference = (ref: NoteRef | undefined) => {
-      if (ref?.trackId === previousId) {
-        ref.trackId = nextId;
-      }
-    };
-
-    for (const bar of track.bars) {
-      for (const voice of bar.voices) {
-        for (const beat of voice.beats) {
-          for (const note of beat.notes) {
-            rewriteReference(note.tieOrigin);
-            rewriteReference(note.tieDestination);
-          }
-        }
-      }
-    }
   }
 
   if (changed > 0) {

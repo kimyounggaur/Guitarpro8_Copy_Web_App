@@ -87,12 +87,13 @@ function trackToMidiEvents(score: Score, track: Track, trackIndex: number): Midi
     { tick: 0, bytes: [0xff, 0x03, track.name.length, ...asciiBytes(track.name)] },
     { tick: 0, bytes: [0xc0 | channel, gmProgramForTrack(track)] }
   ];
+  const sounding = new Map<string, { endTick: number; pitch: number; noteOff: MidiTimedEvent }>();
   let barStart = 0;
 
   score.masterBars.forEach((masterBar, barIndex) => {
     const bar = track.bars[barIndex];
 
-    bar?.voices.forEach((voice) => {
+    bar?.voices.forEach((voice, voiceIndex) => {
       let beatStart = 0;
 
       voice.beats.forEach((beat) => {
@@ -100,16 +101,22 @@ function trackToMidiEvents(score: Score, track: Track, trackIndex: number): Midi
 
         if (!beat.rest) {
           beat.notes.forEach((note) => {
-            if (note.tieOrigin) {
-              return;
-            }
-
             const pitch = clampMidi(noteMidiPitch(note, track));
             const velocity = velocityForDynamic(note.dynamic);
             const start = barStart + beatStart;
+            const endTick = start + duration;
+            const key = `${voiceIndex}:${note.string}`;
+            const previous = sounding.get(key);
+            if (note.tiedFromPrevious && previous?.pitch === pitch && previous.endTick === start) {
+              previous.noteOff.tick = endTick;
+              previous.endTick = endTick;
+              return;
+            }
             const end = start + Math.max(1, Math.round(duration * (note.staccato ? 0.55 : 0.92)));
+            const noteOff = { tick: end, bytes: [0x80 | channel, pitch, 0] };
             events.push({ tick: start, bytes: [0x90 | channel, pitch, velocity] });
-            events.push({ tick: end, bytes: [0x80 | channel, pitch, 0] });
+            events.push(noteOff);
+            sounding.set(key, { endTick, pitch, noteOff });
           });
         }
 

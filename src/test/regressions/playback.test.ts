@@ -12,13 +12,12 @@ function guitarScore(barCount: number) {
   return score;
 }
 
-it.fails("[B1] two tied quarter notes compile to one 960-tick sounding event", () => {
+it("[B1] two tied quarter notes compile to one 960-tick sounding event", () => {
   const score = guitarScore(1);
   const track = score.tracks[0];
-  const origin = { trackId: track.id, barIndex: 0, voiceIndex: 0, beatIndex: 0, noteIndex: 0 };
   track.bars[0].voices[0].beats = [
-    createBeat({ rest: false, notes: [{ ...createNote(1, 3), tieDestination: { ...origin, beatIndex: 1 } }] }),
-    createBeat({ rest: false, notes: [{ ...createNote(1, 3), tieOrigin: origin }] }),
+    createBeat({ rest: false, notes: [createNote(1, 3)] }),
+    createBeat({ rest: false, notes: [{ ...createNote(1, 3), tiedFromPrevious: true }] }),
     createBeat({ duration: 2 })
   ];
 

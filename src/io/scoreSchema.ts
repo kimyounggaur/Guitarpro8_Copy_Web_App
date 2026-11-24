@@ -20,22 +20,13 @@ const style = defaults.stylesheet;
 
 const bendCurve = z.object({ points: z.array(z.object({ offset: finite, value: finite })) });
 const stroke = z.object({ direction: z.enum(["down", "up"]), speed: finite, delay: finite });
-const noteRef = z.object({
-  trackId: z.string(),
-  barIndex: offset,
-  voiceIndex: offset,
-  beatIndex: offset,
-  noteIndex: offset
-});
-
 const note: z.ZodType<Note> = z.object({
   string: z.number().int(),
   fret: z.number().int(),
   midiPitch: midi.optional(),
   midiNumber: midi.optional(),
   articulation: z.string().optional(),
-  tieOrigin: noteRef.optional(),
-  tieDestination: noteRef.optional(),
+  tiedFromPrevious: z.boolean().optional(),
   accidental: z.enum(["none", "sharp", "flat", "natural", "doubleSharp", "doubleFlat"]).default("none"),
   forceAccidental: z.boolean().default(false),
   dynamic: dynamic.default(4),

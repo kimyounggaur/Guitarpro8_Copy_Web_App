@@ -111,7 +111,7 @@ export function createDemoScore(): Score {
       ]
     }
   ];
-  guitar.bars = guitarDemoBars(guitar.id);
+  guitar.bars = guitarDemoBars();
   bass.bars = bassDemoBars(score.masterBars.length);
 
   return score;
@@ -139,7 +139,7 @@ function applyPhase5MasterSymbols(score: Score): void {
   score.masterBars[10].fermatas = [{ beatTick: 960, glyph: "above", tempoScale: 0.65 }];
 }
 
-function guitarDemoBars(trackId: string): Bar[] {
+function guitarDemoBars(): Bar[] {
   return [
     dottedQuarterBar(),
     sixteenthBeamBar(),
@@ -149,7 +149,7 @@ function guitarDemoBars(trackId: string): Bar[] {
     durationLadderBar(),
     flaggedRhythmBar(),
     restLadderBar(),
-    tiedHalfNoteBar(trackId, 8),
+    tiedHalfNoteBar(),
     twoVoiceBar(),
     incompleteBar()
   ];
@@ -289,13 +289,10 @@ function restLadderBar(): Bar {
   ]);
 }
 
-function tiedHalfNoteBar(trackId: string, barIndex: number): Bar {
+function tiedHalfNoteBar(): Bar {
   const first = createNote(4, 9);
   const second = createNote(4, 9);
-  const firstRef = { trackId, barIndex, voiceIndex: 0, beatIndex: 0, noteIndex: 0 };
-  const secondRef = { trackId, barIndex, voiceIndex: 0, beatIndex: 1, noteIndex: 0 };
-  first.tieDestination = secondRef;
-  second.tieOrigin = firstRef;
+  second.tiedFromPrevious = true;
 
   return barWithVoice([
     createBeat({ duration: 2, rest: false, notes: [first] }),

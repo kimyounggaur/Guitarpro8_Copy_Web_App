@@ -74,6 +74,11 @@ export interface PlaybackCompilation {
   secondAtBar: (barIndex: number) => number;
 }
 
+interface SoundingNote {
+  event: NoteEvent;
+  endTick: number;
+}
+
 export function compilePlayback(
   score: Score,
   unrolled: UnrollResult,
@@ -83,9 +88,16 @@ export function compilePlayback(
 ): PlaybackCompilation {
   const tempoMap = buildTempoMap(score, unrolled.segments, speedOverride);
   const writtenStarts = writtenBarStarts(score);
+  const soundingNotes = new Map<string, SoundingNote>();
   const events = unrolled.segments.flatMap((segment) =>
-    compileSegment(score, segment, tempoMap, writtenStarts, mixer, focusedTrackId)
+    compileSegment(score, segment, tempoMap, writtenStarts, mixer, focusedTrackId, soundingNotes)
   );
+  for (const event of events) {
+    if (event.noteIndex >= 0) {
+      const endSec = tempoMap.ticksToSeconds(event.startTick + event.durationTicks);
+      event.durationSec = Math.max(0.035, endSec - event.timeSec);
+    }
+  }
   const sortedEvents = events.sort((left, right) => left.timeSec - right.timeSec || left.midiPitch - right.midiPitch);
 
   return {
@@ -106,7 +118,8 @@ function compileSegment(
   tempoMap: TempoMap,
   writtenStarts: number[],
   mixer: MixerState,
-  focusedTrackId: string | null
+  focusedTrackId: string | null,
+  soundingNotes: Map<string, SoundingNote>
 ): NoteEvent[] {
   const events: NoteEvent[] = [];
   const writtenStart = writtenStarts[segment.barIndex] ?? 0;
@@ -149,10 +162,6 @@ function compileSegment(
           });
 
           beat.notes.forEach((note, noteIndex) => {
-            if (note.tieOrigin) {
-              return;
-            }
-
             const event = noteEvent(
                 score,
                 track.id,
@@ -169,7 +178,20 @@ function compileSegment(
                 mixer,
                 focusedTrackId
             );
-            if (event) events.push(event);
+            if (!event) return;
+
+            const key = JSON.stringify([track.id, voiceIndex, note.string]);
+            const previous = soundingNotes.get(key);
+            const endTick = startTick + durationTicks;
+            if (note.tiedFromPrevious && previous
+              && Math.abs(previous.endTick - startTick) < 1e-6
+              && previous.event.midiPitch === event.midiPitch) {
+              previous.event.durationTicks = endTick - previous.event.startTick;
+              previous.endTick = endTick;
+            } else {
+              events.push(event);
+              soundingNotes.set(key, { event, endTick });
+            }
           });
         }
 
@@ -210,12 +232,11 @@ function noteEvent(
   const durationMultiplier = durationMultiplierForNote(note);
   const effectiveDurationTicks = Math.max(TICKS_PER_QUARTER / 32, durationTicks * durationMultiplier);
   const timeSec = tempoMap.ticksToSeconds(startTick);
-  const endSec = tempoMap.ticksToSeconds(startTick + effectiveDurationTicks);
 
   return {
     id: `${track.id}-${segment.sequenceIndex}-${voiceIndex}-${beatIndex}-${noteIndex}`,
     timeSec,
-    durationSec: Math.max(0.035, endSec - timeSec),
+    durationSec: 0,
     startTick,
     writtenTick,
     durationTicks: effectiveDurationTicks,

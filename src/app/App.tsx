@@ -239,29 +239,55 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   });
 
   useGlobalShortcuts({
-    togglePanel,
-    score,
-    cursorTrackId: cursor.trackId,
-    activeToolPanel: toolWindow.activeToolPanel,
-    activeTrackPanel: toolWindow.activeTrackPanel,
-    stylesheetPanelOpen: toolWindow.stylesheetPanelOpen,
-    fileIoPanelOpen: toolWindow.fileIoPanelOpen,
-    commandPaletteOpen: toolWindow.commandPaletteOpen,
-    anyOverlayOpen: toolWindow.anyOverlayOpen,
-    openCommandPalette: toolWindow.openCommandPalette,
-    handleNewFile: file.handleNewFile,
-    handleOpenNativeFile: file.handleOpenNativeFile,
-    handleSaveNativeFile: file.handleSaveNativeFile,
-    handleSaveNativeFileAs: file.handleSaveNativeFileAs,
-    toggleStylesheetPanel: toolWindow.toggleStylesheetPanel,
-    handleZoomChange: editor.handleZoomChange,
-    closeAllOverlays: toolWindow.closeAllOverlays,
-    setActiveTrackPanel: toolWindow.setActiveTrackPanel,
-    setMultiTrackView: editor.setMultiTrackView,
-    setMultiVoiceEdit: editor.setMultiVoiceEdit,
-    handleVoiceSelect: editor.handleVoiceSelect,
-    handleMoveNoteToVoice: editor.handleMoveNoteToVoice,
-    setActiveToolPanel: toolWindow.setActiveToolPanel
+    "file.new": file.handleNewFile,
+    "file.open": file.handleOpenNativeFile,
+    "file.save": file.handleSaveNativeFile,
+    "file.saveAs": file.handleSaveNativeFileAs,
+    "file.print": () => window.print(),
+    "history.undo": editor.editorContext.undo,
+    "history.redo": editor.editorContext.redo,
+    "playback.toggle": () => editor.editorContext.togglePlayback(false),
+    "view.closeOverlays": () => {
+      if (!toolWindow.anyOverlayOpen) return false;
+      toolWindow.closeAllOverlays();
+    },
+    "panels.palette": () => togglePanel("palette"),
+    "panels.songInspector": () => togglePanel("songInspector"),
+    "panels.trackInspector": () => togglePanel("trackInspector"),
+    "panels.globalView": () => togglePanel("globalView"),
+    "panels.automation": () => togglePanel("automationView"),
+    "view.stylesheet": toolWindow.toggleStylesheetPanel,
+    "view.multitrack": editor.handleToggleMultiTrackView,
+    "view.zoomIn": () => editor.handleZoomChange(useDocumentStore.getState().score.documentSettings.zoom + 10),
+    "view.zoomOut": () => editor.handleZoomChange(useDocumentStore.getState().score.documentSettings.zoom - 10),
+    "track.add": () => toolWindow.setActiveTrackPanel("wizard"),
+    "voice.toggleMulti": () => {
+      editor.handleToggleMultiVoice();
+      toolWindow.setActiveTrackPanel("voices");
+    },
+    "voice.edit1": () => editor.handleVoiceSelect(0),
+    "voice.edit2": () => editor.handleVoiceSelect(1),
+    "voice.edit3": () => editor.handleVoiceSelect(2),
+    "voice.edit4": () => editor.handleVoiceSelect(3),
+    "voice.move1": () => editor.handleMoveNoteToVoice(0),
+    "voice.move2": () => editor.handleMoveNoteToVoice(1),
+    "voice.move3": () => editor.handleMoveNoteToVoice(2),
+    "voice.move4": () => editor.handleMoveNoteToVoice(3),
+    "tools.chords": () => toolWindow.setActiveToolPanel("chords"),
+    "tools.scales": () => toolWindow.setActiveToolPanel("scales"),
+    "tools.cleanup": () => toolWindow.setActiveToolPanel("cleanup"),
+    "tools.instrument": () => {
+      const { score } = useDocumentStore.getState();
+      const trackId = useViewStore.getState().cursor.trackId;
+      if (score.tracks.find((track) => track.id === trackId)?.icon === "drums") {
+        toolWindow.setActiveTrackPanel("drums");
+      } else {
+        toolWindow.setActiveToolPanel("instrument");
+      }
+    },
+    "tools.commandPalette": () => toolWindow.openCommandPalette(),
+    "tools.actionList": () => toolWindow.openCommandPalette("@"),
+    "tools.expressionText": () => toolWindow.openCommandPalette(">")
   });
 
   const scoreViewportRef = useRef<HTMLDivElement>(null);
@@ -303,6 +329,7 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
 
   return (
     <>
+      {editor.editNotice && <aside className="autosaveUnavailable" role="status">{editor.editNotice}</aside>}
       <EditorShell
         score={score}
         cursor={cursor}
@@ -389,7 +416,8 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
             aria-label="Editable score"
             onClick={editor.handleScoreClick}
             onKeyDown={(event) => {
-              if (!event.defaultPrevented) editor.handleScoreKeyDown(event);
+              if (event.defaultPrevented) editor.editorContext.endFretInput();
+              else editor.handleScoreKeyDown(event);
             }}
             onDragOver={file.handleScoreDragOver}
             onDrop={(event) => void file.handleScoreDrop(event)}

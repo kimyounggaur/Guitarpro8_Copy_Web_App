@@ -141,7 +141,7 @@ function noteToken(note: Note): string {
 }
 
 function effectToken(note: Note): string {
-  if (note.tieOrigin || note.tieDestination) return "L";
+  if (note.tiedFromPrevious) return "L";
   if (note.staccato) return ".";
   if (note.deadNote) return "x";
   if (note.hopo) return "h";

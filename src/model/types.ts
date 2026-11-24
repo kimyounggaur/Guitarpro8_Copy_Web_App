@@ -414,8 +414,7 @@ export interface Note {
   midiPitch?: number;
   midiNumber?: number;
   articulation?: string;
-  tieOrigin?: NoteRef;
-  tieDestination?: NoteRef;
+  tiedFromPrevious?: boolean;
   accidental: Accidental;
   forceAccidental: boolean;
   dynamic: Dynamic;

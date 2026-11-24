@@ -1,21 +1,18 @@
 import { executeCommand } from "./registry";
 import type { EditorCommandContext } from "./editingCommands";
-import { commandIdForKeyEvent, detectPlatform } from "./keymap";
-
-export interface FretInputBuffer {
-  digits: string;
-  timer: number | null;
-}
+import { commandIdForKeyEvent } from "./keymap";
+import type { CommandId } from "./commandIds";
 
 export function handleEditorKeyDown(
   event: KeyboardEvent,
-  context: EditorCommandContext,
-  fretBuffer: FretInputBuffer
+  context: EditorCommandContext
 ): boolean {
-  if (handleNumericInput(event, context, fretBuffer)) {
+  if (event.defaultPrevented) return false;
+  if (handleNumericInput(event, context)) {
     return true;
   }
 
+  context.endFretInput();
   const commandId = commandIdForEvent(event, context);
 
   if (!commandId) {
@@ -27,59 +24,28 @@ export function handleEditorKeyDown(
   return true;
 }
 
-export function flushFretBuffer(context: EditorCommandContext, fretBuffer: FretInputBuffer): void {
-  if (fretBuffer.digits.length === 0) {
-    return;
-  }
-
-  context.inputFret(Number(fretBuffer.digits));
-  fretBuffer.digits = "";
-  fretBuffer.timer = null;
-}
-
 function handleNumericInput(
   event: KeyboardEvent,
-  context: EditorCommandContext,
-  fretBuffer: FretInputBuffer
+  context: EditorCommandContext
 ): boolean {
-  if (!/^\d$/.test(event.key) || event.ctrlKey || event.metaKey || event.altKey) {
-    return false;
-  }
+  const digit = /^Digit([0-9])$/.exec(event.code)?.[1] ?? (/^\d$/.test(event.key) ? event.key : undefined);
+  if (digit === undefined || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
 
   event.preventDefault();
-
   if (context.staffKind === "standard") {
-    context.inputStandardString(Number(event.key));
-    return true;
+    context.endFretInput();
+    context.inputStandardString(Number(digit));
+  } else {
+    context.inputFretDigit(Number(digit));
   }
-
-  if (event.shiftKey) {
-    return true;
-  }
-
-  if (fretBuffer.timer !== null) {
-    window.clearTimeout(fretBuffer.timer);
-  }
-
-  fretBuffer.digits += event.key;
-
-  if (fretBuffer.digits.length >= 2) {
-    flushFretBuffer(context, fretBuffer);
-    return true;
-  }
-
-  fretBuffer.timer = window.setTimeout(() => flushFretBuffer(context, fretBuffer), 300);
   return true;
 }
 
-function commandIdForEvent(event: KeyboardEvent, context: EditorCommandContext): string | null {
-  if (event.key === "+" || event.key === "=") {
-    return context.playbackStatus === "playing" ? "playback.speedUp" : "duration.longer";
+function commandIdForEvent(event: KeyboardEvent, context: EditorCommandContext): CommandId | null {
+  const id = commandIdForKeyEvent(event, "workspace");
+  if (context.playbackStatus === "playing") {
+    if (id === "duration.longer") return "playback.speedUp";
+    if (id === "duration.shorter") return "playback.speedDown";
   }
-
-  if (event.key === "-") {
-    return context.playbackStatus === "playing" ? "playback.speedDown" : "duration.shorter";
-  }
-
-  return commandIdForKeyEvent(event, "workspace", detectPlatform());
+  return id;
 }

@@ -298,31 +298,37 @@ function MenuBar() {
   );
 }
 
+function preserveScoreFocus(event: React.MouseEvent<HTMLElement>): void {
+  if (event.button === 0 && event.target instanceof Element && event.target.closest("button")) {
+    event.preventDefault();
+  }
+}
+
 function Toolbar(props: EditorShellProps) {
   const currentTrack = props.score.tracks.find((track) => track.id === props.cursor.trackId);
   const lcd = currentLcdStatus(props.score, props.cursor);
 
   return (
-    <header className="toolbar" aria-label="Toolbar">
+    <header className="toolbar" aria-label="Toolbar" onMouseDown={preserveScoreFocus}>
       <div className="toolbarGroup homeGroup">
         <button type="button" title="File I/O" onClick={props.onFileIoPanelOpen}>
           ⌂
         </button>
       </div>
       <div className="toolbarGroup panelGroup">
-        <button type="button" title="Palette F2" onClick={() => props.togglePanel("palette")}>
+        <button type="button" title={titleWithShortcut("Palette", "panels.palette", props.platform)} onClick={() => props.togglePanel("palette")}>
           ◧
         </button>
-        <button type="button" title="Song Inspector F5" onClick={() => props.togglePanel("songInspector")}>
+        <button type="button" title={titleWithShortcut("Song Inspector", "panels.songInspector", props.platform)} onClick={() => props.togglePanel("songInspector")}>
           ♫
         </button>
-        <button type="button" title="Track Inspector F6" onClick={() => props.togglePanel("trackInspector")}>
+        <button type="button" title={titleWithShortcut("Track Inspector", "panels.trackInspector", props.platform)} onClick={() => props.togglePanel("trackInspector")}>
           ⚙
         </button>
-        <button type="button" title="Global View F8" onClick={() => props.togglePanel("globalView")}>
+        <button type="button" title={titleWithShortcut("Global View", "panels.globalView", props.platform)} onClick={() => props.togglePanel("globalView")}>
           ▤
         </button>
-        <button type="button" title="Automation F10" onClick={() => props.togglePanel("automationView")}>
+        <button type="button" title={titleWithShortcut("Automation", "panels.automation", props.platform)} onClick={() => props.togglePanel("automationView")}>
           A
         </button>
       </div>
@@ -360,13 +366,13 @@ function Toolbar(props: EditorShellProps) {
         <button type="button" title={titleWithShortcut("Score Stylesheet", "view.stylesheet", props.platform)} onClick={props.onStylesheetPanelOpen}>
           Style
         </button>
-        <button type="button" title="Chord tool A" onClick={() => props.onToolOpen("chords")}>
+        <button type="button" title={titleWithShortcut("Chord tool", "tools.chords", props.platform)} onClick={() => props.onToolOpen("chords")}>
           Chord
         </button>
-        <button type="button" title="Scale tool Shift+S" onClick={() => props.onToolOpen("scales")}>
+        <button type="button" title={titleWithShortcut("Scale tool", "tools.scales", props.platform)} onClick={() => props.onToolOpen("scales")}>
           Scale
         </button>
-        <button type="button" title="Instrument view Ctrl+F6" onClick={() => props.onToolOpen("instrument")}>
+        <button type="button" title={titleWithShortcut("Instrument view", "tools.instrument", props.platform)} onClick={() => props.onToolOpen("instrument")}>
           Fret
         </button>
         <button type="button" title="Tuner" onClick={() => props.onToolOpen("tuner")}>
@@ -375,7 +381,7 @@ function Toolbar(props: EditorShellProps) {
         <button type="button" title="Transpose" onClick={() => props.onToolOpen("transpose")}>
           Trans
         </button>
-        <button type="button" title="Check bar duration F4" onClick={() => props.onToolOpen("cleanup")}>
+        <button type="button" title={titleWithShortcut("Check bar duration", "tools.cleanup", props.platform)} onClick={() => props.onToolOpen("cleanup")}>
           Check
         </button>
       </div>
@@ -402,15 +408,15 @@ function Toolbar(props: EditorShellProps) {
         ))}
       </div>
       <div className="toolbarGroup historyGroup">
-        <button type="button" title="Undo Ctrl+Z" onClick={() => props.dispatchCommand("history.undo")}>
+        <button type="button" title={titleWithShortcut("Undo", "history.undo", props.platform)} onClick={() => props.dispatchCommand("history.undo")}>
           ↶
         </button>
-        <button type="button" title="Redo Ctrl+Y" onClick={() => props.dispatchCommand("history.redo")}>
+        <button type="button" title={titleWithShortcut("Redo", "history.redo", props.platform)} onClick={() => props.dispatchCommand("history.redo")}>
           ↷
         </button>
       </div>
       <div className="toolbarGroup printGroup">
-        <button type="button" disabled title="Print Ctrl+P">
+        <button type="button" disabled title={titleWithShortcut("Print", "file.print", props.platform)}>
           ⎙
         </button>
       </div>
@@ -418,7 +424,7 @@ function Toolbar(props: EditorShellProps) {
         <button type="button" title="First bar" onClick={() => props.dispatchCommand("cursor.firstBar")}>
           |&lt;
         </button>
-        <button type="button" title="Previous bar Ctrl+Left" onClick={() => props.dispatchCommand("playback.previousBar")}>
+        <button type="button" title={titleWithShortcut("Previous bar", "playback.previousBar", props.platform)} onClick={() => props.dispatchCommand("playback.previousBar")}>
           &lt;
         </button>
         <button
@@ -429,7 +435,7 @@ function Toolbar(props: EditorShellProps) {
         >
           {props.playbackStatus === "playing" ? "Stop" : "Play"}
         </button>
-        <button type="button" title="Next bar Ctrl+Right" onClick={() => props.dispatchCommand("playback.nextBar")}>
+        <button type="button" title={titleWithShortcut("Next bar", "playback.nextBar", props.platform)} onClick={() => props.dispatchCommand("playback.nextBar")}>
           &gt;
         </button>
         <button type="button" title="Last bar" onClick={() => props.dispatchCommand("cursor.lastBar")}>
@@ -443,7 +449,7 @@ function Toolbar(props: EditorShellProps) {
         <span className={lcd.issue ? "lcdWarning" : ""}>
           {lcd.actual}/{lcd.expected}
         </span>
-        <button type="button" className={props.multiTrackView ? "activeToggle" : ""} title="Multitrack view F3" onClick={props.onToggleMultiTrackView}>
+        <button type="button" className={props.multiTrackView ? "activeToggle" : ""} title={titleWithShortcut("Multitrack view", "view.multitrack", props.platform)} onClick={props.onToggleMultiTrackView}>
           {props.multiTrackView ? "Multi" : "1"}
         </button>
         <button type="button" disabled>
@@ -460,7 +466,7 @@ function Toolbar(props: EditorShellProps) {
         <button type="button" className={props.metronomeEnabled ? "activeToggle" : ""} title="Metronome" onClick={() => props.dispatchCommand("playback.metronome")}>
           M
         </button>
-        <button type="button" className={props.loopEnabled ? "activeToggle" : ""} title="Loop F9" onClick={() => props.dispatchCommand("playback.loop")}>
+        <button type="button" className={props.loopEnabled ? "activeToggle" : ""} title={titleWithShortcut("Loop", "playback.loop", props.platform)} onClick={() => props.dispatchCommand("playback.loop")}>
           Loop
         </button>
         <button type="button" title="Speed down" onClick={() => props.dispatchCommand("playback.speedDown")}>
@@ -515,7 +521,7 @@ function EditionPalette({
   onToggleMultiVoice
 }: Pick<EditorShellProps, "dispatchCommand" | "cursor" | "multiVoiceEdit" | "onVoiceSelect" | "onToggleMultiVoice">) {
   return (
-    <aside className="palettePanel" aria-label="Edition palette" data-testid="palette-panel">
+    <aside className="palettePanel" aria-label="Edition palette" data-testid="palette-panel" onMouseDown={preserveScoreFocus}>
       <PaletteGroup title="Voices">
         {[1, 2, 3, 4].map((voice) => (
           <button

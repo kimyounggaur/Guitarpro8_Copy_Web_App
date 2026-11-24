@@ -2,6 +2,7 @@ import { z } from "zod";
 import { version as appVersion } from "../../package.json";
 import { ensureUniqueTrackIds, newId } from "../model/ids";
 import { checkInvariants } from "../model/invariants";
+import { normalizeTies } from "../model/ties";
 import type { Score } from "../model/types";
 import { fillMissingTrackBars, NATIVE_SCORE_FORMAT, NATIVE_SCORE_VERSION } from "./nativeScore";
 import { scoreSchema } from "./scoreSchema";
@@ -11,7 +12,7 @@ export const APP_FILE_FORMAT = "tabscore/score";
 export const NATIVE_EXTENSION = ".tabscore";
 export const LEGACY_NATIVE_EXTENSIONS = [".gp", ".gp8"] as const;
 export const NATIVE_FILE_ACCEPT = [NATIVE_EXTENSION, ...LEGACY_NATIVE_EXTENSIONS, ".json"];
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 export interface ScoreFileEnvelope {
   format: typeof APP_FILE_FORMAT;
@@ -38,16 +39,21 @@ const envelopeSchema = z.object({
   score: scoreSchema
 });
 
-type Migration = (input: Record<string, unknown>, documentId: string) => Record<string, unknown>;
+type Migration = (input: Record<string, unknown>, legacyDocumentId?: string) => Record<string, unknown>;
 
 const migrations: Partial<Record<number, Migration>> = {
-  1: (input, documentId) => ({
+  1: (input, legacyDocumentId) => ({
     format: APP_FILE_FORMAT,
     schemaVersion: 2,
     app: { name: typeof input.createdWith === "string" ? input.createdWith : APP_NAME, version: "1" },
-    documentId,
+    documentId: legacyDocumentId,
     savedAt: input.savedAt,
     score: input.score
+  }),
+  2: (input) => ({
+    ...input,
+    schemaVersion: 3,
+    score: migrateLegacyTies(input.score, ["tracks", "bars", "voices", "beats", "notes"])
   })
 };
 
@@ -85,6 +91,11 @@ export function readScoreFile(text: string, options: { documentId?: string } = {
     if (padded > 0) warnings.push(`Filled ${padded} missing track measure(s) with rests.`);
   }
   ensureUniqueTrackIds(score, warnings);
+
+  const orphanedTies = normalizeTies(score).filter(({ code }) => code === "tie-orphan").length;
+  if (orphanedTies > 0) {
+    warnings.push(`Removed ${orphanedTies} tie(s) with no preceding note.`);
+  }
 
   const issues = checkInvariants(score);
   const fatal = issues.find((issue) => issue.severity === "fatal");
@@ -124,15 +135,37 @@ function migrateToCurrent(
     throw new Error("This score was saved with a newer version. Update TabScore and open the file again.");
   }
 
+  const legacyDocumentId = fromVersion === NATIVE_SCORE_VERSION ? documentId || newId("doc") : undefined;
   let envelope = input;
   for (let version = fromVersion; version < CURRENT_SCHEMA_VERSION; version++) {
     const migration = migrations[version];
     if (!migration) {
       throw new Error(`TabScore cannot migrate score schema version ${version}.`);
     }
-    envelope = migration(envelope, documentId || newId("doc"));
+    envelope = migration(envelope, legacyDocumentId);
   }
   return envelope;
+}
+
+/**
+ * Follow only Score's structural arrays. Malformed entries remain unchanged
+ * for the schema validator to identify and report.
+ */
+function migrateLegacyTies(value: unknown, path: string[]): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const [key, ...remaining] = path;
+  if (key === undefined) {
+    const { tieOrigin, tieDestination: _destination, ...note } = value;
+    return isRecord(tieOrigin) ? { ...note, tiedFromPrevious: true } : note;
+  }
+
+  const entries = value[key];
+  return Array.isArray(entries)
+    ? { ...value, [key]: entries.map((entry) => migrateLegacyTies(entry, remaining)) }
+    : value;
 }
 
 function parseJson(text: string): unknown {
