@@ -53,6 +53,8 @@ export interface UseFileControllerParams {
 export interface FileController {
   fileIoStatus: string;
   fileInputRef: React.RefObject<HTMLInputElement>;
+  midiImportOpen: boolean;
+  resolveMidiImport: (detectTriplets: boolean | null) => void;
   unsavedConfirmationOpen: boolean;
   resolveUnsavedChoice: (choice: UnsavedChoice) => void;
   openDemo: (score: Score) => Promise<boolean>;
@@ -74,6 +76,8 @@ export function useFileController(params: UseFileControllerParams): FileControll
   const [fileIoStatus, setFileIoStatus] = useState(
     `Native ${NATIVE_EXTENSION}, ASCII, MusicXML, MIDI, SVG, PNG, and PDF are ready.`
   );
+  const [midiImportOpen, setMidiImportOpen] = useState(false);
+  const midiChoice = useRef<((detectTriplets: boolean | null) => void) | null>(null);
   const [unsavedConfirmationOpen, setUnsavedConfirmationOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingFileLoadRef = useRef<PendingFileLoad | null>(null);
@@ -83,7 +87,24 @@ export function useFileController(params: UseFileControllerParams): FileControll
   const saving = useRef(false);
   const loadingGeneration = useRef(0);
 
-  useEffect(() => () => unsavedChoice.current?.("cancel"), []);
+  useEffect(() => () => {
+    midiChoice.current?.(null);
+    unsavedChoice.current?.("cancel");
+  }, []);
+
+  function resolveMidiImport(detectTriplets: boolean | null): void {
+    const resolve = midiChoice.current;
+    midiChoice.current = null;
+    setMidiImportOpen(false);
+    resolve?.(detectTriplets);
+  }
+
+  function chooseMidiGrid(): Promise<boolean | null> {
+    return new Promise((resolve) => {
+      midiChoice.current = resolve;
+      setMidiImportOpen(true);
+    });
+  }
 
   function resolveUnsavedChoice(choice: UnsavedChoice): void {
     const resolve = unsavedChoice.current;
@@ -186,7 +207,8 @@ export function useFileController(params: UseFileControllerParams): FileControll
             {
               description: `${APP_NAME} score`,
               accept: { "application/json": NATIVE_FILE_ACCEPT }
-            }
+            },
+            { description: "MIDI", accept: { "audio/midi": [".mid", ".midi"] } }
           ]
         });
         return handle ? await loadFileIntoScore(await handle.getFile(), handle) : false;
@@ -384,7 +406,10 @@ export function useFileController(params: UseFileControllerParams): FileControll
       const text = kind === "midi" || kind === "mxl" ? "" : new TextDecoder().decode(bytes);
       const loaded = kind === "native" ? readScoreFile(text) : null;
       const xml = kind === "mxl" ? readCompressedMusicXml(bytes) : kind === "musicxml" ? readMusicXml(text) : null;
-      const nextScore = loaded?.score ?? xml?.score ?? (kind === "midi" ? importMidi(bytes) : importAsciiTab(text));
+      const detectTriplets = kind === "midi" ? await chooseMidiGrid() : false;
+      if (detectTriplets === null) return false;
+      const nextScore = loaded?.score ?? xml?.score ??
+        (kind === "midi" ? importMidi(bytes, { detectTriplets }) : importAsciiTab(text));
       if (!loaded) {
         const fatal = checkInvariants(nextScore).find((issue) => issue.severity === "fatal");
         if (fatal) throw new Error(`This score cannot be opened: ${fatal.message}`);
@@ -417,6 +442,8 @@ export function useFileController(params: UseFileControllerParams): FileControll
   return {
     fileIoStatus,
     fileInputRef,
+    midiImportOpen,
+    resolveMidiImport,
     unsavedConfirmationOpen,
     resolveUnsavedChoice,
     openDemo,
@@ -434,7 +461,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
 
 function acceptForPending(pending: PendingFileLoad): string {
   if (pending.kind === "native") {
-    return [...NATIVE_FILE_ACCEPT, "application/json"].join(",");
+    return [...NATIVE_FILE_ACCEPT, "application/json", ".mid", ".midi", "audio/midi"].join(",");
   }
 
   switch (pending.format) {

@@ -20,6 +20,7 @@ import { usePlaybackStore } from "../store/playbackStore";
 import { usePreferencesStore } from "../store/preferencesStore";
 import { useViewStore } from "../store/viewStore";
 import { RecoveryDialog } from "../ui/overlays/RecoveryDialog";
+import { MidiImportDialog } from "../ui/overlays/MidiImportDialog";
 import { UnsavedChangesDialog } from "../ui/overlays/UnsavedChangesDialog";
 import { EditorShell } from "../ui/shell/EditorShell";
 import { AppErrorBoundary } from "./AppErrorBoundary";
@@ -445,6 +446,7 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
           onRecent={onRecentFiles} onDemo={() => void file.openDemo(demoScore)} />
         {file.fileIoStatus && <p role="status">{file.fileIoStatus}</p>}
       </>}
+      {file.midiImportOpen && <MidiImportDialog onChoose={file.resolveMidiImport} />}
       {file.unsavedConfirmationOpen && <UnsavedChangesDialog onChoose={file.resolveUnsavedChoice} />}
       {editor.specialPasteOpen ? (
         <SpecialPasteDialog onApply={editor.applySpecialPaste} onCancel={editor.closeSpecialPaste} />
