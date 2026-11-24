@@ -2,28 +2,110 @@
 // route/shell render. All editing, playback, file I/O, command-palette and
 // tool-window logic now lives in src/app/controllers/* — see
 // docs/ui-remaster/00-component-map.md for the extraction map this Phase 2
-// refactor followed. Behavior is unchanged from the pre-refactor
-// src/App.tsx.
-import { useEffect, useMemo } from "react";
+// refactor followed.
+import { useEffect, useMemo, useRef, useState } from "react";
 import { defaultCursor } from "../engine/editing/operations";
 import { withEditorOverlays } from "../engine/editing/overlays";
 import { layoutScore } from "../engine/layout/layoutScore";
 import { SvgRenderer } from "../engine/render/SvgRenderer";
 import { detectPlatform } from "../commands/keymap";
 import { createDemoScore } from "../model/demoScore";
+import { readScoreFile } from "../io/fileFormat";
+import { discardRecoverySnapshot, listRecoverySnapshots, type RecoverySnapshot } from "../store/autosave";
 import { useDocumentStore } from "../store/documentStore";
 import { usePlaybackStore } from "../store/playbackStore";
 import { usePreferencesStore } from "../store/preferencesStore";
 import { useViewStore } from "../store/viewStore";
+import { RecoveryDialog } from "../ui/overlays/RecoveryDialog";
+import { UnsavedChangesDialog } from "../ui/overlays/UnsavedChangesDialog";
 import { EditorShell } from "../ui/shell/EditorShell";
+import { AppErrorBoundary } from "./AppErrorBoundary";
 import { useCommandController } from "./controllers/useCommandController";
 import { useEditorController } from "./controllers/useEditorController";
 import { useFileController } from "./controllers/useFileController";
 import { useGlobalShortcuts } from "./controllers/useGlobalShortcuts";
 import { usePlaybackController } from "./controllers/usePlaybackController";
+import { useScoreRecovery } from "./controllers/useScoreRecovery";
 import { useToolWindowController } from "./controllers/useToolWindowController";
 
 function App() {
+  const { snapshots, setSnapshots, available } = useScoreRecovery();
+  const rejection = useDocumentStore((state) => state.lastRejection);
+  const [recoveryDismissed, setRecoveryDismissed] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [editorKey, setEditorKey] = useState(0);
+
+  function restore(snapshot: RecoverySnapshot) {
+    try {
+      const loaded = readScoreFile(snapshot.payload, { documentId: snapshot.documentId });
+      useDocumentStore.getState().loadScore(loaded.score, { documentId: loaded.documentId, recovered: true });
+      const view = useViewStore.getState();
+      view.setSelection(null);
+      view.setCursor(defaultCursor(loaded.score));
+      setRecoveryDismissed(true);
+      setEditorKey((key) => key + 1);
+      setNotice(loaded.warnings.join(" "));
+    } catch (error) {
+      setRecoveryDismissed(true);
+      setNotice(error instanceof Error ? error.message : "The recovery file could not be read.");
+    }
+  }
+
+  async function discard(snapshot: RecoverySnapshot) {
+    try {
+      await discardRecoverySnapshot(snapshot.documentId, snapshot.savedAt);
+      setSnapshots((records) => records?.filter((record) =>
+        record.documentId !== snapshot.documentId || record.savedAt > snapshot.savedAt
+      ) ?? null);
+    } catch {
+      setNotice("The recovery file could not be removed.");
+    }
+  }
+
+  function openRecovery() {
+    void listRecoverySnapshots().then((records) => {
+      setSnapshots(records);
+      if (records.length) {
+        setRecoveryDismissed(false);
+      } else {
+        setNotice("No automatically saved scores are available.");
+      }
+    }, () => setNotice("Automatic saving is unavailable in this browser."));
+  }
+
+  const recoveryOpen = !!snapshots?.length && !recoveryDismissed;
+  const startupReady = snapshots !== null && !recoveryOpen;
+  const rejectionMessage = rejection?.issues.find((issue) => issue.severity === "fatal")?.message;
+
+  return (
+    <>
+      <AppErrorBoundary
+        key={editorKey}
+        onUndo={() => useDocumentStore.getState().undo()}
+        onRecover={openRecovery}
+      >
+        <EditorApp startupReady={startupReady} />
+      </AppErrorBoundary>
+      {recoveryOpen && snapshots && (
+        <RecoveryDialog
+          snapshots={snapshots}
+          onRecover={restore}
+          onDiscard={(snapshot) => void discard(snapshot)}
+          onDismiss={() => setRecoveryDismissed(true)}
+        />
+      )}
+      {(!available || notice || rejectionMessage) && (
+        <aside className="autosaveUnavailable" role="status">
+          {(!available ? "Automatic saving is unavailable in this browser." : null)}
+          {notice && <div>{notice}</div>}
+          {rejectionMessage && <div>Score change cancelled. {rejectionMessage}</div>}
+        </aside>
+      )}
+    </>
+  );
+}
+
+function EditorApp({ startupReady }: { startupReady: boolean }) {
   const score = useDocumentStore((state) => state.score);
   const dirty = useDocumentStore((state) => state.dirty);
   const documents = useDocumentStore((state) => state.documents);
@@ -62,13 +144,6 @@ function App() {
   const togglePanel = usePreferencesStore((state) => state.togglePanel);
   const demoScore = useMemo(() => createDemoScore(), []);
   const platform = useMemo(() => detectPlatform(), []);
-
-  useEffect(() => {
-    if (score.tracks.length === 0) {
-      loadScore(demoScore);
-      setCursor(defaultCursor(demoScore));
-    }
-  }, [demoScore, loadScore, score.tracks.length, setCursor]);
 
   useEffect(() => {
     syncMixerTracks(score.tracks);
@@ -125,6 +200,15 @@ function App() {
     closeFileIoPanel: toolWindow.closeFileIoPanel
   });
 
+  const openDemo = file.openDemo;
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (!startupReady || initialized.current) return;
+    initialized.current = true;
+    const state = useDocumentStore.getState();
+    if (!state.dirty && state.score.tracks.length === 0) void openDemo(demoScore);
+  }, [demoScore, openDemo, startupReady]);
+
   const command = useCommandController({
     score,
     cursor,
@@ -155,30 +239,63 @@ function App() {
   });
 
   useGlobalShortcuts({
-    togglePanel,
-    score,
-    cursorTrackId: cursor.trackId,
-    activeToolPanel: toolWindow.activeToolPanel,
-    activeTrackPanel: toolWindow.activeTrackPanel,
-    stylesheetPanelOpen: toolWindow.stylesheetPanelOpen,
-    fileIoPanelOpen: toolWindow.fileIoPanelOpen,
-    commandPaletteOpen: toolWindow.commandPaletteOpen,
-    anyOverlayOpen: toolWindow.anyOverlayOpen,
-    openCommandPalette: toolWindow.openCommandPalette,
-    handleNewFile: file.handleNewFile,
-    handleOpenNativeFile: file.handleOpenNativeFile,
-    handleSaveNativeFile: file.handleSaveNativeFile,
-    handleSaveNativeFileAs: file.handleSaveNativeFileAs,
-    toggleStylesheetPanel: toolWindow.toggleStylesheetPanel,
-    handleZoomChange: editor.handleZoomChange,
-    closeAllOverlays: toolWindow.closeAllOverlays,
-    setActiveTrackPanel: toolWindow.setActiveTrackPanel,
-    setMultiTrackView: editor.setMultiTrackView,
-    setMultiVoiceEdit: editor.setMultiVoiceEdit,
-    handleVoiceSelect: editor.handleVoiceSelect,
-    handleMoveNoteToVoice: editor.handleMoveNoteToVoice,
-    setActiveToolPanel: toolWindow.setActiveToolPanel
+    "file.new": file.handleNewFile,
+    "file.open": file.handleOpenNativeFile,
+    "file.save": file.handleSaveNativeFile,
+    "file.saveAs": file.handleSaveNativeFileAs,
+    "file.print": () => window.print(),
+    "history.undo": editor.editorContext.undo,
+    "history.redo": editor.editorContext.redo,
+    "playback.toggle": () => editor.editorContext.togglePlayback(false),
+    "view.closeOverlays": () => {
+      if (!toolWindow.anyOverlayOpen) return false;
+      toolWindow.closeAllOverlays();
+    },
+    "panels.palette": () => togglePanel("palette"),
+    "panels.songInspector": () => togglePanel("songInspector"),
+    "panels.trackInspector": () => togglePanel("trackInspector"),
+    "panels.globalView": () => togglePanel("globalView"),
+    "panels.automation": () => togglePanel("automationView"),
+    "view.stylesheet": toolWindow.toggleStylesheetPanel,
+    "view.multitrack": editor.handleToggleMultiTrackView,
+    "view.zoomIn": () => editor.handleZoomChange(useDocumentStore.getState().score.documentSettings.zoom + 10),
+    "view.zoomOut": () => editor.handleZoomChange(useDocumentStore.getState().score.documentSettings.zoom - 10),
+    "track.add": () => toolWindow.setActiveTrackPanel("wizard"),
+    "voice.toggleMulti": () => {
+      editor.handleToggleMultiVoice();
+      toolWindow.setActiveTrackPanel("voices");
+    },
+    "voice.edit1": () => editor.handleVoiceSelect(0),
+    "voice.edit2": () => editor.handleVoiceSelect(1),
+    "voice.edit3": () => editor.handleVoiceSelect(2),
+    "voice.edit4": () => editor.handleVoiceSelect(3),
+    "voice.move1": () => editor.handleMoveNoteToVoice(0),
+    "voice.move2": () => editor.handleMoveNoteToVoice(1),
+    "voice.move3": () => editor.handleMoveNoteToVoice(2),
+    "voice.move4": () => editor.handleMoveNoteToVoice(3),
+    "tools.chords": () => toolWindow.setActiveToolPanel("chords"),
+    "tools.scales": () => toolWindow.setActiveToolPanel("scales"),
+    "tools.cleanup": () => toolWindow.setActiveToolPanel("cleanup"),
+    "tools.instrument": () => {
+      const { score } = useDocumentStore.getState();
+      const trackId = useViewStore.getState().cursor.trackId;
+      if (score.tracks.find((track) => track.id === trackId)?.icon === "drums") {
+        toolWindow.setActiveTrackPanel("drums");
+      } else {
+        toolWindow.setActiveToolPanel("instrument");
+      }
+    },
+    "tools.commandPalette": () => toolWindow.openCommandPalette(),
+    "tools.actionList": () => toolWindow.openCommandPalette("@"),
+    "tools.expressionText": () => toolWindow.openCommandPalette(">")
   });
+
+  const scoreViewportRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (startupReady && score.tracks.length > 0 && document.activeElement === document.body) {
+      scoreViewportRef.current?.focus({ preventScroll: true });
+    }
+  }, [score.tracks.length, startupReady]);
 
   const scoreForLayout = useMemo(() => {
     if (editor.multiTrackView) {
@@ -291,12 +408,15 @@ function App() {
         onCleanupRequest={editor.handleCleanupRequest}
         workspace={
           <div
+            ref={scoreViewportRef}
             className="scoreViewport"
             tabIndex={0}
             role="application"
             aria-label="Editable score"
             onClick={editor.handleScoreClick}
-            onKeyDown={editor.handleScoreKeyDown}
+            onKeyDown={(event) => {
+              if (!event.defaultPrevented) editor.handleScoreKeyDown(event);
+            }}
             onDragOver={file.handleScoreDragOver}
             onDrop={(event) => void file.handleScoreDrop(event)}
           >
@@ -308,6 +428,7 @@ function App() {
           </div>
         }
       />
+      {file.unsavedConfirmationOpen && <UnsavedChangesDialog onChoose={file.resolveUnsavedChoice} />}
       <input
         ref={file.fileInputRef}
         type="file"

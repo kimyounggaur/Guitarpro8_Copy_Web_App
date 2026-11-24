@@ -1,4 +1,4 @@
-import { beatDurationTicks, writtenPitch } from "../../model/derive";
+import { beatDurationTicks, tryWrittenPitch } from "../../model/derive";
 import { normalizeStylesheet } from "../../model/stylesheet";
 import type {
   Beat,
@@ -536,13 +536,17 @@ function createVoicePlacements(
   beats.forEach((beat, beatIndex) => {
     const x = measureX + 16 + tickToMeasureX(measure.content, tick, measure.width - 28);
     const color = voiceColor(voiceIndex, options);
-    const notePlacements = beat.notes.map((note, noteIndex) => ({
-      ref: { trackId: track.id, barIndex, voiceIndex, beatIndex, noteIndex },
-      note,
-      x,
-      y: pitchToStaffY(writtenPitch(note, track, { concertTone: options.concertTone, ottava: beat.ottava }), staffY),
-      tabY: tabY + (note.string - 1) * TAB_LINE_GAP + 4
-    }));
+    const notePlacements = beat.notes.flatMap((note, noteIndex) => {
+      const pitch = tryWrittenPitch(note, track, { concertTone: options.concertTone, ottava: beat.ottava });
+      if (pitch === null) return [];
+      return [{
+        ref: { trackId: track.id, barIndex, voiceIndex, beatIndex, noteIndex },
+        note,
+        x,
+        y: pitchToStaffY(pitch, staffY),
+        tabY: tabY + (note.string - 1) * TAB_LINE_GAP + 4
+      }];
+    });
     const direction = resolveStemDirection(beat, voiceIndex, activeVoiceCount, notePlacements, staffY);
     const stem = createStemGeometry(beat, notePlacements, x, direction);
     const tabBottomY = tabY + (track.tuning.strings.length - 1) * TAB_LINE_GAP;
@@ -1319,10 +1323,12 @@ function tiePrimitivesForSystem(
             noteIndex
           };
 
+          const pitch = tryWrittenPitch(note, track, { concertTone: options.concertTone, ottava: beat.ottava });
+          if (pitch === null) return;
           anchors.set(noteRefKey(ref), {
             ref,
             x,
-            y: pitchToStaffY(writtenPitch(note, track, { concertTone: options.concertTone, ottava: beat.ottava }), staffY),
+            y: pitchToStaffY(pitch, staffY),
             voiceIndex,
             color: voiceColor(voiceIndex, options)
           });

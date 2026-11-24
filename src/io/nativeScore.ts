@@ -1,4 +1,4 @@
-import { createEmptyScore } from "../model/factory";
+import { createBar, createBeat, createEmptyScore } from "../model/factory";
 import { normalizeStylesheet } from "../model/stylesheet";
 import type { DocumentSettings, Score } from "../model/types";
 
@@ -54,13 +54,21 @@ export function normalizeScoreForIo(score: Score): Score {
       : []
   };
 
-  normalized.tracks.forEach((track) => {
-    while (track.bars.length < normalized.masterBars.length) {
-      track.bars.push(structuredClone(track.bars[track.bars.length - 1] ?? { voices: [{ beats: [] }, { beats: [] }, { beats: [] }, { beats: [] }] }));
-    }
-  });
-
+  fillMissingTrackBars(normalized);
   return normalized;
+}
+
+export function fillMissingTrackBars(score: Score): number {
+  let padded = 0;
+  for (const track of score.tracks) {
+    while (track.bars.length < score.masterBars.length) {
+      const restBar = createBar();
+      restBar.voices[0].beats.push(createBeat({ duration: 1 }));
+      track.bars.push(restBar);
+      padded++;
+    }
+  }
+  return padded;
 }
 
 function normalizeDocumentSettings(settings: DocumentSettings | undefined): DocumentSettings {

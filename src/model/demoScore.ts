@@ -53,6 +53,7 @@ export function createDemoScore(): Score {
   ];
 
   const guitar = createTrack(undefined, score.masterBars.length);
+  guitar.id = "track-1";
   guitar.name = "Guitar";
   guitar.shortName = "Gtr.";
   guitar.color = "#2563eb";
@@ -68,6 +69,7 @@ export function createDemoScore(): Score {
     },
     score.masterBars.length
   );
+  bass.id = "track-2";
   bass.notationTypes = ["standard", "tab"];
 
   score.tracks = [guitar, bass];

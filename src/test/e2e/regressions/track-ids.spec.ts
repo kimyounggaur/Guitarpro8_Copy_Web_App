@@ -22,7 +22,6 @@ test("[A11] adding a track after opening a legacy score preserves unique IDs", a
   const { score, cursor } = await state(page);
   expect(score.tracks).toHaveLength(9);
 
-  test.fail(true, "R1 assigns new IDs independently of the session's legacy sequential counter.");
   expect(new Set(score.tracks.map((track) => track.id)).size).toBe(9);
   expect(cursor.trackId).toBe(score.tracks[8].id);
   await focusScore(page);
