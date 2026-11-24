@@ -58,7 +58,7 @@ export interface FileController {
   handleSaveNativeFile: () => Promise<void>;
   handleSaveNativeFileAs: () => Promise<void>;
   handleImportFile: (format: ImportFormat) => void;
-  handleExportFile: (format: ExportFormat) => Promise<void>;
+  handleExportFile: (format: ExportFormat, pngScale?: PngScale) => Promise<void>;
   handleFileInputChange: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleScoreDrop: (event: DragEvent<HTMLDivElement>) => Promise<void>;
   handleScoreDragOver: (event: DragEvent<HTMLDivElement>) => void;
