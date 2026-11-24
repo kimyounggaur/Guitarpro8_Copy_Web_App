@@ -2,13 +2,8 @@ import { expect } from "@playwright/test";
 import { test } from "./helpers";
 
 /**
- * Behavioral regression harness for the current (pre-remaster) EditorShell.
- * These assertions describe today's real behavior (see
- * docs/ui-remaster/00-interaction-matrix.md) so later remaster phases fail
- * loudly the moment they accidentally regress something that used to work.
- * They are NOT a spec for the GP8 target UX — Phase 5+ specs will assert
- * the target behavior (exclusive SONG/TRACK tabs, working menu, etc.) as
- * each phase actually implements it.
+ * Editor shell regressions retain short-key behavior and verify the current
+ * inspector tab and dock contract.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -34,24 +29,25 @@ test("F2 hides and restores the edition palette", async ({ page }) => {
   await expect(page.getByTestId("palette-panel")).toBeVisible();
 });
 
-test("F5 and F6 toggle the Song/Track inspector sections independently", async ({ page }) => {
+test("[Phase 11] F5 and F6 focus their inspector tab and close it when repeated", async ({ page }) => {
   const inspector = page.getByTestId("inspector-panel");
-  await expect(inspector).toBeVisible();
-  await expect(inspector.getByText("Song", { exact: true })).toBeVisible();
-  await expect(inspector.getByText("Transposition", { exact: true })).toBeVisible();
-
-  await page.keyboard.press("F5");
-  await expect(inspector.getByText("Song", { exact: true })).toBeHidden();
-  await expect(inspector.getByText("Transposition", { exact: true })).toBeVisible();
-
-  await page.keyboard.press("F5");
-  await expect(inspector.getByText("Song", { exact: true })).toBeVisible();
-
-  await page.keyboard.press("F6");
+  await expect(inspector.getByRole("tab", { name: "Song" })).toHaveAttribute("aria-selected", "true");
   await expect(inspector.getByText("Transposition", { exact: true })).toBeHidden();
 
   await page.keyboard.press("F6");
+  await expect(inspector.getByRole("tab", { name: "Track" })).toHaveAttribute("aria-selected", "true");
   await expect(inspector.getByText("Transposition", { exact: true })).toBeVisible();
+
+  await page.keyboard.press("F6");
+  await expect(inspector).toBeHidden();
+  await page.keyboard.press("F5");
+  await expect(inspector.getByRole("tab", { name: "Song" })).toHaveAttribute("aria-selected", "true");
+  await expect(inspector.getByText("Transposition", { exact: true })).toBeHidden();
+
+  await inspector.getByRole("tab", { name: "Track" }).click();
+  await expect(inspector.getByRole("tab", { name: "Track" })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(inspector.getByRole("tab", { name: "Song" })).toBeFocused();
 });
 
 test("F8 toggles the Global View dock", async ({ page }) => {

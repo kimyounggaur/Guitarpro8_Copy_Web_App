@@ -7,8 +7,8 @@ test("[B5] drag previews stay out of history and the saved mixer reopens intact"
   await page.addInitScript(() => Object.defineProperty(window, "showSaveFilePicker", { value: undefined }));
   await openApp(page, { fixture: guitarWithBars([[5, 7]]) });
   const initial = await state(page);
-  const strip = page.locator(".trackMixerStrip").first();
-  const volume = strip.getByRole("slider", { name: /Vol/ });
+  const strip = page.locator(".globalTrackRow").first();
+  const volume = strip.getByRole("slider", { name: /volume/i });
   await volume.scrollIntoViewIfNeeded();
   const bounds = (await volume.boundingBox())!;
 

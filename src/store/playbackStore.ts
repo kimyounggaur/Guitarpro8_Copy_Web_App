@@ -20,6 +20,7 @@ interface PlaybackStore {
   speedPercent: number;
   trackControls: Record<string, Partial<TrackMixerState>>;
   focusPreview: number | null;
+  masterVolumePreview: number | null;
   setStatus: (status: PlaybackStatus) => void;
   setTempo: (tempo: number) => void;
   setPosition: (position: { barIndex: number; tick: number; timeSec: number }) => void;
@@ -28,6 +29,7 @@ interface PlaybackStore {
   toggleCountIn: () => void;
   setSpeedPercent: (speedPercent: number) => void;
   setTrackMixer: (trackId: string, patch: Partial<TrackMixerState>, phase?: MixerEditPhase) => void;
+  setMasterVolume: (volume: number, phase?: MixerEditPhase) => void;
   setMasterFocusPercent: (focusPercent: number, phase?: MixerEditPhase) => void;
   toggleTrackEffect: (trackId: string, effect: EffectSlotType) => void;
 }
@@ -44,6 +46,7 @@ export const usePlaybackStore = create<PlaybackStore>((set) => ({
   speedPercent: 100,
   trackControls: {},
   focusPreview: null,
+  masterVolumePreview: null,
   setStatus: (status) => set({ status }),
   setTempo: (tempo) => set((state) => state.tempo === tempo ? state : { tempo }),
   setPosition: ({ barIndex, tick, timeSec }) =>
@@ -82,6 +85,18 @@ export const usePlaybackStore = create<PlaybackStore>((set) => ({
       if (controls.pan === undefined) delete controls.pan;
       return { trackControls: { ...state.trackControls, [trackId]: controls } };
     });
+  },
+  setMasterVolume: (value, phase = "commit") => {
+    const volume = clamp(value, 0, 1);
+    if (phase === "preview") {
+      set({ masterVolumePreview: volume });
+      return;
+    }
+    const document = useDocumentStore.getState();
+    if (document.score.masterMix.volume !== volume) {
+      document.transact("Set master volume", (score) => { score.masterMix.volume = volume; });
+    }
+    set({ masterVolumePreview: null });
   },
   setMasterFocusPercent: (value, phase = "commit") => {
     const focus = clamp(value, -100, 100);

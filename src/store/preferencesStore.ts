@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useLayoutStore } from "./layoutStore";
 import { stylesheetSchema } from "../io/scoreSchema";
 import type { Stylesheet } from "../model/types";
 
@@ -50,10 +51,21 @@ export const usePreferencesStore = create<PreferencesStore>((set) => ({
   setInvertPlusMinus: (invertPlusMinus) => set({ invertPlusMinus }),
   togglePanel: (panel) =>
     set((state) => {
-      const panelVisibility = {
-        ...state.panelVisibility,
-        [panel]: !state.panelVisibility[panel]
-      };
+      let panelVisibility: PanelVisibility;
+      if (panel === "songInspector" || panel === "trackInspector") {
+        const tab = panel === "songInspector" ? "song" : "track";
+        const layout = useLayoutStore.getState();
+        const visible = state.panelVisibility.songInspector || state.panelVisibility.trackInspector;
+        const close = visible && layout.activeInspectorTab === tab;
+        layout.activateInspector(tab);
+        panelVisibility = {
+          ...state.panelVisibility,
+          songInspector: !close && tab === "song",
+          trackInspector: !close && tab === "track"
+        };
+      } else {
+        panelVisibility = { ...state.panelVisibility, [panel]: !state.panelVisibility[panel] };
+      }
       savePanelVisibility(panelVisibility);
       return { panelVisibility };
     })
@@ -73,7 +85,11 @@ function loadPanelVisibility(): PanelVisibility {
   }
 
   try {
-    return { ...fallback, ...JSON.parse(localStorage.getItem(panelStorageKey) ?? "{}") };
+    const stored = JSON.parse(localStorage.getItem(panelStorageKey) ?? "{}");
+    for (const panel of Object.keys(fallback) as Array<keyof PanelVisibility>) {
+      if (typeof stored?.[panel] === "boolean") fallback[panel] = stored[panel];
+    }
+    return fallback;
   } catch {
     return fallback;
   }
@@ -84,7 +100,11 @@ function savePanelVisibility(panelVisibility: PanelVisibility): void {
     return;
   }
 
-  localStorage.setItem(panelStorageKey, JSON.stringify(panelVisibility));
+  try {
+    localStorage.setItem(panelStorageKey, JSON.stringify(panelVisibility));
+  } catch {
+    // Visibility is still available for the current editing session.
+  }
 }
 
 function loadDefaultStylesheet(): Stylesheet | null {
