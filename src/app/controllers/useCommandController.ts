@@ -386,10 +386,10 @@ export function runAppAction(deps: CommandControllerDeps, action: string, label 
       deps.openStylesheetPanel();
       return { handled: true, message: label };
     case "view.zoomIn":
-      deps.handleZoomChange(useViewStore.getState().zoom + 10);
+      deps.handleZoomChange(useViewStore.getState().zoom + 5);
       return { handled: true, message: label };
     case "view.zoomOut":
-      deps.handleZoomChange(useViewStore.getState().zoom - 10);
+      deps.handleZoomChange(useViewStore.getState().zoom - 5);
       return { handled: true, message: label };
     default:
       break;

@@ -31,7 +31,7 @@ test("[C2] expression and action suggestions use their respective input modes", 
   await input.fill("@ zoom in");
   await palette.getByRole("button", { name: /View > Zoom In/ }).click();
   await expect(palette).toBeHidden();
-  expect((await state(page)).view.zoom).toBe(110);
+  expect((await state(page)).view.zoom).toBe(105);
 });
 
 test("[C2] flow mode applies a command while keeping the palette open", async ({ page }) => {

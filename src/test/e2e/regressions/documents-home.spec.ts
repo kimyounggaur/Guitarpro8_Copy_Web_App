@@ -22,7 +22,7 @@ test("document tabs keep independent notes, history, view and playback", async (
   await expect.poll(() => firstFret(page)).toBe(3);
   await page.keyboard.press("Control+Shift+Tab");
   await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
-  expect((await state(page)).view.zoom).toBe(110);
+  expect((await state(page)).view.zoom).toBe(105);
   expect(await firstFret(page)).toBe(7);
   await page.keyboard.press("Control+z");
   expect(await firstFret(page)).toBe(5);

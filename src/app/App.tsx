@@ -306,8 +306,8 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     "panels.automation": () => togglePanel("automationView"),
     "view.stylesheet": toolWindow.toggleStylesheetPanel,
     "view.multitrack": editor.handleToggleMultiTrackView,
-    "view.zoomIn": () => editor.handleZoomChange(useViewStore.getState().zoom + 10),
-    "view.zoomOut": () => editor.handleZoomChange(useViewStore.getState().zoom - 10),
+    "view.zoomIn": () => editor.handleZoomChange(useViewStore.getState().zoom + 5),
+    "view.zoomOut": () => editor.handleZoomChange(useViewStore.getState().zoom - 5),
     "track.add": () => toolWindow.setActiveTrackPanel("wizard"),
     "voice.toggleMulti": () => {
       editor.handleToggleMultiVoice();
