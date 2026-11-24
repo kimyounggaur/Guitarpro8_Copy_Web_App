@@ -380,6 +380,7 @@ const messages = {
   "menu.action.clipboard.copy": "Copy",
   "menu.action.clipboard.cut": "Cut",
   "menu.action.clipboard.paste": "Paste",
+  "menu.action.clipboard.specialPaste": "Special Paste",
   "menu.action.selection.selectTrack": "Select All",
   "menu.action.track.add": "Add",
   "menu.action.track.delete": "Delete",

@@ -25,6 +25,7 @@ describe("Phase 10 keymap", () => {
       ["panels.palette", key("F2"), "global"],
       ["history.redo", key("y", { ctrlKey: true }), "global"],
       ["clipboard.copy", key("c", { ctrlKey: true }), "workspace"],
+      ["clipboard.specialPaste", key("V", { ctrlKey: true, shiftKey: true }), "workspace"],
       ["bar.insert", key("Insert"), "workspace"],
       ["beat.insert", key("Insert", { ctrlKey: true }), "workspace"],
       ["bar.symbol.timeSignature", key("t", { ctrlKey: true }), "workspace"],
@@ -43,6 +44,8 @@ describe("Phase 10 keymap", () => {
       expect(commandIdForKeyEvent(event, scope, "win")).toBe(commandId);
       expect(keymapEntryForCommand(commandId)).toBeTruthy();
     });
+    expect(commandIdForKeyEvent(key("V", { metaKey: true, shiftKey: true }), "workspace", "mac"))
+      .toBe("clipboard.specialPaste");
   });
 });
 

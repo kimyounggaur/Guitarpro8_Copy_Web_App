@@ -28,6 +28,7 @@ export async function openApp(
   if (fixture) {
     await page.evaluate(({ json, viewOverride }) => window.__GPW_TEST__!.loadScoreJson(json, viewOverride),
       { json: JSON.stringify(fixture), viewOverride: view });
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   }
 }
 
