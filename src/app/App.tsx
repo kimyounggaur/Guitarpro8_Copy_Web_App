@@ -1,3 +1,4 @@
+import { StartScreen } from "../ui/shell/StartScreen";
 import { SpecialPasteDialog } from "../ui/overlays/SpecialPasteDialog";
 // Composition root: store subscriptions, controller composition, and the
 // route/shell render. All editing, playback, file I/O, command-palette and
@@ -87,7 +88,7 @@ function App() {
         onUndo={() => useDocumentStore.getState().undo()}
         onRecover={openRecovery}
       >
-        <EditorApp startupReady={startupReady} />
+        <EditorApp startupReady={startupReady} onRecentFiles={openRecovery} />
       </AppErrorBoundary>
       {recoveryOpen && snapshots && (
         <RecoveryDialog
@@ -108,7 +109,7 @@ function App() {
   );
 }
 
-function EditorApp({ startupReady }: { startupReady: boolean }) {
+function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onRecentFiles: () => void }) {
   const score = useDocumentStore((state) => state.score);
   const dirty = useDocumentStore((state) => state.dirty);
   const documents = useDocumentStore((state) => state.documents);
@@ -204,7 +205,8 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   const openDemo = file.openDemo;
   const initialized = useRef(false);
   useEffect(() => {
-    if (!startupReady || initialized.current) return;
+    const testMode = new URLSearchParams(window.location.search).get("testMode");
+    if (!startupReady || initialized.current || (testMode !== "e2e" && testMode !== "visual")) return;
     initialized.current = true;
     const state = useDocumentStore.getState();
     if (!state.dirty && state.score.tracks.length === 0) void openDemo(demoScore);
@@ -332,7 +334,7 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
   return (
     <>
       {editor.editNotice && <aside className="autosaveUnavailable" role="status">{editor.editNotice}</aside>}
-      <EditorShell
+      {score.tracks.length > 0 ? <EditorShell
         score={score}
         cursor={cursor}
         dirty={dirty}
@@ -438,7 +440,11 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
             />
           </div>
         }
-      />
+      /> : <>
+        <StartScreen onCreate={file.handleNewFile} onOpen={() => void file.handleOpenNativeFile()}
+          onRecent={onRecentFiles} onDemo={() => void file.openDemo(demoScore)} />
+        {file.fileIoStatus && <p role="status">{file.fileIoStatus}</p>}
+      </>}
       {file.unsavedConfirmationOpen && <UnsavedChangesDialog onChoose={file.resolveUnsavedChoice} />}
       {editor.specialPasteOpen ? (
         <SpecialPasteDialog onApply={editor.applySpecialPaste} onCancel={editor.closeSpecialPaste} />

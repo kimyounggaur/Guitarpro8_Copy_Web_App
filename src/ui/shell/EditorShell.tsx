@@ -27,7 +27,7 @@ import type { TransposeOptions } from "../../engine/tools/transpose";
 import type { RetuneMode } from "../../model/instruments";
 import type { Command } from "../../commands/registry";
 import type { EditorCommandContext } from "../../commands/editingCommands";
-import { MENU_TREE } from "../../commands/paletteCommands";
+import { ApplicationMenus } from "./ApplicationMenus";
 import type { Platform } from "../../commands/keymap";
 import { TopToolbar } from "./TopToolbar";
 
@@ -188,7 +188,7 @@ const effectSlotButtons: Array<[EffectSlotType, string]> = [
 export function EditorShell(props: EditorShellProps) {
   return (
     <main className="gpShell" data-testid="gp-shell">
-      <MenuBar />
+      <ApplicationMenus platform={props.platform} commandIds={new Set(props.registeredCommands.map(({ id }) => id))} onAction={props.onCommandPaletteSubmit} />
       <TopToolbar {...props} onMouseDown={preserveScoreFocus} />
       <TabBar documents={props.documents} activeId={props.activeId} />
       <CommandPalette
@@ -282,18 +282,6 @@ export function EditorShell(props: EditorShellProps) {
   );
 }
 
-function MenuBar() {
-  return (
-    <nav className="menuBar" aria-label="Application menus">
-      {MENU_TREE.map((menu) => (
-        <button key={menu.name} type="button">
-          {menu.name}
-        </button>
-      ))}
-    </nav>
-  );
-}
-
 function preserveScoreFocus(event: React.MouseEvent<HTMLElement>): void {
   if (event.button === 0 && event.target instanceof Element && event.target.closest("button")) {
     event.preventDefault();
@@ -307,20 +295,17 @@ function TabBar({
   return (
     <div className="tabBar" aria-label="Open documents" data-testid="tab-bar">
       {documents.map((document) => (
-        <button
+        <span
           key={document.id}
-          type="button"
           className={document.id === activeId ? "activeTab" : ""}
+          aria-current={document.id === activeId ? "true" : undefined}
           data-testid="document-tab"
         >
           {document.locked ? "L " : ""}
           {document.title}
           {document.dirty ? " ●" : ""}
-        </button>
+        </span>
       ))}
-      <button type="button" className="tabAdd" data-testid="tab-add">
-        +
-      </button>
     </div>
   );
 }
@@ -563,6 +548,7 @@ function InspectorPanel(props: EditorShellProps) {
             <div className="soundInspector">
               <h2>Sound</h2>
               <select
+                aria-label="Track sound"
                 value={currentMixer.eq}
                 onChange={(event) =>
                   props.onMixerTrackChange(currentTrack.id, { eq: event.target.value as EqPreset })
@@ -771,6 +757,7 @@ function TrackMixerStrip(props: EditorShellProps & { track: Track }) {
         className="mixerSelect"
         value={mixer.eq}
         title="EQ"
+        aria-label="Equalizer"
         onChange={(event) => props.onMixerTrackChange(track.id, { eq: event.target.value as EqPreset })}
       >
         {eqPresets.map((preset) => (

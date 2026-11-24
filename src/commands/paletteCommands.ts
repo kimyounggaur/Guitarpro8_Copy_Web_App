@@ -1,3 +1,4 @@
+import { availableMenuGroups } from "./menus";
 import { shortcutLabel } from "./keymap";
 import type { Command } from "./registry";
 
@@ -54,7 +55,6 @@ export const QUICK_COMMANDS: PaletteEntry[] = [
   quick("left-hand-tapping", "Set left hand tapping"),
   quick("legato", "Set legato", "note.effect.slide"),
   quick("let-ring", "Set let ring", "note.effect.letRing"),
-  quick("multirest", "Activate multirest", "bar.symbol.multirest"),
   quick("multivoice", "Activate multivoice", undefined, "voice.toggleMulti"),
   quick("palm-mute", "Set palm mute", "note.effect.palmMute"),
   quick("pedal", "Set sustain pedal"),
@@ -342,8 +342,14 @@ export function suggestPaletteEntries(
 ): PaletteEntry[] {
   const parsed = parsePaletteInput(input);
 
+  const available = new Set(registeredCommands.map(({ id }) => id));
+  const quick = QUICK_COMMANDS.filter(({ commandId }) => commandId && available.has(commandId));
+  const prefixes = new Set(["$", "4/4", ":", "@", "add-bar", "arpeggio", "brush", "export", "flow", "import",
+    "insert-bars", "pickstroke", "slap-pop", "unset", "view", "voice", "wah", "x", "zoom"]);
+  const advanced = ADVANCED_COMMANDS.filter(({ prefix }) => prefixes.has(prefix));
+
   if (parsed.mode === "action") {
-    return filterEntries(flattenMenuActions(), parsed.args);
+    return filterEntries(flattenMenuActions(availableMenuGroups(available)), parsed.args);
   }
 
   if (parsed.mode === "expression") {
@@ -351,7 +357,7 @@ export function suggestPaletteEntries(
   }
 
   if (parsed.mode === "help" || input.trim() === "?") {
-    return [...QUICK_COMMANDS, ...ADVANCED_COMMANDS].sort(byPrefix);
+    return [...quick, ...advanced].sort(byPrefix);
   }
 
   const registeredEntries = registeredCommands.map((command) => ({
@@ -362,7 +368,7 @@ export function suggestPaletteEntries(
     aliases: [command.id, shortcutLabel(command.id, "win"), shortcutLabel(command.id, "mac")].filter(Boolean) as string[]
   }));
 
-  return filterEntries([...QUICK_COMMANDS, ...ADVANCED_COMMANDS, ...registeredEntries], input).sort(byPrefix);
+  return filterEntries([...quick, ...advanced, ...registeredEntries], input).sort(byPrefix);
 }
 
 export function commandUsage(input: string): string {

@@ -1,4 +1,5 @@
 import { useViewStore } from "../../store/viewStore";
+import { isMenuAppAction } from "../../commands/menus";
 // Command controller — the Command Palette free-text grammar interpreter
 // (`handleCommandPaletteSubmit` and everything it delegates to) plus
 // `runMenuAction`/`runAppAction`/`dispatchEditorCommand`.
@@ -223,11 +224,14 @@ export function runMenuAction(deps: CommandControllerDeps, query: string): Comma
     }
   }
 
-  if (action.paletteInput) {
-    return handleCommandPaletteSubmit(deps, action.paletteInput);
+  const appAction = action.appAction ?? action.id;
+  if (isMenuAppAction(appAction)) return runAppAction(deps, appAction, action.label);
+  if (action.paletteInput === "@" || action.paletteInput === ">") {
+    deps.openCommandPalette(action.paletteInput);
+    return { handled: true, message: action.label, keepOpen: true };
   }
-
-  return runAppAction(deps, action.appAction ?? action.id, action.label);
+  if (action.paletteInput) return handleCommandPaletteSubmit(deps, action.paletteInput);
+  return { handled: false, message: `${action.label} is not available here.` };
 }
 
 /** Routes a `MENU_TREE` `appAction` string (or a bare quick-command
@@ -284,7 +288,7 @@ export function runAppAction(deps: CommandControllerDeps, action: string, label 
       void deps.handleExportFile("pdf");
       return { handled: true, message: "Export PDF" };
     case "file.print":
-      window.print();
+      void deps.handleExportFile("pdf");
       return { handled: true, message: "Print" };
     case "layout.forceBreak": {
       const nextScore = deps.transact("Force break line", (draft) => {

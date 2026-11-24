@@ -1,4 +1,6 @@
 import { getDocumentView } from "../../store/viewStore";
+import { instrumentById, TUNING_PRESETS } from "../../model/instruments";
+import type { NewScoreOptions } from "../../ui/shell/StartScreen";
 // File I/O controller — File System Access API, the hidden <input> fallback,
 // import/export/download, and score drag & drop.
 //
@@ -53,7 +55,7 @@ export interface FileController {
   unsavedConfirmationOpen: boolean;
   resolveUnsavedChoice: (choice: UnsavedChoice) => void;
   openDemo: (score: Score) => Promise<boolean>;
-  handleNewFile: () => void;
+  handleNewFile: (options?: NewScoreOptions) => void;
   handleOpenNativeFile: () => Promise<void>;
   handleSaveNativeFile: () => Promise<void>;
   handleSaveNativeFileAs: () => Promise<void>;
@@ -130,11 +132,26 @@ export function useFileController(params: UseFileControllerParams): FileControll
     setCursor(defaultCursor(score));
   }
 
-  function handleNewFile(): void {
+  function handleNewFile(options?: NewScoreOptions): void {
     void navigate(async () => {
       if (!await confirmDiscardIfDirty()) return false;
       const nextScore = createEmptyScore();
-      nextScore.tracks.push(createTrack(undefined, nextScore.masterBars.length));
+      const preset = options ? instrumentById(options.instrumentId) : undefined;
+      const tuning = options && TUNING_PRESETS.find(({ id, instrumentIds }) =>
+        id === options.tuningId && instrumentIds.includes(options.instrumentId));
+      if (options) {
+        nextScore.masterBars[0].timeSignature = {
+          ...nextScore.masterBars[0].timeSignature, numerator: options.beats, denominator: options.unit
+        };
+        nextScore.masterAutomations = [{
+          type: "tempo", scope: "master", points: [{ tick: 0, value: options.tempo, transition: "constant" }]
+        }];
+      }
+      nextScore.tracks.push(createTrack(preset ? {
+        ...preset,
+        strings: tuning ? [...tuning.strings] : [...preset.tuning],
+        tuningLabel: tuning ? tuning.label : preset.tuningLabel
+      } : undefined, nextScore.masterBars.length));
       replaceScore(nextScore);
       setFileIoStatus("Created a new untitled score.");
       closeFileIoPanel();

@@ -754,3 +754,52 @@
   transform: translateX(-50%);
   pointer-events: none;
 }
+
+.applicationMenu {
+  position: relative;
+}
+
+.applicationMenuList {
+  position: absolute;
+  z-index: 100;
+  min-width: 13rem;
+  list-style: none;
+  margin: 0;
+  padding: .35rem;
+  background: var(--surface-panel, #f9fafb);
+  border: 1px solid var(--border-toolbar, #cbd5e1);
+  border-radius: .35rem;
+  box-shadow: 0 8px 22px #0002;
+}
+
+.applicationMenuList button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  white-space: nowrap;
+}
+
+.tabScoreHome {
+  width: min(42rem, calc(100% - 2rem));
+  margin: clamp(2rem, 12vh, 8rem) auto;
+  color: var(--text-cool);
+}
+
+.tabScoreHome h1 {
+  color: var(--text-primary, #182633);
+  font-size: clamp(2rem, 6vw, 4rem);
+  margin-block: 0 1.25rem;
+}
+
+.tabScoreHomeActions, .tabScoreHome form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: end;
+}
+
+.tabScoreHome label, .tabScoreHome fieldset {
+  display: grid;
+  gap: .35rem;
+}
