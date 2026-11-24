@@ -1,6 +1,7 @@
 @font-face {
   font-family: "Bravura";
-  src: local("Bravura");
+  src: url("/fonts/bravura/Bravura.woff2") format("woff2");
+  font-display: block;
   font-display: swap;
 }
 
@@ -46,4 +47,11 @@
     cursor: default;
     opacity: 0.72;
   }
+}
+
+.musicFontWarning {
+  margin: 0;
+  padding: 0.375rem 0.75rem;
+  background: #fff3c4;
+  color: #382b00;
 }

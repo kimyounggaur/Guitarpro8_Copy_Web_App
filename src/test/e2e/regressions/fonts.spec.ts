@@ -20,11 +20,17 @@ test("[A5] the score uses loaded Bravura glyphs for a rest and a fermata", async
     }
   });
 
-  test.fail(true, "R3 bundles Bravura to render SMuFL private-use glyphs on clean systems.");
   expect(loadedFaces).toContain("loaded");
   for (const glyph of await glyphs.all()) {
     const bounds = await glyph.boundingBox();
     expect(bounds?.width).toBeGreaterThan(0);
     expect(bounds?.height).toBeGreaterThan(0);
   }
+});
+
+test("[A5] a failed font request warns and leaves the score usable", async ({ page }) => {
+  await page.route("**/Bravura.woff2", (route) => route.abort());
+  await openApp(page);
+  await expect(page.getByText("악보 글꼴을 불러오지 못했습니다.")).toBeVisible();
+  await expect(page.getByTestId("gp-shell")).toBeVisible();
 });

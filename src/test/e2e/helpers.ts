@@ -52,3 +52,11 @@ export function state(page: Page) {
     };
   });
 }
+
+export async function clickToolbarControl(page: Page, title: string | RegExp): Promise<void> {
+  const control = page.getByTitle(title, { exact: typeof title === "string" });
+  if (!(await control.isVisible())) {
+    await page.getByRole("button", { name: "More toolbar controls" }).click();
+  }
+  await control.click();
+}

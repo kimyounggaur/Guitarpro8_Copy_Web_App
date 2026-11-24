@@ -11,6 +11,7 @@ import type {
   NoteRef,
   Score,
   StemDirection,
+  Stylesheet,
   Track,
   Tuplet
 } from "../../model/types";
@@ -44,10 +45,10 @@ import {
   TAB_LINE_GAP,
   TAB_RHYTHM_GAP,
   TAB_RHYTHM_STEM_LENGTH,
-  TAB_STAFF_TOP_GAP,
   TUPLET_BRACKET_GAP
 } from "./metrics";
 import { tickToMeasureX } from "./measureContents";
+import { trackStack } from "./staffMetrics";
 import type { HitKind, LinePrimitive, PathPrimitive, ScenePrimitive } from "./sceneGraph";
 import type { SystemMeasure } from "./systemBreaker";
 
@@ -65,6 +66,7 @@ interface TrackPrimitiveOptions {
   activeVoiceIndex: number;
   multiVoiceEdit: boolean;
   trackGap: number;
+  stylesheet: Stylesheet;
   staffLineColor: string;
   staffLineThickness: number;
   barlineColor: string;
@@ -133,6 +135,7 @@ export function systemPrimitives(
     activeVoiceIndex: options.activeVoiceIndex ?? 0,
     multiVoiceEdit: options.multiVoiceEdit ?? false,
     trackGap: options.trackGap ?? stylesheet.systems.trackGap,
+    stylesheet,
     staffLineColor: stylesheet.systems.staffLineColor,
     staffLineThickness: stylesheet.systems.staffLineThickness,
     barlineColor: stylesheet.systems.barlineColor,
@@ -144,7 +147,7 @@ export function systemPrimitives(
     primitives.push(
       ...trackPrimitives(score, track, trackIndex, measures, originX, trackY, invalidBars, renderOptions)
     );
-    trackY += trackHeight(track) + renderOptions.trackGap;
+    trackY += trackStack(track, stylesheet).height + renderOptions.trackGap;
   });
 
   return primitives;
@@ -162,9 +165,11 @@ function trackPrimitives(
 ): ScenePrimitive[] {
   const primitives: ScenePrimitive[] = [];
   const staffX = originX + SYSTEM_LABEL_WIDTH;
-  const tabY = originY + STANDARD_STAFF_HEIGHT + TAB_STAFF_TOP_GAP;
-  const tabHeight = (track.tuning.strings.length - 1) * TAB_LINE_GAP;
-  const trackBottom = tabY + tabHeight + TAB_RHYTHM_GAP + TAB_RHYTHM_STEM_LENGTH;
+  const stack = trackStack(track, options.stylesheet);
+  const tab = stack.bands[1];
+  const tabY = originY + tab.top;
+  const tabHeight = tab.height;
+  const trackBottom = originY + stack.height;
   const staffEndX = staffX + measures.reduce((max, measure) => Math.max(max, measure.x + measure.width), 0);
 
   primitives.push(trackLabel(track, trackIndex, originX, originY));
@@ -220,7 +225,7 @@ function trackPrimitives(
       );
     }
 
-    if (measure.x === 0) {
+    if (measure.showsSignature) {
       primitives.push(
         timeSignaturePrimitive(track.id, measure.content.barIndex, x + 24, originY, masterBar.timeSignature.numerator, masterBar.timeSignature.denominator)
       );
@@ -384,7 +389,7 @@ function masterBarSymbolPrimitives(
   }
 
   masterBar.fermatas.forEach((fermata, index) => {
-    const fermataX = x + 16 + tickToMeasureX(measure.content, fermata.beatTick, width - 28);
+    const fermataX = x + tickToMeasureX(measure, fermata.beatTick);
     primitives.push({
       id: `master-${barIndex}-fermata-${index}`,
       type: "text",
@@ -535,7 +540,7 @@ function createVoicePlacements(
   const placements: BeatRenderPlacement[] = [];
 
   beats.forEach((beat, beatIndex) => {
-    const x = measureX + 16 + tickToMeasureX(measure.content, tick, measure.width - 28);
+    const x = measureX + tickToMeasureX(measure, tick);
     const color = voiceColor(voiceIndex, options);
     const notePlacements = beat.notes.flatMap((note, noteIndex) => {
       const pitch = tryWrittenPitch(note, track, { concertTone: options.concertTone, ottava: beat.ottava });
@@ -1314,7 +1319,7 @@ function tiePrimitivesForSystem(
       let tick = 0;
 
       voice.beats.forEach((beat, beatIndex) => {
-        const x = measureX + 16 + tickToMeasureX(measure.content, tick, measure.width - 28);
+        const x = measureX + tickToMeasureX(measure, tick);
         beat.notes.forEach((note, noteIndex) => {
           const ref = {
             trackId: track.id,
@@ -1779,14 +1784,4 @@ function pitchToStaffY(pitch: number, staffY: number): number {
   }
 
   return staffY + STAFF_LINE_GAP * 4 - (displayPitch - 60) * (STAFF_LINE_GAP / 2);
-}
-
-function trackHeight(track: Track): number {
-  return (
-    STANDARD_STAFF_HEIGHT +
-    TAB_STAFF_TOP_GAP +
-    (track.tuning.strings.length - 1) * TAB_LINE_GAP +
-    TAB_RHYTHM_GAP +
-    TAB_RHYTHM_STEM_LENGTH
-  );
 }

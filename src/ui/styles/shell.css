@@ -2,9 +2,9 @@
   .gpShell {
     position: relative;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: var(--app-menu-height) var(--app-toolbar-height) var(--app-tabs-height) minmax(0, 1fr) minmax(var(--bottom-dock-min-height), 30vh);
     height: 100vh;
-    min-height: 768px;
     background: var(--surface-shell);
   }
   
@@ -72,6 +72,7 @@
   
   .gpMain {
     display: grid;
+    min-width: 0;
     grid-template-columns: var(--palette-width) minmax(0, 1fr) var(--inspector-width);
     min-height: 0;
   }
@@ -99,5 +100,27 @@
     border-right: 0;
     border-left: 1px solid var(--border-panel);
   }
-}
 
+  @media (width < 1024px) {
+    .gpShell {
+      grid-template-rows: var(--app-menu-height) auto var(--app-tabs-height) minmax(0, 1fr) minmax(100px, 24vh);
+    }
+
+    .menuBar {
+      min-width: 0;
+      overflow-x: auto;
+    }
+
+    .gpMain,
+    .gpMain.paletteHidden,
+    .gpMain.inspectorHidden,
+    .gpMain.paletteHidden.inspectorHidden {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .gpMain > .palettePanel,
+    .gpMain > .inspectorPanel {
+      display: none;
+    }
+  }
+}

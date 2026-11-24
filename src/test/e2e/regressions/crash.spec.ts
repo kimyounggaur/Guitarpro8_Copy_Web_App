@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 import { createNote } from "../../../model/factory";
-import { openApp, state, test } from "../helpers";
+import { clickToolbarControl, openApp, state, test } from "../helpers";
 import { dropFileOnScore } from "./dropFile";
 import { guitarWithBars } from "./scoreFixtures";
 
@@ -9,7 +9,7 @@ test("[A9] reducing the string count preserves the editor and asks what to do wi
   score.tracks[0].bars[0].voices[0].beats[0].notes = [createNote(6, 3)];
   await openApp(page, { fixture: score });
 
-  await page.getByTitle("Tuning", { exact: true }).click();
+  await clickToolbarControl(page, "Tuning");
   const tuning = page.getByRole("region", { name: "Track system" });
   await tuning.getByRole("spinbutton", { name: "Strings", exact: true }).fill("5");
   await tuning.getByRole("button", { name: "Apply", exact: true }).click();

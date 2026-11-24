@@ -1,0 +1,397 @@
+{
+  "fontName": "Bravura",
+  "fontVersion": 1.482,
+  "engravingDefaults": {
+    "arrowShaftThickness": 0.16,
+    "barlineSeparation": 0.4,
+    "beamSpacing": 0.25,
+    "beamThickness": 0.5,
+    "bracketThickness": 0.5,
+    "dashedBarlineDashLength": 0.5,
+    "dashedBarlineGapLength": 0.25,
+    "dashedBarlineThickness": 0.16,
+    "hBarThickness": 1.0,
+    "hairpinThickness": 0.16,
+    "legerLineExtension": 0.4,
+    "legerLineThickness": 0.16,
+    "lyricLineThickness": 0.16,
+    "octaveLineThickness": 0.16,
+    "pedalLineThickness": 0.16,
+    "repeatBarlineDotSeparation": 0.16,
+    "repeatEndingLineThickness": 0.16,
+    "slurEndpointThickness": 0.1,
+    "slurMidpointThickness": 0.22,
+    "staffLineThickness": 0.13,
+    "stemThickness": 0.12,
+    "subBracketThickness": 0.16,
+    "textEnclosureThickness": 0.16,
+    "textFontFamily": [
+      "Academico",
+      "Century Schoolbook",
+      "Edwin",
+      "serif"
+    ],
+    "thickBarlineThickness": 0.5,
+    "thinBarlineThickness": 0.16,
+    "thinThickBarlineSeparation": 0.4,
+    "tieEndpointThickness": 0.1,
+    "tieMidpointThickness": 0.22,
+    "tupletBracketThickness": 0.16
+  },
+  "glyphBBoxes": {
+    "gClef": {
+      "bBoxNE": [
+        2.684,
+        4.392
+      ],
+      "bBoxSW": [
+        0.0,
+        -2.632
+      ]
+    },
+    "fClef": {
+      "bBoxNE": [
+        2.736,
+        1.048
+      ],
+      "bBoxSW": [
+        -0.02,
+        -2.54
+      ]
+    },
+    "cClef": {
+      "bBoxNE": [
+        2.796,
+        2.024
+      ],
+      "bBoxSW": [
+        0.0,
+        -2.024
+      ]
+    },
+    "noteheadBlack": {
+      "bBoxNE": [
+        1.18,
+        0.5
+      ],
+      "bBoxSW": [
+        0.0,
+        -0.5
+      ]
+    },
+    "restWhole": {
+      "bBoxNE": [
+        1.128,
+        0.036
+      ],
+      "bBoxSW": [
+        0.0,
+        -0.54
+      ]
+    },
+    "restHalf": {
+      "bBoxNE": [
+        1.128,
+        0.568
+      ],
+      "bBoxSW": [
+        0.0,
+        -0.008
+      ]
+    },
+    "restQuarter": {
+      "bBoxNE": [
+        1.08,
+        1.492
+      ],
+      "bBoxSW": [
+        0.004,
+        -1.5
+      ]
+    },
+    "rest8th": {
+      "bBoxNE": [
+        0.988,
+        0.696
+      ],
+      "bBoxSW": [
+        0.0,
+        -1.004
+      ]
+    },
+    "rest16th": {
+      "bBoxNE": [
+        1.28,
+        0.716
+      ],
+      "bBoxSW": [
+        0.0,
+        -2.0
+      ]
+    },
+    "rest32nd": {
+      "bBoxNE": [
+        1.452,
+        1.704
+      ],
+      "bBoxSW": [
+        0.0,
+        -2.0
+      ]
+    },
+    "rest64th": {
+      "bBoxNE": [
+        1.692,
+        1.72
+      ],
+      "bBoxSW": [
+        0.0,
+        -3.012
+      ]
+    },
+    "accidentalSharp": {
+      "bBoxNE": [
+        0.996,
+        1.4
+      ],
+      "bBoxSW": [
+        0.0,
+        -1.392
+      ]
+    },
+    "accidentalFlat": {
+      "bBoxNE": [
+        0.904,
+        1.756
+      ],
+      "bBoxSW": [
+        0.0,
+        -0.7
+      ]
+    },
+    "accidentalNatural": {
+      "bBoxNE": [
+        0.672,
+        1.364
+      ],
+      "bBoxSW": [
+        0.0,
+        -1.34
+      ]
+    },
+    "accidentalDoubleSharp": {
+      "bBoxNE": [
+        0.988,
+        0.508
+      ],
+      "bBoxSW": [
+        0.0,
+        -0.5
+      ]
+    },
+    "accidentalDoubleFlat": {
+      "bBoxNE": [
+        1.644,
+        1.748
+      ],
+      "bBoxSW": [
+        0.0,
+        -0.7
+      ]
+    },
+    "fermataAbove": {
+      "bBoxNE": [
+        2.42,
+        1.316
+      ],
+      "bBoxSW": [
+        0.012,
+        -0.012
+      ]
+    },
+    "gClef8vb": {
+      "bBoxNE": [
+        2.684,
+        4.392
+      ],
+      "bBoxSW": [
+        0.0,
+        -3.512
+      ]
+    },
+    "fClef8vb": {
+      "bBoxNE": [
+        2.736,
+        1.048
+      ],
+      "bBoxSW": [
+        -0.02,
+        -2.976
+      ]
+    },
+    "unpitchedPercussionClef1": {
+      "bBoxNE": [
+        1.528,
+        1.0
+      ],
+      "bBoxSW": [
+        0.0,
+        -1.0
+      ]
+    },
+    "timeSigCommon": {
+      "bBoxNE": [
+        1.696,
+        1.004
+      ],
+      "bBoxSW": [
+        0.02,
+        -0.996
+      ]
+    },
+    "timeSigCutCommon": {
+      "bBoxNE": [
+        1.672,
+        1.444
+      ],
+      "bBoxSW": [
+        0.0,
+        -1.436
+      ]
+    },
+    "timeSig0": {
+      "bBoxNE": [
+        1.8,
+        1.004
+      ],
+      "bBoxSW": [
+        0.08,
+        -1.0
+      ]
+    },
+    "timeSig1": {
+      "bBoxNE": [
+        1.256,
+        1.004
+      ],
+      "bBoxSW": [
+        0.08,
+        -1.0
+      ]
+    },
+    "timeSig2": {
+      "bBoxNE": [
+        1.704,
+        1.016
+      ],
+      "bBoxSW": [
+        0.08,
+        -1.028
+      ]
+    },
+    "timeSig3": {
+      "bBoxNE": [
+        1.604,
+        0.996
+      ],
+      "bBoxSW": [
+        0.08,
+        -1.004
+      ]
+    },
+    "timeSig4": {
+      "bBoxNE": [
+        1.8,
+        1.004
+      ],
+      "bBoxSW": [
+        0.08,
+        -1.0
+      ]
+    },
+    "timeSig5": {
+      "bBoxNE": [
+        1.532,
+        0.984
+      ],
+      "bBoxSW": [
+        0.08,
+        -1.004
+      ]
+    },
+    "timeSig6": {
+      "bBoxNE": [
+        1.656,
+        1.004
+      ],
+      "bBoxSW": [
+        0.08,
+        -0.996
+      ]
+    },
+    "timeSig7": {
+      "bBoxNE": [
+        1.684,
+        0.996
+      ],
+      "bBoxSW": [
+        0.08,
+        -1.0
+      ]
+    },
+    "timeSig8": {
+      "bBoxNE": [
+        1.664,
+        1.036
+      ],
+      "bBoxSW": [
+        0.08,
+        -1.036
+      ]
+    },
+    "timeSig9": {
+      "bBoxNE": [
+        1.656,
+        1.004
+      ],
+      "bBoxSW": [
+        0.08,
+        -0.996
+      ]
+    }
+  },
+  "glyphAdvanceWidths": {
+    "gClef": 2.684,
+    "fClef": 2.736,
+    "cClef": 2.796,
+    "noteheadBlack": 1.18,
+    "restWhole": 1.132,
+    "restHalf": 1.132,
+    "restQuarter": 1.08,
+    "rest8th": 1.0,
+    "rest16th": 1.28,
+    "rest32nd": 1.452,
+    "rest64th": 1.696,
+    "accidentalSharp": 0.996,
+    "accidentalFlat": 0.904,
+    "accidentalNatural": 0.672,
+    "accidentalDoubleSharp": 1.0,
+    "accidentalDoubleFlat": 1.652,
+    "fermataAbove": 2.42,
+    "gClef8vb": 2.656,
+    "fClef8vb": 2.736,
+    "unpitchedPercussionClef1": 1.528,
+    "timeSigCommon": 1.696,
+    "timeSigCutCommon": 1.668,
+    "timeSig0": 1.88,
+    "timeSig1": 1.336,
+    "timeSig2": 1.784,
+    "timeSig3": 1.684,
+    "timeSig4": 1.88,
+    "timeSig5": 1.612,
+    "timeSig6": 1.736,
+    "timeSig7": 1.764,
+    "timeSig8": 1.744,
+    "timeSig9": 1.736
+  }
+}
