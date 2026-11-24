@@ -41,6 +41,7 @@ test("[C10] browser PDF prints every page and preserves a Korean score title", a
   await page.getByTitle("File I/O", { exact: true }).click();
   await page.getByRole("region", { name: "File import and export" }).getByRole("button", { name: /^PDF/ }).click();
   const printed = page.locator(".printScorePages > section");
+  await expect(printed.first()).toBeAttached();
   const count = await printed.count();
   expect(count).toBeGreaterThan(1);
   await expect(printed.first().locator("svg text").filter({ hasText: title })).toHaveCount(1);
