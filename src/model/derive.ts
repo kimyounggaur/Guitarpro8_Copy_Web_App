@@ -44,8 +44,23 @@ export function noteMidiPitch(note: Note, track: Track): number {
     return note.midiNumber;
   }
 
-  const openStringPitch = stringPitch(note.string, track);
-  return openStringPitch + effectiveCapoForString(note.string, track) + note.fret;
+  const pitch = tryNoteMidiPitch(note, track);
+  if (pitch === null) {
+    throw new Error(`String ${note.string} is outside the track tuning`);
+  }
+  return pitch;
+}
+
+export function tryNoteMidiPitch(note: Note, track: Track): number | null {
+  const open = track.tuning.strings[track.tuning.strings.length - note.string];
+  const pitch = note.midiPitch ?? note.midiNumber
+    ?? (open === undefined ? NaN : open + effectiveCapoForString(note.string, track) + note.fret);
+  return Number.isFinite(pitch) ? pitch : null;
+}
+
+export function tryWrittenPitch(note: Note, track: Track, options: WrittenPitchOptions): number | null {
+  const pitch = tryNoteMidiPitch(note, track);
+  return pitch === null ? null : transposeWrittenPitch(pitch, track, options);
 }
 
 export function writtenPitch(
@@ -53,7 +68,10 @@ export function writtenPitch(
   track: Track,
   options: WrittenPitchOptions
 ): number {
-  const soundingPitch = noteMidiPitch(note, track);
+  return transposeWrittenPitch(noteMidiPitch(note, track), track, options);
+}
+
+function transposeWrittenPitch(soundingPitch: number, track: Track, options: WrittenPitchOptions): number {
   const transposedPitch = options.concertTone
     ? soundingPitch
     : soundingPitch - track.transpositionTonality.soundingOffset;
@@ -79,17 +97,6 @@ function tupletMultiplier(tuplet: Tuplet | undefined): number {
   }
 
   return (tuplet.m / tuplet.n) * tupletMultiplier(tuplet.parent);
-}
-
-function stringPitch(stringNumber: number, track: Track): number {
-  const index = track.tuning.strings.length - stringNumber;
-  const pitch = track.tuning.strings[index];
-
-  if (pitch === undefined) {
-    throw new Error(`String ${stringNumber} is outside the track tuning`);
-  }
-
-  return pitch;
 }
 
 function effectiveCapoForString(stringNumber: number, track: Track): number {

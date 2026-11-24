@@ -4,8 +4,7 @@
 // Extracted from src/App.tsx (see docs/ui-remaster/00-component-map.md §1,
 // row App.tsx:570-818, plus the module-level format/download/error helpers
 // at App.tsx:2135-2283) as part of Phase 2's structural-only refactor.
-// Behavior is unchanged from the original.
-import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { defaultCursor } from "../../engine/editing/operations";
 import type { CursorPosition, SelectionRange } from "../../engine/editing/types";
 import { layoutScore } from "../../engine/layout/layoutScore";
@@ -13,16 +12,21 @@ import { exportAsciiTab, importAsciiTab } from "../../io/asciiTab";
 import { defaultExportName } from "../../io/exportNames";
 import { exportMidi, importMidi } from "../../io/midi";
 import { exportMusicXml, importMusicXml } from "../../io/musicXml";
-import { parseNativeScore, serializeNativeScore } from "../../io/nativeScore";
+import { APP_NAME, LEGACY_NATIVE_EXTENSIONS, NATIVE_EXTENSION, NATIVE_FILE_ACCEPT, readScoreFile, writeScoreFile } from "../../io/fileFormat";
+import { sniffFileType, UNSUPPORTED_GUITAR_PRO_MESSAGE } from "../../io/sniffFileType";
 import { sceneToPdf } from "../../io/pdfExport";
 import { sceneFirstPageSvg, sceneToSvgDocument } from "../../io/vectorExport";
 import { createEmptyScore, createTrack } from "../../model/factory";
 import type { Score } from "../../model/types";
+import { checkInvariants } from "../../model/invariants";
+import { discardRecoverySnapshot } from "../../store/autosave";
+import { useDocumentStore, type LoadScoreOptions } from "../../store/documentStore";
+import type { UnsavedChoice } from "../../ui/overlays/UnsavedChangesDialog";
 import type { ExportFormat, ImportFormat } from "../../ui/shell/FileIoPanel";
 
 export interface BrowserFileHandle {
   getFile: () => Promise<File>;
-  createWritable: () => Promise<{ write: (blob: Blob) => Promise<void>; close: () => Promise<void> }>;
+  createWritable: () => Promise<{ write: (blob: Blob) => Promise<void>; close: () => Promise<void>; abort?: () => Promise<void> }>;
 }
 
 interface BrowserFilePickerWindow extends Window {
@@ -36,7 +40,7 @@ export interface UseFileControllerParams {
   score: Score;
   activeTrackId: string | null;
   multiVoiceEdit: boolean;
-  loadScore: (score: Score) => void;
+  loadScore: (score: Score, options?: LoadScoreOptions) => void;
   setSelection: (selection: SelectionRange | null) => void;
   setCursor: (cursor: CursorPosition) => void;
   openFileIoPanel: () => void;
@@ -46,6 +50,9 @@ export interface UseFileControllerParams {
 export interface FileController {
   fileIoStatus: string;
   fileInputRef: React.RefObject<HTMLInputElement>;
+  unsavedConfirmationOpen: boolean;
+  resolveUnsavedChoice: (choice: UnsavedChoice) => void;
+  openDemo: (score: Score) => Promise<boolean>;
   handleNewFile: () => void;
   handleOpenNativeFile: () => Promise<void>;
   handleSaveNativeFile: () => Promise<void>;
@@ -62,100 +69,187 @@ export function useFileController(params: UseFileControllerParams): FileControll
     params;
 
   const [fileIoStatus, setFileIoStatus] = useState(
-    "Native .gp, ASCII, MusicXML, MIDI, SVG, PNG, and PDF are ready."
+    `Native ${NATIVE_EXTENSION}, ASCII, MusicXML, MIDI, SVG, PNG, and PDF are ready.`
   );
+  const [unsavedConfirmationOpen, setUnsavedConfirmationOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingFileLoadRef = useRef<PendingFileLoad | null>(null);
   const nativeFileHandleRef = useRef<BrowserFileHandle | null>(null);
+  const unsavedChoice = useRef<((choice: UnsavedChoice) => void) | null>(null);
+  const pendingNavigation = useRef(false);
+  const saving = useRef(false);
+  const loadingGeneration = useRef(0);
+
+  useEffect(() => () => unsavedChoice.current?.("cancel"), []);
+
+  function resolveUnsavedChoice(choice: UnsavedChoice): void {
+    const resolve = unsavedChoice.current;
+    unsavedChoice.current = null;
+    setUnsavedConfirmationOpen(false);
+    resolve?.(choice);
+  }
+
+  async function confirmDiscardIfDirty(): Promise<boolean> {
+    const state = useDocumentStore.getState();
+    if (!state.dirty) return true;
+    if (unsavedChoice.current) return false;
+
+    const choice = await new Promise<UnsavedChoice>((resolve) => {
+      unsavedChoice.current = resolve;
+      setUnsavedConfirmationOpen(true);
+    });
+    if (choice === "cancel") return false;
+    if (choice === "save") {
+      return await saveNativeScore(false) && !useDocumentStore.getState().dirty;
+    }
+
+    const discarded = useDocumentStore.getState();
+    void discardRecoverySnapshot(discarded.activeId, new Date().toISOString()).catch(() => {});
+    return true;
+  }
+
+  async function navigate(action: () => Promise<boolean>): Promise<boolean> {
+    if (pendingNavigation.current) return false;
+    pendingNavigation.current = true;
+    try {
+      return await action();
+    } finally {
+      pendingNavigation.current = false;
+    }
+  }
+
+  function replaceScore(
+    score: Score,
+    options: LoadScoreOptions = {},
+    handle: BrowserFileHandle | null = null
+  ) {
+    loadingGeneration.current++;
+    nativeFileHandleRef.current = handle;
+    loadScore(score, options);
+    setSelection(null);
+    setCursor(defaultCursor(score));
+  }
 
   function handleNewFile(): void {
-    const nextScore = createEmptyScore();
-    nextScore.tracks.push(createTrack(undefined, nextScore.masterBars.length));
-    nativeFileHandleRef.current = null;
-    loadScore(nextScore);
-    setSelection(null);
-    setCursor(defaultCursor(nextScore));
-    setFileIoStatus("Created a new untitled score.");
-    closeFileIoPanel();
+    void navigate(async () => {
+      if (!await confirmDiscardIfDirty()) return false;
+      const nextScore = createEmptyScore();
+      nextScore.tracks.push(createTrack(undefined, nextScore.masterBars.length));
+      replaceScore(nextScore);
+      setFileIoStatus("Created a new untitled score.");
+      closeFileIoPanel();
+      return true;
+    });
+  }
+
+  async function openDemo(demoScore: Score): Promise<boolean> {
+    return navigate(async () => {
+      if (!await confirmDiscardIfDirty()) return false;
+      replaceScore(demoScore);
+      return true;
+    });
   }
 
   async function handleOpenNativeFile(): Promise<void> {
     const picker = (window as BrowserFilePickerWindow).showOpenFilePicker;
+    if (pendingNavigation.current) return;
+    if (!picker) {
+      requestFileLoad({ kind: "native" });
+      return;
+    }
 
-    if (picker) {
+    await navigate(async () => {
       try {
-        const [handle] = await picker({
+        const [handle] = await picker.call(window, {
           multiple: false,
           types: [
             {
-              description: "GuitarPro8 Copy score",
-              accept: { "application/json": [".gp", ".gp8", ".json"] }
+              description: `${APP_NAME} score`,
+              accept: { "application/json": NATIVE_FILE_ACCEPT }
             }
           ]
         });
-
-        if (handle) {
-          await loadFileIntoScore(await handle.getFile(), { kind: "native" }, handle);
-        }
+        return handle ? await loadFileIntoScore(await handle.getFile(), handle) : false;
       } catch (error) {
         if (!isAbortError(error)) {
           setFileIoStatus(errorMessage(error));
+          openFileIoPanel();
         }
+        return false;
       }
-      return;
-    }
-
-    requestFileLoad({ kind: "native" });
+    });
   }
 
   async function handleSaveNativeFile(): Promise<void> {
-    if (!nativeFileHandleRef.current) {
-      await handleSaveNativeFileAs();
-      return;
-    }
-
-    try {
-      await writeNativeScore(nativeFileHandleRef.current);
-      setFileIoStatus(`Saved ${score.meta.title || "Untitled Score"} as native .gp.`);
-    } catch (error) {
-      setFileIoStatus(errorMessage(error));
-    }
+    await saveNativeScore(false);
   }
 
   async function handleSaveNativeFileAs(): Promise<void> {
-    const picker = (window as BrowserFilePickerWindow).showSaveFilePicker;
+    await saveNativeScore(true);
+  }
 
-    if (picker) {
-      try {
-        const handle = await picker({
-          suggestedName: defaultExportName(score, ".gp"),
+  async function saveNativeScore(saveAs: boolean): Promise<boolean> {
+    if (saving.current) return false;
+    saving.current = true;
+    const snapshot = useDocumentStore.getState();
+    const generation = loadingGeneration.current;
+    const savedAt = new Date();
+    const picker = (window as BrowserFilePickerWindow).showSaveFilePicker;
+    let handle = saveAs ? null : nativeFileHandleRef.current;
+
+    try {
+      if (!handle && picker) {
+        handle = await picker.call(window, {
+          suggestedName: defaultExportName(snapshot.score, NATIVE_EXTENSION),
           types: [
             {
-              description: "GuitarPro8 Copy score",
-              accept: { "application/json": [".gp", ".gp8", ".json"] }
+              description: `${APP_NAME} score`,
+              accept: { "application/json": [NATIVE_EXTENSION] }
             }
           ]
         });
-        nativeFileHandleRef.current = handle;
-        await writeNativeScore(handle);
-        setFileIoStatus(`Saved ${score.meta.title || "Untitled Score"} as native .gp.`);
-      } catch (error) {
-        if (!isAbortError(error)) {
-          setFileIoStatus(errorMessage(error));
-        }
       }
-      return;
-    }
 
-    downloadBlob(
-      new Blob([serializeNativeScore(score)], { type: "application/json" }),
-      defaultExportName(score, ".gp")
-    );
-    setFileIoStatus("Downloaded a native .gp score.");
+      const blob = new Blob(
+        [writeScoreFile(snapshot.score, snapshot.activeId, savedAt)],
+        { type: "application/json" }
+      );
+      if (handle) {
+        const writable = await handle.createWritable();
+        try {
+          await writable.write(blob);
+          await writable.close();
+        } catch (error) {
+          await writable.abort?.().catch(() => {});
+          throw error;
+        }
+      } else {
+        downloadBlob(blob, defaultExportName(snapshot.score, NATIVE_EXTENSION));
+      }
+
+      if (generation !== loadingGeneration.current) return false;
+      nativeFileHandleRef.current = handle;
+      useDocumentStore.getState().markSaved(snapshot.activeId, snapshot.revision);
+      const current = useDocumentStore.getState();
+      const cleanupThrough = current.dirty ? savedAt : new Date();
+      void discardRecoverySnapshot(snapshot.activeId, cleanupThrough.toISOString()).catch(() => {});
+      setFileIoStatus(handle
+        ? `Saved ${snapshot.score.meta.title || "Untitled Score"} as native ${NATIVE_EXTENSION}.`
+        : `Downloaded a native ${NATIVE_EXTENSION} score.`);
+      return true;
+    } catch (error) {
+      if (!isAbortError(error)) {
+        setFileIoStatus(errorMessage(error));
+        openFileIoPanel();
+      }
+      return false;
+    } finally {
+      saving.current = false;
+    }
   }
 
   function handleImportFile(format: ImportFormat): void {
-    requestFileLoad({ kind: "import", format });
+    if (!pendingNavigation.current) requestFileLoad({ kind: "import", format });
   }
 
   async function handleExportFile(format: ExportFormat): Promise<void> {
@@ -243,7 +337,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
       return;
     }
 
-    await loadFileIntoScore(file, pending);
+    await navigate(() => loadFileIntoScore(file));
   }
 
   async function handleScoreDrop(event: DragEvent<HTMLDivElement>): Promise<void> {
@@ -254,16 +348,7 @@ export function useFileController(params: UseFileControllerParams): FileControll
       return;
     }
 
-    const pending = pendingLoadForFileName(file.name);
-
-    if (!pending) {
-      setFileIoStatus("Drop a .gp, .txt, .tab, .musicxml, .xml, .mid, or .midi file.");
-      openFileIoPanel();
-      return;
-    }
-
-    openFileIoPanel();
-    await loadFileIntoScore(file, pending);
+    await navigate(() => loadFileIntoScore(file));
   }
 
   function handleScoreDragOver(event: DragEvent<HTMLDivElement>): void {
@@ -287,40 +372,60 @@ export function useFileController(params: UseFileControllerParams): FileControll
 
   async function loadFileIntoScore(
     file: File,
-    pending: PendingFileLoad,
     handle: BrowserFileHandle | null = null
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
-      const nextScore =
-        pending.kind === "native"
-          ? parseNativeScore(await file.text())
-          : pending.format === "ascii"
-            ? importAsciiTab(await file.text())
-            : pending.format === "musicxml"
-              ? importMusicXml(await file.text())
-              : importMidi(new Uint8Array(await file.arrayBuffer()));
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const kind = sniffFileType(bytes, file.name);
+      if (kind === "guitar-pro") {
+        throw new Error(UNSUPPORTED_GUITAR_PRO_MESSAGE);
+      }
+      if (kind === "mxl") {
+        throw new Error("Compressed MusicXML is not yet supported. Import an uncompressed .musicxml file.");
+      }
+      if (kind === "unknown") {
+        throw new Error("This file is not a supported score, ASCII tab, MusicXML, or MIDI file.");
+      }
 
-      nativeFileHandleRef.current = pending.kind === "native" ? handle : null;
-      loadScore(nextScore);
-      setSelection(null);
-      setCursor(defaultCursor(nextScore));
-      setFileIoStatus(`Loaded ${file.name} as ${pendingFileLabel(pending)}.`);
-      closeFileIoPanel();
+      const text = kind === "midi" ? "" : new TextDecoder().decode(bytes);
+      const loaded = kind === "native" ? readScoreFile(text) : null;
+      const nextScore = loaded?.score
+        ?? (kind === "midi" ? importMidi(bytes) : kind === "musicxml" ? importMusicXml(text) : importAsciiTab(text));
+      if (!loaded) {
+        const fatal = checkInvariants(nextScore).find((issue) => issue.severity === "fatal");
+        if (fatal) throw new Error(`This score cannot be opened: ${fatal.message}`);
+      }
+      if (!await confirmDiscardIfDirty()) return false;
+
+      const hasCurrentExtension = file.name.toLowerCase().endsWith(NATIVE_EXTENSION);
+      const warnings = [...(loaded?.warnings ?? [])];
+      if (loaded && LEGACY_NATIVE_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) {
+        warnings.push(`Save this score again with the ${NATIVE_EXTENSION} extension.`);
+      }
+      replaceScore(nextScore, loaded ? { documentId: loaded.documentId } : {}, loaded && hasCurrentExtension ? handle : null);
+      if (loaded?.savedAt) {
+        void discardRecoverySnapshot(loaded.documentId, loaded.savedAt).catch(() => {});
+      }
+      setFileIoStatus([`Loaded ${file.name} as ${formatLabel(kind)}.`, ...warnings].join(" "));
+      if (warnings.length) {
+        openFileIoPanel();
+      } else {
+        closeFileIoPanel();
+      }
+      return true;
     } catch (error) {
       setFileIoStatus(errorMessage(error));
       openFileIoPanel();
+      return false;
     }
-  }
-
-  async function writeNativeScore(handle: BrowserFileHandle): Promise<void> {
-    const writable = await handle.createWritable();
-    await writable.write(new Blob([serializeNativeScore(score)], { type: "application/json" }));
-    await writable.close();
   }
 
   return {
     fileIoStatus,
     fileInputRef,
+    unsavedConfirmationOpen,
+    resolveUnsavedChoice,
+    openDemo,
     handleNewFile,
     handleOpenNativeFile,
     handleSaveNativeFile,
@@ -335,43 +440,21 @@ export function useFileController(params: UseFileControllerParams): FileControll
 
 function acceptForPending(pending: PendingFileLoad): string {
   if (pending.kind === "native") {
-    return ".gp,.gp8,.json,application/json";
+    return [...NATIVE_FILE_ACCEPT, "application/json"].join(",");
   }
 
   switch (pending.format) {
     case "ascii":
       return ".txt,.tab,text/plain";
     case "musicxml":
-      return ".musicxml,.xml,application/xml,text/xml";
+      return ".musicxml,.xml,.mxl,application/xml,text/xml";
     case "midi":
       return ".mid,.midi,audio/midi,audio/x-midi";
   }
 }
 
-function pendingLoadForFileName(fileName: string): PendingFileLoad | null {
-  const extension = fileName.toLowerCase().split(".").pop() ?? "";
-
-  if (["gp", "gp8", "json"].includes(extension)) {
-    return { kind: "native" };
-  }
-
-  if (["txt", "tab"].includes(extension)) {
-    return { kind: "import", format: "ascii" };
-  }
-
-  if (["musicxml", "xml"].includes(extension)) {
-    return { kind: "import", format: "musicxml" };
-  }
-
-  if (["mid", "midi"].includes(extension)) {
-    return { kind: "import", format: "midi" };
-  }
-
-  return null;
-}
-
 function pendingFileLabel(pending: PendingFileLoad): string {
-  return pending.kind === "native" ? "native .gp" : formatLabel(pending.format);
+  return pending.kind === "native" ? formatLabel("native") : formatLabel(pending.format);
 }
 
 /** Maps free-text palette input (e.g. "gp", "xml", "midi") to the import
@@ -382,7 +465,7 @@ export function importFormatFromText(value: string): ImportFormat | "native" | n
   const token = normalizedFormatToken(value);
 
   if (!token) return null;
-  if (["native", "gp", "gp8", "json", "score"].includes(token)) return "native";
+  if (isNativeFormatToken(token)) return "native";
   if (["ascii", "asciitab", "tab", "txt", "text"].includes(token)) return "ascii";
   if (["musicxml", "xml", "mxl"].includes(token)) return "musicxml";
   if (["midi", "mid", "smf"].includes(token)) return "midi";
@@ -396,7 +479,7 @@ export function exportFormatFromText(value: string): ExportFormat | null {
   const token = normalizedFormatToken(value);
 
   if (!token) return null;
-  if (["native", "gp", "gp8", "json", "score"].includes(token)) return "native";
+  if (isNativeFormatToken(token)) return "native";
   if (["ascii", "asciitab", "tab", "txt", "text"].includes(token)) return "ascii";
   if (["musicxml", "xml", "mxl"].includes(token)) return "musicxml";
   if (["midi", "mid", "smf"].includes(token)) return "midi";
@@ -404,6 +487,11 @@ export function exportFormatFromText(value: string): ExportFormat | null {
   if (token === "png") return "png";
   if (token === "pdf") return "pdf";
   return null;
+}
+
+function isNativeFormatToken(token: string): boolean {
+  return ["native", "json", "score", NATIVE_EXTENSION, ...LEGACY_NATIVE_EXTENSIONS]
+    .some((format) => normalizedFormatToken(format) === token);
 }
 
 function normalizedFormatToken(value: string): string {
@@ -415,7 +503,7 @@ function normalizedFormatToken(value: string): string {
 export function formatLabel(format: ImportFormat | ExportFormat | "native"): string {
   switch (format) {
     case "native":
-      return "Native .gp";
+      return `Native ${NATIVE_EXTENSION}`;
     case "ascii":
       return "ASCII tab";
     case "musicxml":

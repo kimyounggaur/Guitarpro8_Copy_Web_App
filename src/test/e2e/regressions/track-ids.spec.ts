@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { serializeNativeScore } from "../../../io/nativeScore";
+import { NATIVE_SCORE_FORMAT } from "../../../io/nativeScore";
 import { createTrack } from "../../../model/factory";
 import { focusScore, openApp, state, test } from "../helpers";
 import { dropFileOnScore } from "./dropFile";
@@ -14,15 +14,16 @@ test("[A11] adding a track after opening a legacy score preserves unique IDs", a
     id: `track-${index + 1}`,
     name: `Saved guitar ${index + 1}`
   }));
-  await dropFileOnScore(page, "saved-score.gp", Array.from(new TextEncoder().encode(serializeNativeScore(legacy))));
+  const v1Envelope = JSON.stringify({ format: NATIVE_SCORE_FORMAT, version: 1, score: legacy });
+  await dropFileOnScore(page, "saved-score.gp", Array.from(new TextEncoder().encode(v1Envelope)));
   await expect.poll(async () => (await state(page)).score.tracks.length).toBe(8);
 
+  await page.getByTitle("Close file I/O").click();
   await page.getByTitle(/^Add Track/).click();
   await page.getByRole("region", { name: "Track system" }).getByRole("button", { name: "Create", exact: true }).click();
   const { score, cursor } = await state(page);
   expect(score.tracks).toHaveLength(9);
 
-  test.fail(true, "R1 assigns new IDs independently of the session's legacy sequential counter.");
   expect(new Set(score.tracks.map((track) => track.id)).size).toBe(9);
   expect(cursor.trackId).toBe(score.tracks[8].id);
   await focusScore(page);

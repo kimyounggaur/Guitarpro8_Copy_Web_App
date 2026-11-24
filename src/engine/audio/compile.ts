@@ -1,4 +1,4 @@
-import { barTheoreticalTicks, beatDurationTicks, noteMidiPitch } from "../../model/derive";
+import { barTheoreticalTicks, beatDurationTicks, tryNoteMidiPitch } from "../../model/derive";
 import { TICKS_PER_QUARTER, type Beat, type Note, type Score } from "../../model/types";
 import type { PlaybackSegment, UnrollResult } from "../unroll/unrollScore";
 import {
@@ -126,7 +126,8 @@ function compileSegment(
           beat.graceNotes.forEach((grace, graceIndex) => {
             const graceTick = Math.max(segment.startTick, startTick - (grace.onBeat ? 0 : TICKS_PER_QUARTER / 16));
             const graceWrittenTick = Math.max(writtenStart, writtenTick - (grace.onBeat ? 0 : TICKS_PER_QUARTER / 16));
-            const midiPitch = noteMidiPitch({ ...defaultNote(grace.string, grace.fret), string: grace.string, fret: grace.fret }, track);
+            const midiPitch = tryNoteMidiPitch(defaultNote(grace.string, grace.fret), track);
+            if (midiPitch === null) return;
             events.push({
               id: `${track.id}-${segment.sequenceIndex}-${voiceIndex}-${beatIndex}-grace-${graceIndex}`,
               timeSec: tempoMap.ticksToSeconds(graceTick),
@@ -152,8 +153,7 @@ function compileSegment(
               return;
             }
 
-            events.push(
-              noteEvent(
+            const event = noteEvent(
                 score,
                 track.id,
                 segment,
@@ -168,8 +168,8 @@ function compileSegment(
                 tempoMap,
                 mixer,
                 focusedTrackId
-              )
             );
+            if (event) events.push(event);
           });
         }
 
@@ -196,12 +196,15 @@ function noteEvent(
   tempoMap: TempoMap,
   mixer: MixerState,
   focusedTrackId: string | null
-): NoteEvent {
+): NoteEvent | null {
   const track = score.tracks.find((candidate) => candidate.id === trackId);
 
   if (!track) {
     throw new Error(`Unknown track for playback: ${trackId}`);
   }
+
+  const midiPitch = tryNoteMidiPitch(note, track);
+  if (midiPitch === null) return null;
 
   const effects = noteEffects(note, beat);
   const durationMultiplier = durationMultiplierForNote(note);
@@ -216,7 +219,7 @@ function noteEvent(
     startTick,
     writtenTick,
     durationTicks: effectiveDurationTicks,
-    midiPitch: noteMidiPitch(note, track) + effects.harmonicShift,
+    midiPitch: midiPitch + effects.harmonicShift,
     velocity: velocityForNote(note),
     trackId: track.id,
     barIndex: segment.barIndex,

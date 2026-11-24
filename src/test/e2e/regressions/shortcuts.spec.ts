@@ -11,7 +11,6 @@ test("[B12] Ctrl+= changes zoom without modifying note duration", async ({ page 
   const { score } = await state(page);
   expect(score.documentSettings.zoom).toBe(before.score.documentSettings.zoom + 10);
 
-  test.fail(true, "R2 distinguishes zoom modifiers from note length shortcuts.");
   expect(score.tracks[0].bars[0].voices[0].beats[0].duration).toBe(4);
 });
 

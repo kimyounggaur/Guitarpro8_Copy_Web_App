@@ -61,6 +61,7 @@ export function useGlobalShortcuts(params: UseGlobalShortcutsParams): void {
 
   useEffect(() => {
     function handlePanelShortcuts(event: KeyboardEvent) {
+      if (document.querySelector(".fileDecisionDialog[open]")) return;
       const panelByKey = {
         F2: "palette",
         F5: "songInspector",
@@ -107,6 +108,7 @@ export function useGlobalShortcuts(params: UseGlobalShortcutsParams): void {
 
   useEffect(() => {
     function handleToolShortcuts(event: KeyboardEvent) {
+      if (document.querySelector(".fileDecisionDialog[open]")) return;
       const target = event.target as HTMLElement | null;
       const editingText =
         target?.tagName === "INPUT" ||

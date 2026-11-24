@@ -41,13 +41,21 @@ export function exportAsciiTab(score: Score, trackId?: string): string {
 }
 
 export function importAsciiTab(text: string): Score {
-  const tabLines = text
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => line.includes("|") && /[-\d]/.test(line));
-
-  if (tabLines.length === 0) {
+  const groups = text.split(/\r?\n\s*\r?\n/)
+    .map((block) => block.split(/\r?\n/).filter((line) => line.includes("|") && /[-\dx]/i.test(line.slice(line.indexOf("|") + 1))))
+    .filter((lines) => lines.length > 0);
+  if (groups.length === 0) {
     throw new Error("No tablature lines were found in the ASCII file.");
+  }
+
+  const stringCount = groups[0].length;
+  for (const [index, group] of groups.entries()) {
+    if (group.length < 3 || group.length > 10) {
+      throw new Error(`ASCII TAB ${index + 1}번째 묶음은 3~10개의 줄이어야 합니다.`);
+    }
+    if (group.length !== stringCount) {
+      throw new Error(`ASCII TAB ${index + 1}번째 묶음의 줄 수가 다릅니다.`);
+    }
   }
 
   const score = createEmptyScore();
@@ -57,17 +65,28 @@ export function importAsciiTab(text: string): Score {
   const track = createTrack(undefined, 0);
   track.name = trackName ?? "ASCII Tab";
   track.shortName = "ASCII";
-  track.tuning.strings = DEFAULT_GUITAR_PITCHES.slice(-tabLines.length);
+  track.tuning.strings = [
+    ...Array.from({ length: Math.max(0, stringCount - 6) }, (_, index) => 40 - 5 * (stringCount - 6 - index)),
+    ...DEFAULT_GUITAR_PITCHES.slice(-stringCount)
+  ];
   track.tuning.label = track.tuning.strings.map((pitch) => pitchClassName(pitch)).join(" ");
   score.tracks = [track];
 
-  const contents = tabLines.map((line) => line.slice(line.indexOf("|")));
-  const barCount = Math.max(...contents.map((line) => Math.max(0, line.split("|").length - 2)));
-  score.masterBars = Array.from({ length: Math.max(1, barCount) }, () => createMasterBar());
-  track.bars = Array.from({ length: score.masterBars.length }, () => createBar());
+  const bars = groups.flatMap((lines) => {
+    const segments = lines.map((line) => {
+      const contents = line.slice(line.indexOf("|") + 1).trim();
+      const bars = contents.split("|");
+      if (bars.at(-1) === "") bars.pop();
+      return bars;
+    });
+    return Array.from({ length: Math.max(...segments.map((line) => line.length)) }, (_, index) =>
+      segments.map((line) => line[index] ?? "")
+    );
+  });
+  score.masterBars = bars.map(() => createMasterBar());
+  track.bars = bars.map(() => createBar());
 
-  for (let barIndex = 0; barIndex < score.masterBars.length; barIndex += 1) {
-    const barSegments = contents.map((line) => line.split("|")[barIndex + 1] ?? "");
+  for (const [barIndex, barSegments] of bars.entries()) {
     const events = parseBarEvents(barSegments);
     const voice = track.bars[barIndex].voices[0];
 

@@ -706,3 +706,47 @@
   }
 }
 
+
+.fileDecisionDialog {
+  box-sizing: border-box;
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 20px;
+  color: var(--text-primary, #f3f3f3);
+  background: var(--surface-panel, #242424);
+  border: 1px solid var(--border-panel, #696969);
+  border-radius: 8px;
+}
+
+.fileDecisionDialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+
+.fileDecisionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recoveryList {
+  display: grid;
+  gap: 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.recoveryList time {
+  display: block;
+  margin-block: 4px 8px;
+}
+
+.autosaveUnavailable {
+  position: fixed;
+  z-index: 10;
+  inset: 0 auto auto 50%;
+  padding: 6px 12px;
+  color: var(--text-primary, #f3f3f3);
+  background: var(--surface-dirty-badge, #3b3020);
+  transform: translateX(-50%);
+  pointer-events: none;
+}

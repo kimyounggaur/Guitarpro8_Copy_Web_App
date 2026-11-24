@@ -175,6 +175,11 @@ function TuningPanel({
 }: TrackSystemPanelsProps & { track: Track }) {
   const [tuning, setTuning] = useState<Tuning>(structuredClone(track.tuning));
   const [mode, setMode] = useState<RetuneMode>("keep-fingering");
+  const [confirmReduction, setConfirmReduction] = useState(false);
+  const reducing = tuning.strings.length < track.tuning.strings.length;
+  const removedNotes = reducing ? track.bars.flatMap((bar) => bar.voices)
+    .flatMap((voice) => voice.beats)
+    .reduce((total, beat) => total + beat.notes.filter((note) => note.string > tuning.strings.length).length, 0) : 0;
   const matching = tuningMatchesPreset(tuning.strings);
   const warning = tuning.partialCapo && tuning.partialCapo.fret < tuning.capo;
 
@@ -234,7 +239,7 @@ function TuningPanel({
           </select>
         </label>
         <div className="toolButtonRow">
-          <button type="button" className={mode === "keep-fingering" ? "activeToggle" : ""} onClick={() => setMode("keep-fingering")}>
+          <button type="button" disabled={reducing} className={mode === "keep-fingering" ? "activeToggle" : ""} onClick={() => setMode("keep-fingering")}>
             Keep
           </button>
           <button type="button" className={mode === "adjust-fingering" ? "activeToggle" : ""} onClick={() => setMode("adjust-fingering")}>
@@ -242,9 +247,26 @@ function TuningPanel({
           </button>
         </div>
         <CapoPreview tuning={tuning} />
-        <button type="button" onClick={() => onApplyTuning(track.id, tuning, mode)}>
+        <button type="button" onClick={() => {
+          if (reducing && removedNotes > 0) setConfirmReduction(true);
+          else onApplyTuning(track.id, tuning, reducing ? "adjust-fingering" : mode);
+        }}>
           Apply
         </button>
+        {confirmReduction && reducing ? (
+          <section role="alertdialog" aria-label="줄 수 변경 확인">
+            <p>없어지는 줄에 음 {removedNotes}개가 있습니다. 옮길 수 없는 음은 삭제됩니다.</p>
+            <button type="button" onClick={() => {
+              onApplyTuning(track.id, tuning, "adjust-fingering");
+              setConfirmReduction(false);
+            }}>다른 줄로 옮기기</button>
+            <button type="button" onClick={() => {
+              onApplyTuning(track.id, tuning, "remove-missing-strings");
+              setConfirmReduction(false);
+            }}>삭제</button>
+            <button type="button" onClick={() => setConfirmReduction(false)}>취소</button>
+          </section>
+        ) : null}
       </section>
     </div>
   );

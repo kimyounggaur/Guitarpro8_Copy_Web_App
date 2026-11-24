@@ -1,3 +1,4 @@
+import { NATIVE_EXTENSION } from "../../io/fileFormat";
 import type { Score } from "../../model/types";
 
 export type ImportFormat = "ascii" | "musicxml" | "midi";
@@ -66,7 +67,7 @@ export function FileIoPanel(props: FileIoPanelProps) {
             </button>
           </div>
           <button type="button" onClick={() => props.onExport("native")}>
-            Download .gp
+            Download {NATIVE_EXTENSION}
           </button>
         </section>
         <section className="fileIoColumn">

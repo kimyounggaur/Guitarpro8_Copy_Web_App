@@ -12,6 +12,7 @@ import type {
   Voice
 } from "./types";
 import { createDefaultStylesheet } from "./stylesheet";
+import { newId } from "./ids";
 
 export function createEmptyScore(): Score {
   return {
@@ -63,8 +64,6 @@ export const GUITAR_PRESET: InstrumentPreset = {
   tuningLabel: "E A D G B E"
 };
 
-let nextTrackId = 1;
-
 export function createMasterBar(): MasterBar {
   return {
     timeSignature: {
@@ -98,11 +97,8 @@ export function createTrack(
   instrumentPreset: InstrumentPreset = GUITAR_PRESET,
   masterBarCount = 1
 ): Track {
-  const id = `track-${nextTrackId}`;
-  nextTrackId += 1;
-
   return {
-    id,
+    id: newId("trk"),
     name: instrumentPreset.name,
     shortName: instrumentPreset.shortName,
     color: instrumentPreset.color,
