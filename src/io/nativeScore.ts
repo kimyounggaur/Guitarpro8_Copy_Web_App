@@ -17,7 +17,7 @@ export function serializeNativeScore(score: Score, savedAt = new Date()): string
   const envelope: NativeScoreEnvelope = {
     format: NATIVE_SCORE_FORMAT,
     version: NATIVE_SCORE_VERSION,
-    createdWith: "GuitarPro8 Copy Web App",
+    createdWith: "TabScore",
     savedAt: savedAt.toISOString(),
     score: normalizeScoreForIo(score)
   };
