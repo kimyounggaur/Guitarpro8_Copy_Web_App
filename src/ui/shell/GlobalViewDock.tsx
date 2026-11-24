@@ -106,15 +106,15 @@ function TrackHeader({ track, mixer, active, props }: {
         <strong>{track.shortName || track.name}</strong>
       </button>
       <button type="button" disabled={!mixer} title={t("editor.visible")} aria-label={t("editor.visible")}
-        aria-pressed={mixer?.visible} onClick={() => change({ visible: !mixer?.visible })}>V</button>
+        aria-pressed={mixer?.visible} onClick={() => change({ visible: !mixer?.visible })}><span aria-hidden="true">V</span></button>
       <button type="button" disabled={!mixer} title={t("editor.mute")} aria-label={t("editor.mute")}
-        aria-pressed={mixer?.mute} onClick={() => change({ mute: !mixer?.mute })}>M</button>
+        aria-pressed={mixer?.mute} onClick={() => change({ mute: !mixer?.mute })}><span aria-hidden="true">M</span></button>
       <button type="button" disabled={!mixer} title={t("editor.solo")} aria-label={t("editor.solo")}
-        aria-pressed={mixer?.solo} onClick={() => change({ solo: !mixer?.solo })}>S</button>
+        aria-pressed={mixer?.solo} onClick={() => change({ solo: !mixer?.solo })}><span aria-hidden="true">S</span></button>
       <button type="button" disabled={!mixer} title={t("editor.volumeAutomation")} aria-label={t("editor.volumeAutomation")}
-        aria-pressed={mixer?.volumeAutomationEnabled} onClick={() => change({ volumeAutomationEnabled: !mixer?.volumeAutomationEnabled })}>AV</button>
+        aria-pressed={mixer?.volumeAutomationEnabled} onClick={() => change({ volumeAutomationEnabled: !mixer?.volumeAutomationEnabled })}><span aria-hidden="true">AV</span></button>
       <button type="button" disabled={!mixer} title={t("editor.panAutomation")} aria-label={t("editor.panAutomation")}
-        aria-pressed={mixer?.panAutomationEnabled} onClick={() => change({ panAutomationEnabled: !mixer?.panAutomationEnabled })}>AP</button>
+        aria-pressed={mixer?.panAutomationEnabled} onClick={() => change({ panAutomationEnabled: !mixer?.panAutomationEnabled })}><span aria-hidden="true">AP</span></button>
       <input className="globalTrackFader" aria-label={`${track.name} volume`} title={t("editor.vol")} type="range"
         min="0" max="1" step="0.01" value={mixer?.volume ?? 0} disabled={!mixer}
         {...mixerRangeEvents((volume, phase) => props.onMixerTrackChange(track.id, { volume }, phase))} />

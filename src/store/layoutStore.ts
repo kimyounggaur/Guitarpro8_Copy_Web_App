@@ -34,7 +34,7 @@ interface LayoutStore extends LayoutState {
   setDockSize: (dock: DockSize, size: number) => void;
   save: () => void;
   activateInspector: (tab: InspectorTab) => void;
-  togglePaletteSection: (section: string) => void;
+  togglePaletteSection: (section: string, defaultCollapsed: boolean) => void;
   setPaletteScroll: (scroll: number) => void;
 }
 
@@ -57,9 +57,9 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     set({ activeInspectorTab });
     saveLayout(get());
   },
-  togglePaletteSection: (section) => {
+  togglePaletteSection: (section, defaultCollapsed) => {
     set((state) => ({
-      paletteCollapsed: { ...state.paletteCollapsed, [section]: !state.paletteCollapsed[section] }
+      paletteCollapsed: { ...state.paletteCollapsed, [section]: !(state.paletteCollapsed[section] ?? defaultCollapsed) }
     }));
     saveLayout(get());
   },
@@ -91,7 +91,8 @@ function loadLayout(): LayoutState {
       },
       activeInspectorTab: stored.activeInspectorTab === "track" ? "track" : "song",
       paletteCollapsed: stored.paletteCollapsed && typeof stored.paletteCollapsed === "object"
-        ? Object.fromEntries(Object.entries(stored.paletteCollapsed).flatMap(([key, value]) => value === true ? [[key, true] as const] : []))
+        ? Object.fromEntries(Object.entries(stored.paletteCollapsed).flatMap(([key, value]) =>
+          typeof value === "boolean" ? [[key, value] as const] : []))
         : {},
       paletteScroll: typeof stored.paletteScroll === "number" && Number.isFinite(stored.paletteScroll)
         ? Math.max(0, stored.paletteScroll)

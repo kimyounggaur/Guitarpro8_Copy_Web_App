@@ -154,9 +154,11 @@
   }
 
   .compactPalette .paletteButtons {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-width: 154px;
     gap: 3px;
   }
+
+  .compactPalette .paletteCommandCount { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
 
   .compactPalette .paletteButtons button {
     min-height: 31px;

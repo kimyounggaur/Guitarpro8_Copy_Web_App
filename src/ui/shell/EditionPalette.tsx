@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { Children, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { shortcutLabel } from "../../commands/keymap";
 import type { Beat, MasterBar, Note } from "../../model/types";
 import { useLayoutStore } from "../../store/layoutStore";
@@ -143,11 +143,13 @@ function applied(command: string, { note, beat, bar }: PaletteSelection): boolea
 
 type PaletteProps = Pick<EditorShellProps,
   "dispatchCommand" | "cursor" | "multiVoiceEdit" | "onVoiceSelect" | "onToggleMultiVoice"
-  | "score" | "platform" | "registeredCommands">;
+  | "score" | "platform" | "registeredCommands" | "panelVisibility" | "activeToolPanel"
+  | "stylesheetPanelOpen" | "onStylesheetPanelOpen" | "onToolOpen" | "togglePanel">;
 
 export function EditionPalette(props: PaletteProps) {
   const scroll = useRef<HTMLElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const pendingScroll = useRef<number | null>(null);
   const { cursor, score } = props;
   const track = score.tracks.find(({ id }) => id === cursor.trackId);
   const beat = track?.bars[cursor.barIndex]?.voices[cursor.voiceIndex]?.beats[cursor.beatIndex];
@@ -156,20 +158,45 @@ export function EditionPalette(props: PaletteProps) {
   useEffect(() => {
     const surface = scroll.current;
     if (surface) surface.scrollTop = useLayoutStore.getState().paletteScroll;
-    return () => clearTimeout(saveTimer.current);
+    function saveScroll() {
+      clearTimeout(saveTimer.current);
+      if (pendingScroll.current !== null) {
+        useLayoutStore.getState().setPaletteScroll(pendingScroll.current);
+        pendingScroll.current = null;
+      }
+    }
+    window.addEventListener("pagehide", saveScroll);
+    return () => {
+      window.removeEventListener("pagehide", saveScroll);
+      saveScroll();
+    };
   }, []);
+
+  const auxiliarySections = [
+    { id: "design", label: "Design", glyph: "◫", command: "view.stylesheet", name: "Score stylesheet",
+      active: props.stylesheetPanelOpen, activate: props.onStylesheetPanelOpen },
+    { id: "lyrics", label: "Lyrics", glyph: "Aa", command: "lyrics", name: "Lyrics editing",
+      disabledReason: "Lyrics editing is unavailable" },
+    { id: "chords", label: "Chords", glyph: "♮", command: "tools.chords", name: t("toolbar.chordTool"),
+      active: props.activeToolPanel === "chords", activate: () => props.onToolOpen("chords") },
+    { id: "automation", label: "Automation", glyph: "⌁", command: "panels.automation", name: t("editor.automationEditor"),
+      active: props.panelVisibility.automationView, activate: () => props.togglePanel("automationView") }
+  ];
 
   return (
     <aside ref={scroll} className="palettePanel compactPalette" aria-label={t("editor.editionPalette")}
       data-testid="palette-panel" onScroll={(event) => {
-        const position = event.currentTarget.scrollTop;
+        pendingScroll.current = event.currentTarget.scrollTop;
         clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => useLayoutStore.getState().setPaletteScroll(position), 75);
+        saveTimer.current = setTimeout(() => {
+          if (pendingScroll.current !== null) useLayoutStore.getState().setPaletteScroll(pendingScroll.current);
+          pendingScroll.current = null;
+        }, 75);
       }}>
       <PaletteSection id="voices" label={t("editor.voices")}>
         {[1, 2, 3, 4].map((voice) => (
           <button key={voice} type="button" aria-label={`Voice ${voice}`} aria-pressed={cursor.voiceIndex === voice - 1}
-            onClick={() => props.onVoiceSelect(voice - 1)}>V{voice}</button>
+            onClick={() => props.onVoiceSelect(voice - 1)}><span aria-hidden="true">V{voice}</span></button>
         ))}
       </PaletteSection>
       <PaletteSection id="multi" label={t("editor.multivoice")} columns={1}>
@@ -177,6 +204,13 @@ export function EditionPalette(props: PaletteProps) {
           {props.multiVoiceEdit ? t("editor.on") : t("editor.off")}
         </button>
       </PaletteSection>
+      {auxiliarySections.map(({ id, label, glyph, command, name, active, activate, disabledReason }) => (
+        <PaletteSection key={id} id={id} label={label} defaultExpanded={false}>
+          <button type="button" aria-label={name} aria-pressed={active} disabled={Boolean(disabledReason)}
+            title={[name, shortcutLabel(command, props.platform), disabledReason].filter(Boolean).join(" · ")}
+            onClick={activate}><span aria-hidden="true">{glyph}</span></button>
+        </PaletteSection>
+      ))}
       {sections.map(({ id, title, entries }) => (
         <PaletteSection key={id} id={id} label={t(title)}>
           {entries.map(([glyph, id]) => {
@@ -187,7 +221,7 @@ export function EditionPalette(props: PaletteProps) {
             const disabled = !command || (id.startsWith("note.effect.") && !note) || (id.startsWith("beat.effect.") && !beat);
             return <button key={id} type="button" aria-label={label} aria-pressed={pressed} disabled={disabled}
               title={[label, shortcut, disabled ? "Unavailable at the current position" : pressed ? "Applied" : ""].filter(Boolean).join(" · ")}
-              onClick={() => props.dispatchCommand(id)}>{glyph}</button>;
+              onClick={() => props.dispatchCommand(id)}><span aria-hidden="true">{glyph}</span></button>;
           })}
         </PaletteSection>
       ))}
@@ -195,16 +229,18 @@ export function EditionPalette(props: PaletteProps) {
   );
 }
 
-function PaletteSection({ id, label, columns = 4, children }: {
-  id: string; label: string; columns?: number; children: ReactNode
+function PaletteSection({ id, label, columns = 4, defaultExpanded = true, children }: {
+  id: string; label: string; columns?: number; defaultExpanded?: boolean; children: ReactNode
 }) {
-  const expanded = useLayoutStore((state) => !state.paletteCollapsed[id]);
+  const expanded = useLayoutStore((state) => !(state.paletteCollapsed[id] ?? !defaultExpanded));
   const toggle = useLayoutStore((state) => state.togglePaletteSection);
   const controls = useId();
   return (
     <section className="paletteGroup">
       <h2><button type="button" className="paletteDisclosure" aria-expanded={expanded} aria-controls={controls}
-        onClick={() => toggle(id)}><span aria-hidden>{expanded ? "⌄" : "›"}</span>{label}</button></h2>
+        onClick={() => toggle(id, !defaultExpanded)}><span aria-hidden>{expanded ? "⌄" : "›"}</span>{label}
+        <span className="paletteCommandCount" aria-hidden>{Children.count(children)}</span>
+      </button></h2>
       {expanded && <div id={controls} className="paletteButtons" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
         onKeyDown={(event) => moveInGrid(event, columns)}>{children}</div>}
     </section>

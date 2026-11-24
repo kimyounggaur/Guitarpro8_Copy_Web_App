@@ -160,7 +160,7 @@ function TrackInspector(props: EditorShellProps & { track: Track }) {
           {effectSlotButtons.map(([effect, label]) => (
             <button key={effect} type="button" title={t(`effect.${effect}`)} aria-label={t(`effect.${effect}`)}
               aria-pressed={mixer.effectChain.some((slot) => slot.type === effect && !slot.bypassed)}
-              onClick={() => props.onMixerEffectToggle(track.id, effect)}>{label}</button>
+              onClick={() => props.onMixerEffectToggle(track.id, effect)}><span aria-hidden="true">{label}</span></button>
           ))}
         </div>
       </InspectorSection>}
