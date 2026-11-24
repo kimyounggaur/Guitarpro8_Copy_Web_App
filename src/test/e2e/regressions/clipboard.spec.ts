@@ -22,8 +22,10 @@ test("[B17] special paste inserts repetitions and keeps the original destination
   await focusScore(page);
   await typeKeys(page, "Control+c Control+ArrowRight");
   await expect.poll(async () => (await state(page)).cursor.barIndex).toBe(1);
-  await focusScore(page);
-  await page.keyboard.press("Control+Shift+v");
+  await page.keyboard.press("Control+e");
+  const palette = page.getByTestId("command-palette-input");
+  await palette.fill("@ clipboard.specialPaste");
+  await palette.press("Enter");
 
   const dialog = page.getByRole("dialog", { name: "Special paste" });
   await expect(dialog).toBeVisible();
@@ -37,15 +39,16 @@ test("[B17] special paste inserts repetitions and keeps the original destination
 
 test("[B17] dragging between notes extends the score selection without inserting a note", async ({ page }) => {
   await openApp(page, { fixture: guitarWithBars([[5], [7], [8]]) });
-  const notes = page.locator('[data-hit-kind="note"][id$="-tab"]');
+  const notes = page.locator('rect[data-hit-kind="note"][id$="-tab-hit"]');
   await notes.nth(1).scrollIntoViewIfNeeded();
-  const first = await notes.nth(0).boundingBox();
+  await notes.nth(0).hover();
   const second = await notes.nth(1).boundingBox();
-  expect(first).not.toBeNull();
   expect(second).not.toBeNull();
-  await page.mouse.move(first!.x + first!.width / 2, first!.y + first!.height / 2);
   await page.mouse.down();
   await page.mouse.move(second!.x + second!.width / 2, second!.y + second!.height / 2, { steps: 6 });
+  await expect.poll(async () => (await state(page)).selection).toMatchObject({
+    anchor: { barIndex: 0 }, head: { barIndex: 1 }
+  });
   await page.mouse.up();
 
   const selected = await state(page);

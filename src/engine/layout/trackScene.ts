@@ -771,6 +771,7 @@ function tabFretPrimitive(
 ): ScenePrimitive {
   const note = notePlacement.note;
   const fretText = note.deadNote ? "x" : note.ghost ? `(${note.fret})` : String(note.fret);
+  const hitWidth = Math.max(16, fretText.length * 7);
 
   return {
     id: `${noteId(notePlacement.ref)}-tab`,
@@ -784,7 +785,12 @@ function tabFretPrimitive(
     hit: {
       kind: "note",
       ref: { ...notePlacement.ref, staffKind: "tab" },
-      bbox: { x: placement.x - 8, y: notePlacement.tabY - 10, width: 16, height: 14 }
+      bbox: {
+        x: placement.x - hitWidth / 2,
+        y: notePlacement.tabY - 4 - TAB_LINE_GAP / 2,
+        width: hitWidth,
+        height: TAB_LINE_GAP
+      }
     }
   };
 }

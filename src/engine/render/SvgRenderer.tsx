@@ -58,8 +58,10 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           {...hitProps}
         />
       );
-    case "text":
-      return (
+    case "text": {
+      const tabHit = primitive.hit?.kind === "note" && primitive.hit.ref.staffKind === "tab"
+        ? primitive.hit.bbox : null;
+      const label = (
         <text
           key={key}
           id={primitive.id}
@@ -69,12 +71,19 @@ function renderPrimitive(primitive: ScenePrimitive, index: number) {
           fontSize={primitive.fontSize}
           fontFamily={primitive.fontFamily}
           textAnchor={primitive.anchor}
-          pointerEvents={primitive.pointerEvents}
-          {...hitProps}
+          pointerEvents={tabHit ? "none" : primitive.pointerEvents}
+          {...(tabHit ? {} : hitProps)}
         >
           {primitive.text}
         </text>
       );
+      return tabHit ? (
+        <g key={key}>
+          <rect id={`${primitive.id}-hit`} {...tabHit} fill="transparent" {...hitProps} />
+          {label}
+        </g>
+      ) : label;
+    }
     case "rect":
       return (
         <rect

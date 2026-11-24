@@ -193,6 +193,7 @@ export const MENU_TREE: MenuGroup[] = [
     action("clipboard.copy", "Copy", "clipboard.copy"),
     action("clipboard.cut", "Cut", "clipboard.cut"),
     action("clipboard.paste", "Paste", "clipboard.paste"),
+    action("clipboard.specialPaste", "Special Paste", "clipboard.specialPaste"),
     action("selection.selectTrack", "Select All", "selection.selectTrack")
   ]),
   menu("Track", [
