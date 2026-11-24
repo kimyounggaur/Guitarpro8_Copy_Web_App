@@ -1,4 +1,4 @@
-import { executeCommand } from "./registry";
+import { executeCommand, getCommand } from "./registry";
 import type { EditorCommandContext } from "./editingCommands";
 import { commandIdForKeyEvent } from "./keymap";
 import type { CommandId } from "./commandIds";
@@ -18,6 +18,9 @@ export function handleEditorKeyDown(
   if (!commandId) {
     return false;
   }
+
+  const contextPredicate = getCommand<EditorCommandContext>(commandId)?.contextPredicate;
+  if (contextPredicate && !contextPredicate(context)) return false;
 
   executeCommand(commandId, context, { event });
   event.preventDefault();

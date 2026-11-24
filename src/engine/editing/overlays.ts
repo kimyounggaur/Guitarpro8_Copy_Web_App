@@ -1,5 +1,6 @@
 import type { SceneGraph, ScenePrimitive } from "../layout/sceneGraph";
 import type { CursorPosition, SelectionRange } from "./types";
+import { positionToY } from "../notation/staffPosition";
 import { VOICE_CURSOR_COLORS } from "./types";
 
 export function withEditorOverlays(
@@ -46,11 +47,34 @@ function cursorPrimitives(primitives: ScenePrimitive[], cursor: CursorPosition):
     overlays.push(cursorRect("editor-cursor-secondary", secondary.hit.bbox, "#9ca3af", 0.08));
   }
 
-  if (primary?.hit) {
+  const staffCursor = cursor.staffKind === "standard" ? staffCursorPrimitive(primitives, cursor, color) : null;
+  if (staffCursor) {
+    overlays.push(staffCursor);
+  } else if (primary?.hit) {
     overlays.push(cursorRect("editor-cursor-primary", primary.hit.bbox, color, 0.16));
   }
 
   return overlays;
+}
+
+function staffCursorPrimitive(primitives: ScenePrimitive[], cursor: CursorPosition, color: string): ScenePrimitive | null {
+  const staffHit = primitives.find(({ hit }) => {
+    const ref = hit?.ref;
+    return hit?.kind === "staffInput"
+      && ref?.trackId === cursor.trackId && ref.barIndex === cursor.barIndex
+      && ref.voiceIndex === cursor.voiceIndex && ref.beatIndex === cursor.beatIndex
+      && (!cursor.staffClef || ref.staffClef === cursor.staffClef);
+  })?.hit;
+  const top = staffHit?.ref.staffTop;
+  const space = staffHit?.ref.staffSpace;
+  if (!staffHit || top === undefined || space === undefined) return null;
+
+  return cursorRect("editor-cursor-primary", {
+    x: staffHit.bbox.x + Math.max(0, (staffHit.bbox.width - space) / 2),
+    y: positionToY(cursor.staffLine, top, space) - space / 4,
+    width: space,
+    height: space / 2
+  }, color, 0.16);
 }
 
 function selectionPrimitives(

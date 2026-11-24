@@ -21,8 +21,8 @@ const style = defaults.stylesheet;
 const bendCurve = z.object({ points: z.array(z.object({ offset: finite, value: finite })) });
 const stroke = z.object({ direction: z.enum(["down", "up"]), speed: finite, delay: finite });
 const note: z.ZodType<Note> = z.object({
-  string: z.number().int(),
-  fret: z.number().int(),
+  string: z.number().int().default(0),
+  fret: z.number().int().default(-1),
   midiPitch: midi.optional(),
   midiNumber: midi.optional(),
   articulation: z.string().optional(),
@@ -102,6 +102,8 @@ const automation = z.object({
 
 const track: z.ZodType<Track> = z.object({
   id: z.string().default(""),
+  kind: z.enum(["stringed", "pitched", "percussion"]),
+  clef: z.enum(["treble", "treble8vb", "bass", "bass8vb", "percussion", "grand"]),
   name: z.string(),
   shortName: z.string().default(""),
   color: z.string().default("#3b82f6"),

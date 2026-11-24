@@ -1,5 +1,5 @@
 import { tryNoteMidiPitch } from "./derive";
-import type { NotationType, StaffConfig, Track, Tuning } from "./types";
+import type { NotationType, StaffConfig, Track, TrackClef, Tuning } from "./types";
 
 export type InstrumentCategory = "Stringed" | "Orchestra" | "Drums" | "MIDI";
 export type RetuneMode = "keep-fingering" | "adjust-fingering" | "remove-missing-strings";
@@ -16,7 +16,7 @@ export interface InstrumentDefinition {
   tuning: number[];
   tuningLabel: string;
   stringed: boolean;
-  clef: string;
+  clef: TrackClef;
   range: [number, number];
   gmProgram: number;
   soundingOffset: number;
@@ -238,7 +238,8 @@ function stringed(
     tuning: strings,
     tuningLabel: tuningLabelValue,
     stringed: true,
-    clef: id.includes("bass") || id.includes("cello") || id.includes("contrabass") ? "bass" : "treble",
+    clef: id.startsWith("bass") ? "bass8vb" : id.startsWith("guitar") ? "treble8vb" :
+      id === "cello" || id === "contrabass" ? "bass" : "treble",
     range: [Math.min(...strings), Math.max(...strings) + 24],
     gmProgram,
     soundingOffset: 0

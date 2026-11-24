@@ -1,4 +1,5 @@
-import { beatDurationTicks, tryWrittenPitch } from "../../model/derive";
+import { beatDurationTicks } from "../../model/derive";
+import { keyFifths } from "../../model/keys";
 import { normalizeStylesheet } from "../../model/stylesheet";
 import { findTrackTieOrigin } from "../../model/ties";
 import type {
@@ -10,7 +11,6 @@ import type {
   Note,
   NoteRef,
   Score,
-  StemDirection,
   Stylesheet,
   Track,
   Tuplet
@@ -18,16 +18,13 @@ import type {
 import { validateBarDurations, type BarDurationIssue } from "../validate";
 import { MUSIC_FONT_FAMILY, SMUFL } from "../render/smufl";
 import {
-  clefPrimitive,
   barHitRect,
   barlinePrimitive,
   beatHit,
   durationErrorRect,
-  keySignaturePrimitive,
   standardStaffLines,
   tabLabelPrimitive,
   tabStaffLines,
-  timeSignaturePrimitive,
   trackLabel
 } from "./primitiveFactory";
 import {
@@ -39,7 +36,6 @@ import {
   NOTE_HEAD_WIDTH,
   STAFF_LINE_GAP,
   STANDARD_STAFF_HEIGHT,
-  STEM_LENGTH,
   STEM_WIDTH,
   SYSTEM_LABEL_WIDTH,
   TAB_LINE_GAP,
@@ -48,7 +44,19 @@ import {
   TUPLET_BRACKET_GAP
 } from "./metrics";
 import { tickToMeasureX } from "./measureContents";
-import { trackStack } from "./staffMetrics";
+import { noteBelongsToBand, trackStack, type StaffBand } from "./staffMetrics";
+import { layoutAccidentals, type AccidentalNote } from "../notation/accidentals";
+import { bendLabel } from "../notation/effects";
+import { layoutStaffSignature } from "../notation/signatureLayout";
+import { positionToY, type Clef } from "../notation/staffPosition";
+import { chordHeadOffsets, chooseStemDirection, restStaffPosition, stemEndPosition } from "../notation/stems";
+import {
+  placeStaffNote,
+  staffAccidentalPrimitive,
+  staffLedgerPrimitives,
+  staffSignaturePrimitives,
+  type StaffNotePlacement
+} from "./standardStaffScene";
 import type { HitKind, LinePrimitive, PathPrimitive, ScenePrimitive } from "./sceneGraph";
 import type { SystemMeasure } from "./systemBreaker";
 
@@ -79,6 +87,7 @@ interface NotePlacement {
   x: number;
   y: number;
   tabY: number;
+  staff: StaffNotePlacement | null;
 }
 
 interface StemGeometry {
@@ -102,6 +111,9 @@ interface BeatRenderPlacement {
   notePlacements: NotePlacement[];
   stem: StemGeometry | null;
   tabStem: StemGeometry | null;
+  clef?: Clef;
+  showTab: boolean;
+  restPosition: number;
   color: string;
 }
 
@@ -166,27 +178,29 @@ function trackPrimitives(
   const primitives: ScenePrimitive[] = [];
   const staffX = originX + SYSTEM_LABEL_WIDTH;
   const stack = trackStack(track, options.stylesheet);
-  const tab = stack.bands[1];
-  const tabY = originY + tab.top;
-  const tabHeight = tab.height;
+  const tab = stack.bands.find((band) => band.kind === "tab");
+  const notation = stack.bands.filter((band) => band.clef !== undefined);
+  const tabY = originY + (tab?.top ?? 0);
+  const lastBand = stack.bands.at(-1);
+  const staffBottom = originY + (lastBand ? lastBand.top + lastBand.height : 0);
   const trackBottom = originY + stack.height;
-  const staffEndX = staffX + measures.reduce((max, measure) => Math.max(max, measure.x + measure.width), 0);
+  const finalMeasure = measures.at(-1);
+  const staffEndX = staffX + (finalMeasure ? finalMeasure.x + finalMeasure.width : 0);
 
   primitives.push(trackLabel(track, trackIndex, originX, originY));
-  primitives.push(
-    ...standardStaffLines(track.id, staffX, staffEndX, originY, {
-      stroke: options.staffLineColor,
-      strokeWidth: options.staffLineThickness
-    })
-  );
-  primitives.push(
-    ...tabStaffLines(track.id, staffX, staffEndX, tabY, track.tuning.strings.length, {
-      stroke: options.staffLineColor,
-      strokeWidth: options.staffLineThickness
-    })
-  );
-  primitives.push(clefPrimitive(track.id, staffX - 34, originY + STAFF_LINE_GAP * 3));
-  primitives.push(tabLabelPrimitive(track.id, staffX - 38, tabY + TAB_LINE_GAP * 3));
+  const lineStyle = { stroke: options.staffLineColor, strokeWidth: options.staffLineThickness };
+  for (const band of stack.bands) {
+    if (band.kind === "tab") {
+      primitives.push(...tabStaffLines(track.id, staffX, staffEndX, tabY, track.tuning.strings.length, lineStyle));
+      primitives.push(tabLabelPrimitive(track.id, staffX - 38, tabY + TAB_LINE_GAP * 3));
+    } else if (band.kind === "slash") {
+      const y = originY + band.top + STAFF_LINE_GAP * 2;
+      primitives.push(bracketLine(`${track.id}-slash-line`, staffX, y, staffEndX, y, options.staffLineColor));
+    } else {
+      const id = band.side === "lower" ? `${track.id}-lower` : track.id;
+      primitives.push(...standardStaffLines(id, staffX, staffEndX, originY + band.top, lineStyle));
+    }
+  }
 
   measures.forEach((measure) => {
     const x = staffX + measure.x;
@@ -212,34 +226,64 @@ function trackPrimitives(
         measure.content.barIndex,
         x,
         originY,
-        tabY + tabHeight,
+        staffBottom,
         invalid ? "#ef4444" : options.barlineColor,
         invalid ? options.barlineThickness + 0.5 : options.barlineThickness
       )
     );
-    primitives.push(barHitRect(track.id, measure.content.barIndex, x, originY, measure.width, tabY + tabHeight));
+    primitives.push(barHitRect(track.id, measure.content.barIndex, x, originY, measure.width, staffBottom));
+    for (const band of notation) {
+      if (band.clef) {
+        primitives.push(...staffInputRects(
+          track, measure, x, originY + band.top, band.clef, options.activeVoiceIndex, band.side === "upper"
+        ));
+      }
+    }
 
     if (trackIndex === 0) {
       primitives.push(
-        ...masterBarSymbolPrimitives(masterBar, measure, x, measure.width, originY, tabY + tabHeight)
+        ...masterBarSymbolPrimitives(masterBar, measure, x, measure.width, originY, staffBottom)
       );
     }
 
-    if (measure.showsSignature) {
-      primitives.push(
-        timeSignaturePrimitive(track.id, measure.content.barIndex, x + 24, originY, masterBar.timeSignature.numerator, masterBar.timeSignature.denominator)
-      );
-      primitives.push(keySignaturePrimitive(track.id, measure.content.barIndex, x + 46, originY, masterBar.keySignature.key));
+    const previous = score.masterBars[measure.content.barIndex - 1];
+    const firstInSystem = measure === measures[0];
+    for (const band of notation) {
+      const clef = band.clef;
+      if (!clef) continue;
+      const staffY = originY + band.top;
+      const signature = layoutStaffSignature({
+        clef, key: masterBar.keySignature, time: masterBar.timeSignature,
+        previousKey: previous?.keySignature, previousTime: previous?.timeSignature,
+        systemStart: firstInSystem, style: options.stylesheet.notation, staffSpace: STAFF_LINE_GAP
+      });
+      const id = `${track.id}-${measure.content.barIndex}${band.side === "lower" ? "-lower" : ""}`;
+      primitives.push(...staffSignaturePrimitives(id, signature, x + 8, staffY, STAFF_LINE_GAP, {
+        trackId: track.id, barIndex: measure.content.barIndex, staffKind: "standard", staffClef: clef
+      }));
+      primitives.push(...beatAndRhythmPrimitives(track, measure, x, staffY, tabY, masterBar, band,
+        Boolean(tab && notation.length === 1), options));
     }
-
-    primitives.push(
-      ...beatAndRhythmPrimitives(track, measure.content.barIndex, measure, x, originY, tabY, options)
-    );
+    if (tab && notation.length !== 1) {
+      primitives.push(...beatAndRhythmPrimitives(track, measure, x, tabY, tabY, masterBar, undefined, true, options));
+    }
+    for (const band of stack.bands.filter((candidate) => candidate.kind === "slash")) {
+      const slashY = originY + band.top + STAFF_LINE_GAP * 2;
+      measure.content.beats.forEach((beat, index) => {
+        const beatX = x + tickToMeasureX(measure, beat.tick);
+        primitives.push(bracketLine(`${track.id}-${measure.content.barIndex}-slash-${index}`,
+          beatX - 4, slashY + 5, beatX + 4, slashY - 5, options.staffLineColor));
+      });
+    }
   });
 
-  primitives.push(...tiePrimitivesForSystem(track, measures, staffX, originY, options));
+  for (const band of notation) {
+    primitives.push(...tiePrimitivesForSystem(score, track, measures, staffX, originY + band.top, band, options));
+  }
+  if (tab && notation.length === 0) {
+    primitives.push(...tiePrimitivesForSystem(score, track, measures, staffX, tabY, undefined, options));
+  }
 
-  const finalMeasure = measures[measures.length - 1];
   if (finalMeasure) {
     primitives.push(
       barlinePrimitive(
@@ -247,7 +291,7 @@ function trackPrimitives(
         finalMeasure.content.barIndex,
         staffX + finalMeasure.x + finalMeasure.width,
         originY,
-        tabY + tabHeight,
+        staffBottom,
         options.barlineColor,
         options.barlineThickness
       )
@@ -354,7 +398,7 @@ function masterBarSymbolPrimitives(
     primitives.push(
       symbolText(
         `master-${barIndex}-triplet-feel`,
-        masterBar.tripletFeel,
+        `${masterBar.tripletFeel} swing`,
         centerX,
         staffY - 8,
         10,
@@ -472,56 +516,99 @@ function repeatDot(id: string, cx: number, cy: number, barIndex: number): SceneP
 
 function beatAndRhythmPrimitives(
   track: Track,
-  barIndex: number,
   measure: SystemMeasure,
   measureX: number,
   staffY: number,
   tabY: number,
+  masterBar: MasterBar,
+  band: StaffBand | undefined,
+  showTab: boolean,
   options: TrackPrimitiveOptions
 ): ScenePrimitive[] {
+  const barIndex = measure.content.barIndex;
   const bar = track.bars[barIndex];
-
-  if (!bar) {
-    return [];
-  }
+  if (!bar) return [];
 
   const primitives: ScenePrimitive[] = [];
   const activeVoiceCount = bar.voices.filter((voice) => voice.beats.length > 0).length;
+  const fifths = keyFifths(masterBar.keySignature);
+  const voices = bar.voices.map((voice, voiceIndex) => createVoicePlacements(
+    track, barIndex, voiceIndex, voice.beats, activeVoiceCount, measure, measureX, staffY, tabY,
+    fifths, band, showTab, options
+  ));
+  const marks = new Map(layoutAccidentals(accidentalBeats(voices), fifths).map((mark) => [mark.id, mark]));
 
-  bar.voices.forEach((voice, voiceIndex) => {
-    if (voice.beats.length === 0) {
-      return;
-    }
-
-    const placements = createVoicePlacements(
-      track,
-      barIndex,
-      voiceIndex,
-      voice.beats,
-      activeVoiceCount,
-      measure,
-      measureX,
-      staffY,
-      tabY,
-      options
-    );
+  for (const placements of voices) {
     const beamGroups = createBeamGroups(placements);
+    if (band?.clef) alignStandardBeamStems(beamGroups);
     const beamedIds = new Set(
       beamGroups
         .filter((group) => group.length > 1)
         .flatMap((group) => group.map((placement) => beatPlacementId(placement)))
     );
 
-    placements.forEach((placement) => {
+    for (const placement of placements) {
       primitives.push(...beatPrimitives(placement, beamedIds.has(beatPlacementId(placement))));
-    });
-
-    primitives.push(...beamGroupPrimitives(beamGroups, "standard"));
-    primitives.push(...beamGroupPrimitives(beamGroups, "tab"));
-    primitives.push(...tupletPrimitives(placements));
-  });
-
+      if (band?.clef && band.clef !== "percussion") {
+        for (const note of placement.notePlacements) {
+          const marker = marks.get(noteRefKey(note.ref));
+          if (marker) {
+            primitives.push(staffAccidentalPrimitive(
+              `${noteId(note.ref)}-accidental`, marker, note.x, note.y, STAFF_LINE_GAP, placement.color, note.ref
+            ));
+          }
+        }
+      }
+    }
+    if (band?.clef) primitives.push(...beamGroupPrimitives(beamGroups, "standard"));
+    if (showTab) primitives.push(...beamGroupPrimitives(beamGroups, "tab"));
+    if (band?.clef || showTab) primitives.push(...tupletPrimitives(placements));
+  }
   return primitives;
+}
+
+function accidentalBeats(voices: BeatRenderPlacement[][]): AccidentalNote[][] {
+  const byTick = new Map<number, AccidentalNote[]>();
+  for (const voice of voices) {
+    for (const beat of voice) {
+      const notes = byTick.get(beat.tick) ?? [];
+      for (const note of beat.notePlacements) {
+        if (note.staff?.pitch) notes.push({
+          id: noteRefKey(note.ref), pitch: note.staff.pitch, position: note.staff.position,
+          tiedFromPrevious: note.note.tiedFromPrevious, forceAccidental: note.note.forceAccidental
+        });
+      }
+      byTick.set(beat.tick, notes);
+    }
+  }
+  return [...byTick.entries()].sort(([first], [second]) => first - second).map(([, notes]) => notes);
+}
+
+function staffInputRects(
+  track: Track, measure: SystemMeasure, x: number, staffTop: number, clef: Clef,
+  voiceIndex: number, upperGrandStaff: boolean
+): ScenePrimitive[] {
+  const barIndex = measure.content.barIndex;
+  const beats = track.bars[barIndex]?.voices[voiceIndex]?.beats ?? [];
+  let tick = 0;
+  const offsets = beats.map((beat) => {
+    const offset = tickToMeasureX(measure, tick);
+    tick += beatDurationTicks(beat);
+    return offset;
+  });
+  if (offsets.length === 0) offsets.push(tickToMeasureX(measure, 0));
+  return offsets.map((offset, beatIndex) => {
+    const start = beatIndex === 0 ? Math.max(0, offset - 12) : (offset + offsets[beatIndex - 1]) / 2;
+    const end = beatIndex === offsets.length - 1 ? measure.width : (offset + offsets[beatIndex + 1]) / 2;
+    const bbox = { x: x + start, y: staffTop - STAFF_LINE_GAP * 2,
+      width: Math.max(0, end - start), height: STAFF_LINE_GAP * (upperGrandStaff ? 8 : 9.5) };
+    return {
+      id: `${track.id}-${barIndex}-${voiceIndex}-${beatIndex}-${clef}-grid`,
+      type: "rect", ...bbox, fill: "transparent",
+      hit: { kind: "staffInput", ref: { trackId: track.id, barIndex, voiceIndex, beatIndex,
+        staffKind: "standard", staffClef: clef, staffTop, staffSpace: STAFF_LINE_GAP }, bbox }
+    };
+  });
 }
 
 function createVoicePlacements(
@@ -534,6 +621,9 @@ function createVoicePlacements(
   measureX: number,
   staffY: number,
   tabY: number,
+  fifths: number,
+  band: StaffBand | undefined,
+  showTab: boolean,
   options: TrackPrimitiveOptions
 ): BeatRenderPlacement[] {
   let tick = 0;
@@ -542,19 +632,25 @@ function createVoicePlacements(
   beats.forEach((beat, beatIndex) => {
     const x = measureX + tickToMeasureX(measure, tick);
     const color = voiceColor(voiceIndex, options);
-    const notePlacements = beat.notes.flatMap((note, noteIndex) => {
-      const pitch = tryWrittenPitch(note, track, { concertTone: options.concertTone, ottava: beat.ottava });
-      if (pitch === null) return [];
+    const clef = band?.clef;
+    const notePlacements: NotePlacement[] = beat.notes.flatMap((note, noteIndex) => {
+      if (band && !noteBelongsToBand(track, note, band)) return [];
+      const staff = clef ? placeStaffNote(note, track, clef, fifths, staffY, STAFF_LINE_GAP, {
+        concertTone: options.concertTone, ottava: beat.ottava
+      }) : null;
+      if (clef && !staff) return [];
       return [{
         ref: { trackId: track.id, barIndex, voiceIndex, beatIndex, noteIndex },
-        note,
-        x,
-        y: pitchToStaffY(pitch, staffY),
+        note, x, staff,
+        y: staff?.y ?? tabY,
         tabY: tabY + (note.string - 1) * TAB_LINE_GAP + 4
       }];
     });
-    const direction = resolveStemDirection(beat, voiceIndex, activeVoiceCount, notePlacements, staffY);
-    const stem = createStemGeometry(beat, notePlacements, x, direction);
+    const positions = notePlacements.map((note) => note.staff?.position ?? 4);
+    const direction = chooseStemDirection(positions, beat.stemDirection, voiceIndex, activeVoiceCount, options.stylesheet.notation);
+    const noteOffsets = chordHeadOffsets(positions, direction, NOTE_HEAD_WIDTH * 0.8);
+    notePlacements.forEach((note, index) => { note.x += noteOffsets[index]; });
+    const stem = clef ? createStemGeometry(beat, notePlacements, x, direction, staffY) : null;
     const tabBottomY = tabY + (track.tuning.strings.length - 1) * TAB_LINE_GAP;
     const tabRhythmBaseY = tabBottomY + TAB_RHYTHM_GAP + voiceIndex * 6;
 
@@ -571,8 +667,10 @@ function createVoicePlacements(
       tabBottomY,
       notePlacements,
       stem,
+      clef, showTab,
+      restPosition: restStaffPosition(voiceIndex, activeVoiceCount, options.stylesheet.notation),
       tabStem:
-        beat.duration === 1
+        !showTab || !options.stylesheet.notation.showTabRhythm || beat.duration === 1
           ? null
           : {
               direction: "down",
@@ -594,14 +692,20 @@ function beatPrimitives(placement: BeatRenderPlacement, isBeamed: boolean): Scen
     return restPrimitives(placement);
   }
 
-  const primitives = placement.notePlacements.flatMap((notePlacement) => [
-    ...accidentalPrimitives(placement, notePlacement),
-    noteHeadPrimitive(placement, notePlacement),
-    ...deadNoteCrossPrimitives(placement, notePlacement),
-    tabFretPrimitive(placement, notePlacement),
-    ...dotPrimitives(placement.beat.dots, placement.x + 12, notePlacement.y, placement.color),
-    ...noteEffectPrimitives(placement, notePlacement)
-  ]);
+  const primitives = placement.notePlacements.flatMap((notePlacement) => {
+    const standard = placement.clef ? [
+      ...(notePlacement.staff && placement.clef !== "percussion"
+        ? staffLedgerPrimitives(noteId(notePlacement.ref), notePlacement.staff.position, notePlacement.x,
+          placement.staffY, STAFF_LINE_GAP, placement.color)
+        : []),
+      noteHeadPrimitive(placement, notePlacement),
+      ...dotPrimitives(placement.beat.dots, notePlacement.x + 12, notePlacement.y, placement.color)
+    ] : [];
+    return [...standard,
+      ...(placement.showTab ? [tabFretPrimitive(placement, notePlacement)] : []),
+      ...noteEffectPrimitives(placement, notePlacement)
+    ];
+  });
 
   if (placement.stem) {
     primitives.push(stemLine(placement, placement.stem, "standard"));
@@ -626,9 +730,29 @@ function noteHeadPrimitive(
   notePlacement: NotePlacement
 ): ScenePrimitive {
   const openHead = placement.beat.duration === 1 || placement.beat.duration === 2;
+  const { ref, x, y, staff } = notePlacement;
+  const hit = {
+    kind: "note" as const,
+    ref: { ...ref, staffKind: "standard" as const, staffClef: placement.clef,
+      staffLine: staff?.position, writtenMidi: staff?.writtenMidi },
+    bbox: { x: x - 8, y: y - 8, width: 16, height: 16 }
+  };
+  if (staff?.crossedHead || notePlacement.note.deadNote) {
+    return {
+      id: `${noteId(ref)}-head`, type: "text", text: "×", x, y: y + 5,
+      fill: placement.color, fontSize: 16, anchor: "middle", hit
+    };
+  }
 
+  if (notePlacement.note.harmonic) {
+    return {
+      id: `${noteId(ref)}-head`, type: "path",
+      d: `M ${x - 5} ${y} L ${x} ${y - 4} L ${x + 5} ${y} L ${x} ${y + 4} Z`,
+      fill: "#fbfaf7", stroke: placement.color, strokeWidth: 1.2, hit
+    };
+  }
   return {
-    id: `${noteId(notePlacement.ref)}-head`,
+    id: `${noteId(ref)}-head`,
     type: "ellipse",
     cx: notePlacement.x,
     cy: notePlacement.y,
@@ -637,11 +761,7 @@ function noteHeadPrimitive(
     fill: openHead ? "#fbfaf7" : placement.color,
     stroke: placement.color,
     strokeWidth: 1.2,
-    hit: {
-      kind: "note",
-      ref: notePlacement.ref,
-      bbox: { x: notePlacement.x - 8, y: notePlacement.y - 8, width: 16, height: 16 }
-    }
+    hit
   };
 }
 
@@ -655,7 +775,7 @@ function tabFretPrimitive(
   return {
     id: `${noteId(notePlacement.ref)}-tab`,
     type: "text",
-    x: notePlacement.x,
+    x: placement.x,
     y: notePlacement.tabY,
     text: fretText,
     fill: placement.color,
@@ -663,51 +783,10 @@ function tabFretPrimitive(
     anchor: "middle",
     hit: {
       kind: "note",
-      ref: notePlacement.ref,
-      bbox: { x: notePlacement.x - 8, y: notePlacement.tabY - 10, width: 16, height: 14 }
+      ref: { ...notePlacement.ref, staffKind: "tab" },
+      bbox: { x: placement.x - 8, y: notePlacement.tabY - 10, width: 16, height: 14 }
     }
   };
-}
-
-function accidentalPrimitives(
-  placement: BeatRenderPlacement,
-  notePlacement: NotePlacement
-): ScenePrimitive[] {
-  const glyph = accidentalGlyph(notePlacement.note.accidental);
-
-  if (!notePlacement.note.forceAccidental || !glyph) {
-    return [];
-  }
-
-  return [
-    {
-      id: `${noteId(notePlacement.ref)}-accidental`,
-      type: "text",
-      x: notePlacement.x - 16,
-      y: notePlacement.y + 5,
-      text: glyph,
-      fill: placement.color,
-      fontSize: 17,
-      fontFamily: MUSIC_FONT_FAMILY,
-      anchor: "middle",
-      hit: effectHit(notePlacement.ref, notePlacement.x - 24, notePlacement.y - 12, 16, 22)
-    }
-  ];
-}
-
-function deadNoteCrossPrimitives(
-  placement: BeatRenderPlacement,
-  notePlacement: NotePlacement
-): ScenePrimitive[] {
-  if (!notePlacement.note.deadNote) {
-    return [];
-  }
-
-  const id = noteId(notePlacement.ref);
-  return [
-    bracketLine(`${id}-effect-dead-left`, notePlacement.x - 5, notePlacement.y - 5, notePlacement.x + 5, notePlacement.y + 5, placement.color),
-    bracketLine(`${id}-effect-dead-right`, notePlacement.x - 5, notePlacement.y + 5, notePlacement.x + 5, notePlacement.y - 5, placement.color)
-  ];
 }
 
 function noteEffectPrimitives(
@@ -752,8 +831,11 @@ function noteEffectPrimitives(
     tabSlot += 1;
   };
 
-  if (note.ghost) {
-    addAbove("ghost", "ghost");
+  if (note.ghost && placement.clef) {
+    for (const [side, offset, glyph] of [["left", -8, "("], ["right", 8, ")"]] as const) {
+      primitives.push(effectText(`${id}-effect-ghost-${side}`, glyph,
+        notePlacement.x + offset, notePlacement.y + 4, 12, "middle", ref, placement.color));
+    }
   }
 
   if (note.accent !== "none") {
@@ -782,11 +864,17 @@ function noteEffectPrimitives(
   }
 
   if (note.palmMute) {
-    primitives.push(...sustainLinePrimitives(`${id}-effect-palm-mute`, "PM", ref, notePlacement.x, placement.tabBottomY + 26));
+    primitives.push(...sustainLinePrimitives(`${id}-effect-palm-mute`, "P.M.", ref, notePlacement.x, placement.tabBottomY + 26));
   }
 
   if (note.hopo) {
-    addTab("hopo", "H/P", EFFECT_BLUE);
+    const x = notePlacement.x;
+    const y = (placement.clef ? notePlacement.y : notePlacement.tabY) - 8;
+    primitives.push({
+      id: `${id}-effect-hopo-arc`, type: "path", d: `M ${x - 4} ${y} Q ${x + 12} ${y - 14} ${x + 28} ${y}`,
+      fill: "none", stroke: EFFECT_BLUE, strokeWidth: 1.2
+    });
+    addAbove("hopo", "H/P", EFFECT_BLUE);
   }
 
   if (note.slide) {
@@ -815,23 +903,35 @@ function noteEffectPrimitives(
       strokeLinecap: "round",
       hit: effectHit(ref, notePlacement.x + 4, notePlacement.y - 42, 34, 26)
     });
-    primitives.push(effectText(`${id}-effect-bend-label`, "full", notePlacement.x + 38, notePlacement.y - 34, 8, "start", ref, EFFECT_BLUE));
+    const arrowX = notePlacement.x + 34;
+    const arrowY = notePlacement.y - 36;
+    primitives.push(
+      bracketLine(`${id}-effect-bend-arrow-up`, arrowX - 5, arrowY - 3, arrowX, arrowY, EFFECT_BLUE),
+      bracketLine(`${id}-effect-bend-arrow-down`, arrowX - 5, arrowY + 3, arrowX, arrowY, EFFECT_BLUE),
+      effectText(`${id}-effect-bend-label`, bendLabel(note.bend.points),
+        notePlacement.x + 38, notePlacement.y - 34, 8, "start", ref, EFFECT_BLUE)
+    );
   }
 
-  if (note.harmonic) {
-    addAbove("harmonic", harmonicLabel(note.harmonic.type), EFFECT_BLUE);
+  if (note.harmonic && !placement.clef) {
+    addAbove("harmonic", "◇", EFFECT_BLUE);
   }
 
   if (note.vibrato !== "none") {
-    addTab("vibrato", note.vibrato === "wide" ? "~~~~" : "~~", EFFECT_BLUE);
+    addTab("vibrato", note.vibrato === "wide" ? "∿∿∿∿" : "∿∿", EFFECT_BLUE);
   }
 
   if (note.trill) {
-    addAbove("trill", `tr ${note.trill.secondFret}`, EFFECT_BLUE);
+    addAbove("trill", "tr", EFFECT_BLUE);
   }
 
   if (note.tremoloPicking) {
-    addAbove("tremolo", `trem ${note.tremoloPicking}`, EFFECT_BLUE);
+    const count = Math.max(1, Math.min(4, Math.round(Math.log2(note.tremoloPicking / 8))));
+    for (let index = 0; index < count; index += 1) {
+      const x = notePlacement.x;
+      const y = notePlacement.y - 13 - index * 4;
+      primitives.push(bracketLine(`${id}-effect-tremolo-${index}`, x - 4, y + 2, x + 4, y - 2, placement.color));
+    }
   }
 
   if (note.fadeIn) {
@@ -1009,31 +1109,23 @@ function beatEffectPrimitives(placement: BeatRenderPlacement): ScenePrimitive[] 
 }
 
 function restPrimitives(placement: BeatRenderPlacement): ScenePrimitive[] {
-  const restY = restYForDuration(placement.beat.duration, placement.staffY, placement.voiceIndex);
-  const primitives: ScenePrimitive[] = [
+  const symbolPosition = placement.restPosition + (placement.beat.duration === 1 ? 2 : 0);
+  const restY = positionToY(symbolPosition, placement.staffY, STAFF_LINE_GAP);
+  const primitives: ScenePrimitive[] = placement.clef ? [
     {
       id: `${beatPlacementId(placement)}-rest-${placement.beat.duration}`,
-      type: "text",
-      x: placement.x,
-      y: restY,
-      text: restGlyph(placement.beat.duration),
-      fill: placement.color,
-      fontSize: 22,
-      fontFamily: MUSIC_FONT_FAMILY,
-      anchor: "middle",
-      hit: beatHit(
-        {
-          trackId: placement.track.id,
-          barIndex: placement.barIndex,
-          voiceIndex: placement.voiceIndex,
-          beatIndex: placement.beatIndex
-        },
-        placement.x,
-        placement.staffY
-      )
+      type: "text", x: placement.x, y: restY,
+      text: restGlyph(placement.beat.duration), fill: placement.color, fontSize: STAFF_LINE_GAP * 4,
+      fontFamily: MUSIC_FONT_FAMILY, anchor: "middle", pointerEvents: "none",
+      hit: beatHit({
+        trackId: placement.track.id,
+        barIndex: placement.barIndex,
+        voiceIndex: placement.voiceIndex,
+        beatIndex: placement.beatIndex
+      }, placement.x, placement.staffY)
     },
     ...dotPrimitives(placement.beat.dots, placement.x + 11, restY - 5, placement.color)
-  ];
+  ] : [];
 
   if (placement.tabStem) {
     primitives.push(stemLine(placement, placement.tabStem, "tab"));
@@ -1121,8 +1213,11 @@ function createBeamGroups(placements: BeatRenderPlacement[]): BeatRenderPlacemen
 
     const quarter = Math.floor(placement.tick / 480);
     const forcedGroup = placement.beat.beamMode === "force" || placement.beat.beamMode === "forceGroup";
+    const manual = placement.beat.stemDirection;
+    const previousManual = current.find((item) => item.beat.stemDirection !== "auto")?.beat.stemDirection;
     const startsNewGroup =
       placement.beat.beamMode === "break" ||
+      (manual !== "auto" && previousManual !== undefined && manual !== previousManual) ||
       (current.length > 0 && quarter !== currentQuarter && !forcedGroup);
 
     if (startsNewGroup) {
@@ -1141,6 +1236,31 @@ function createBeamGroups(placements: BeatRenderPlacement[]): BeatRenderPlacemen
 function pushBeamGroup(groups: BeatRenderPlacement[][], current: BeatRenderPlacement[]): void {
   if (current.length > 0) {
     groups.push(current);
+  }
+}
+
+function alignStandardBeamStems(groups: BeatRenderPlacement[][]): void {
+  for (const group of groups) {
+    if (group.length < 2) continue;
+    const manual = group.find((placement) => placement.beat.stemDirection !== "auto")?.beat.stemDirection;
+    const direction = manual === "up" || manual === "down" ? manual : group[0].stem?.direction;
+    if (!direction) continue;
+    const stems = group.flatMap((placement) => {
+      const stem = createStemGeometry(placement.beat, placement.notePlacements, placement.x, direction, placement.staffY);
+      placement.stem = stem;
+      return stem ? [stem] : [];
+    });
+    const first = stems[0];
+    const last = stems.at(-1);
+    if (!first || !last || last.x === first.x) continue;
+
+    const rise = Math.max(-STAFF_LINE_GAP, Math.min(STAFF_LINE_GAP, last.endY - first.endY));
+    const slope = rise / (last.x - first.x);
+    const desired = (x: number) => first.endY + slope * (x - first.x);
+    const offsets = stems.map((stem) => stem.endY - desired(stem.x));
+    const offset = direction === "up" ? Math.min(...offsets) : Math.max(...offsets);
+    const startY = first.endY;
+    for (const stem of stems) stem.endY = startY + slope * (stem.x - first.x) + offset;
   }
 }
 
@@ -1216,17 +1336,16 @@ function beamPrimitive(
   }
 
   const direction = firstStem.direction;
-  const y =
-    direction === "up"
-      ? Math.min(firstStem.endY, lastStem.endY) + level * BEAM_GAP
-      : Math.max(firstStem.endY, lastStem.endY) - level * BEAM_GAP - BEAM_THICKNESS;
+  const levelOffset = direction === "up" ? level * BEAM_GAP : -level * BEAM_GAP - BEAM_THICKNESS;
+  const y1 = firstStem.endY + levelOffset;
+  const y2 = lastStem.endY + levelOffset;
   const x1 = firstStem.x;
   const x2 = lastStem.x;
 
   return {
     id: `${beatPlacementId(first)}-${layer}-beam-${level}-${segmentIndex}`,
     type: "path",
-    d: `M ${x1} ${y} L ${x2} ${y} L ${x2} ${y + BEAM_THICKNESS} L ${x1} ${y + BEAM_THICKNESS} Z`,
+    d: `M ${x1} ${y1} L ${x2} ${y2} L ${x2} ${y2 + BEAM_THICKNESS} L ${x1} ${y1 + BEAM_THICKNESS} Z`,
     fill: first.color
   };
 }
@@ -1296,10 +1415,12 @@ function tupletBracket(group: BeatRenderPlacement[], depth: number, key: string)
 }
 
 function tiePrimitivesForSystem(
+  score: Score,
   track: Track,
   measures: SystemMeasure[],
   staffX: number,
   staffY: number,
+  band: StaffBand | undefined,
   options: TrackPrimitiveOptions
 ): ScenePrimitive[] {
   const anchors = new Map<string, TieAnchor>();
@@ -1314,6 +1435,7 @@ function tiePrimitivesForSystem(
   measures.forEach((measure) => {
     const measureX = staffX + measure.x;
     const bar = track.bars[measure.content.barIndex];
+    const fifths = keyFifths(score.masterBars[measure.content.barIndex].keySignature);
 
     bar?.voices.forEach((voice, voiceIndex) => {
       let tick = 0;
@@ -1329,12 +1451,14 @@ function tiePrimitivesForSystem(
             noteIndex
           };
 
-          const pitch = tryWrittenPitch(note, track, { concertTone: options.concertTone, ottava: beat.ottava });
-          if (pitch === null) return;
+          if (band && !noteBelongsToBand(track, note, band)) return;
+          const staff = band?.clef ? placeStaffNote(note, track, band.clef, fifths, staffY, STAFF_LINE_GAP, {
+            concertTone: options.concertTone, ottava: beat.ottava
+          }) : null;
+          if (band?.clef && !staff) return;
           anchors.set(noteRefKey(ref), {
-            ref,
-            x,
-            y: pitchToStaffY(pitch, staffY),
+            ref, x,
+            y: staff?.y ?? staffY + (note.string - 1) * TAB_LINE_GAP + 4,
             voiceIndex,
             color: voiceColor(voiceIndex, options)
           });
@@ -1542,19 +1666,6 @@ function alternateEndingLabel(mask: number): string {
   return `${endings.join(", ")}.`;
 }
 
-function accidentalGlyph(accidental: Note["accidental"]): string {
-  const glyphs: Record<Note["accidental"], string> = {
-    none: "",
-    sharp: SMUFL.accidentalSharp,
-    flat: SMUFL.accidentalFlat,
-    natural: SMUFL.accidentalNatural,
-    doubleSharp: SMUFL.accidentalDoubleSharp,
-    doubleFlat: SMUFL.accidentalDoubleFlat
-  };
-
-  return glyphs[accidental];
-}
-
 function dynamicLabel(dynamic: Note["dynamic"]): string {
   const dynamics: Record<Note["dynamic"], string> = {
     0: "ppp",
@@ -1568,18 +1679,6 @@ function dynamicLabel(dynamic: Note["dynamic"]): string {
   };
 
   return dynamics[dynamic];
-}
-
-function harmonicLabel(type: NonNullable<Note["harmonic"]>["type"]): string {
-  const labels: Record<NonNullable<Note["harmonic"]>["type"], string> = {
-    natural: "N.H.",
-    artificial: "A.H.",
-    tapped: "T.H.",
-    pinch: "P.H.",
-    semi: "S.H."
-  };
-
-  return labels[type];
 }
 
 function bracketLine(id: string, x1: number, y1: number, x2: number, y2: number, color: string): LinePrimitive {
@@ -1598,64 +1697,21 @@ function bracketLine(id: string, x1: number, y1: number, x2: number, y2: number,
 
 function createStemGeometry(
   beat: Beat,
-  notePlacements: NotePlacement[],
+  notes: NotePlacement[],
   x: number,
-  direction: "up" | "down"
+  direction: "up" | "down",
+  staffTop: number
 ): StemGeometry | null {
-  if (beat.duration === 1 || beat.rest || notePlacements.length === 0) {
-    return null;
-  }
-
-  const noteY =
-    direction === "up"
-      ? Math.min(...notePlacements.map((placement) => placement.y))
-      : Math.max(...notePlacements.map((placement) => placement.y));
-  const stemX = direction === "up" ? x + NOTE_HEAD_WIDTH / 2 : x - NOTE_HEAD_WIDTH / 2;
-
+  if (beat.duration === 1 || beat.rest || notes.length === 0) return null;
+  const ys = notes.map((note) => note.y);
+  const startY = direction === "up" ? Math.max(...ys) : Math.min(...ys);
+  const end = stemEndPosition(notes.map((note) => note.staff?.position ?? 4), direction);
   return {
     direction,
-    x: stemX,
-    startY: noteY,
-    endY: direction === "up" ? noteY - STEM_LENGTH : noteY + STEM_LENGTH
+    x: direction === "up" ? x + NOTE_HEAD_WIDTH / 2 : x - NOTE_HEAD_WIDTH / 2,
+    startY,
+    endY: positionToY(end, staffTop, STAFF_LINE_GAP)
   };
-}
-
-function resolveStemDirection(
-  beat: Beat,
-  voiceIndex: number,
-  activeVoiceCount: number,
-  notePlacements: NotePlacement[],
-  staffY: number
-): "up" | "down" {
-  if (beat.stemDirection !== "auto") {
-    return beat.stemDirection;
-  }
-
-  if (activeVoiceCount > 1) {
-    return voiceIndex === 1 ? "down" : "up";
-  }
-
-  return autoStemDirection(notePlacements, beat.stemDirection, staffY);
-}
-
-function autoStemDirection(
-  notePlacements: NotePlacement[],
-  override: StemDirection,
-  staffY: number
-): "up" | "down" {
-  if (override !== "auto") {
-    return override;
-  }
-
-  if (notePlacements.length === 0) {
-    return "up";
-  }
-
-  const averageY =
-    notePlacements.reduce((sum, placement) => sum + placement.y, 0) / notePlacements.length;
-  const staffCenterY = staffY + STAFF_LINE_GAP * 2;
-
-  return averageY > staffCenterY ? "up" : "down";
 }
 
 function isBeamable(placement: BeatRenderPlacement): boolean {
@@ -1694,20 +1750,6 @@ function restGlyph(duration: BeatDuration): string {
   };
 
   return rests[duration];
-}
-
-function restYForDuration(duration: BeatDuration, staffY: number, voiceIndex: number): number {
-  const voiceOffset = voiceIndex === 1 ? 12 : voiceIndex > 1 ? 18 : 0;
-
-  if (duration === 1) {
-    return staffY + STAFF_LINE_GAP * 2 + voiceOffset;
-  }
-
-  if (duration === 2) {
-    return staffY + STAFF_LINE_GAP * 3 + voiceOffset;
-  }
-
-  return staffY + STAFF_LINE_GAP * 3.2 + voiceOffset;
 }
 
 function tupletChain(tuplet: Tuplet | undefined): Tuplet[] {
@@ -1770,18 +1812,4 @@ function voiceColor(voiceIndex: number, options?: TrackPrimitiveOptions): string
   }
 
   return voiceIndex === 1 ? "#374151" : RHYTHM_BLACK;
-}
-
-function pitchToStaffY(pitch: number, staffY: number): number {
-  let displayPitch = pitch;
-
-  while (displayPitch < 55) {
-    displayPitch += 12;
-  }
-
-  while (displayPitch > 76) {
-    displayPitch -= 12;
-  }
-
-  return staffY + STAFF_LINE_GAP * 4 - (displayPitch - 60) * (STAFF_LINE_GAP / 2);
 }

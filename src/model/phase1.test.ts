@@ -78,12 +78,12 @@ describe("Phase 1 model derivations", () => {
   it("converts sounding pitch to written pitch for transposing instruments", () => {
     const track = createTrack();
     track.transpositionTonality = { soundingOffset: -2 };
-    expect(writtenPitch(createNote(2, 1), track, { concertTone: false })).toBe(62);
+    expect(writtenPitch(createNote(2, 1), track, { concertTone: false })).toBe(74);
   });
 
   it("applies ottava notation to written pitch", () => {
     const track = createTrack();
-    expect(writtenPitch(createNote(2, 1), track, { concertTone: true, ottava: "8va" })).toBe(48);
+    expect(writtenPitch(createNote(2, 1), track, { concertTone: true, ottava: "8va" })).toBe(60);
   });
 });
 

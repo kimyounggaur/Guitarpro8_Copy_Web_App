@@ -1,3 +1,4 @@
+import { noteTieIdentity } from "./trackKind";
 import type { InvariantIssue } from "./invariants";
 import type { Beat, NoteRef, Score, Track } from "./types";
 
@@ -24,7 +25,8 @@ export function findTrackTieOrigin(track: Track, path: NotePath): NotePath | nul
   if (path.trackId !== track.id || !destination || destination.rest || !note) return null;
   const previous = previousTieBeat(track, path);
   if (!previous) return null;
-  const noteIndex = previous.beat.notes.findIndex(({ string }) => string === note.string);
+  const identity = noteTieIdentity(note, track);
+  const noteIndex = previous.beat.notes.findIndex((candidate) => noteTieIdentity(candidate, track) === identity);
   return noteIndex < 0 ? null : {
     ...path,
     barIndex: previous.barIndex,
@@ -44,7 +46,9 @@ export function normalizeTies(score: Score): InvariantIssue[] {
             const location = { trackId: track.id, barIndex, voiceIndex, beatIndex };
             const origin = findTrackTieOrigin(track, { ...location, noteIndex });
             if (origin) {
-              note.fret = track.bars[origin.barIndex].voices[origin.voiceIndex].beats[origin.beatIndex].notes[origin.noteIndex].fret;
+              if (track.kind === "stringed") {
+                note.fret = track.bars[origin.barIndex].voices[origin.voiceIndex].beats[origin.beatIndex].notes[origin.noteIndex].fret;
+              }
             } else {
               delete note.tiedFromPrevious;
               warnings.push({

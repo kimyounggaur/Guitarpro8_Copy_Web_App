@@ -6,7 +6,7 @@ import v1Demo from "../test/fixtures/files/v1-demo.json";
 import { NATIVE_SCORE_FORMAT, serializeNativeScore } from "./nativeScore";
 
 describe("TabScore native files", () => {
-  it("round-trips the demo and a stable document ID through a compact v3 envelope", () => {
+  it("round-trips the demo and a stable document ID through a compact v4 envelope", () => {
     const score = createDemoScore();
     const saveTime = new Date("2026-11-23T03:00:00.000Z");
     const payload = writeScoreFile(score, "doc_fixture", saveTime);
@@ -117,5 +117,53 @@ describe("TabScore native files", () => {
     score.tracks.push(createTrack());
     score.tracks[0].bars[0].voices[0].beats.push(createBeat({ rest: false, notes: [createNote(7, 2)] }));
     expect(() => readScoreFile(writeScoreFile(score, "doc_wrong"))).toThrow(/cannot be opened/);
+  });
+
+  it("converts v3 track pitches and serializes only the values used by each instrument", () => {
+    const score = createEmptyScore();
+    const guitar = createTrack();
+    const piano = createTrack({ name: "Piano", shortName: "Pno.", icon: "piano", color: "#000",
+      tuningLabel: "Keyboard", strings: [48, 52, 55, 60, 64], staffConfig: "grand", stringed: false });
+    const drums = createTrack({ name: "Drum Kit", shortName: "Dr.", icon: "drums", color: "#000",
+      tuningLabel: "GM Kit", strings: [36, 38, 42], stringed: false });
+
+    guitar.bars[0].voices[0].beats.push(createBeat({
+      rest: false, notes: [{ ...createNote(6, 3), midiPitch: 99 }]
+    }));
+    piano.bars[0].voices[0].beats.push(createBeat({
+      rest: false, notes: [{ ...createNote(), midiPitch: 36 }, { ...createNote(), midiPitch: 48 }]
+    }));
+    drums.bars[0].voices[0].beats.push(createBeat({
+      rest: false, notes: [{ ...createNote(), midiNumber: 38, articulation: "rimshot" }]
+    }));
+    score.tracks.push(guitar, piano, drums);
+
+    const v3 = JSON.stringify({
+      format: APP_FILE_FORMAT, schemaVersion: 3, app: { name: "TabScore", version: "0.0.0" },
+      documentId: "doc_v3", savedAt: "2026-11-23T00:00:00.000Z",
+      score: {
+        ...score,
+        tracks: score.tracks.map(({ kind: _kind, clef: _clef, ...track }) => track)
+      }
+    });
+    const result = readScoreFile(v3);
+    expect(result.score.tracks.map(({ kind, clef }) => [kind, clef])).toEqual([
+      ["stringed", "treble8vb"], ["pitched", "grand"], ["percussion", "percussion"]
+    ]);
+
+    const encoded = JSON.parse(writeScoreFile(result.score, result.documentId));
+    const [encodedGuitar, encodedPiano, encodedDrums] = encoded.score.tracks.map((track: typeof guitar) =>
+      track.bars[0].voices[0].beats[0].notes[0]
+    );
+    expect(encodedGuitar).toMatchObject({ string: 6, fret: 3 });
+    expect(encodedGuitar).not.toHaveProperty("midiPitch");
+    expect(encodedPiano.midiPitch).toBe(36);
+    expect(encodedPiano).not.toHaveProperty("string");
+    expect(encodedPiano).not.toHaveProperty("fret");
+    expect(encodedDrums).toMatchObject({ midiNumber: 38, articulation: "rimshot" });
+    expect(encodedDrums).not.toHaveProperty("fret");
+
+    delete encodedPiano.midiPitch;
+    expect(() => readScoreFile(JSON.stringify(encoded))).toThrow(/cannot be opened/);
   });
 });

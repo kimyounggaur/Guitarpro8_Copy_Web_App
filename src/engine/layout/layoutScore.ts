@@ -18,7 +18,7 @@ export interface LayoutScoreOptions {
 export function layoutScore(score: Score, options: LayoutScoreOptions = {}): SceneGraph {
   const stylesheet = normalizeStylesheet(score.stylesheet);
   const metrics = resolvePageMetrics(stylesheet, score.documentSettings.displayMode);
-  const measureContents = createMeasureContents(score);
+  const measureContents = createMeasureContents(score, stylesheet.notation);
   const systems = breakSystems(measureContents, metrics.contentWidth - SYSTEM_LABEL_WIDTH, stylesheet.page);
   const durationIssues = validateBarDurations(score);
   const pages = layoutPages(systems, score.tracks, stylesheet, metrics, (system) =>

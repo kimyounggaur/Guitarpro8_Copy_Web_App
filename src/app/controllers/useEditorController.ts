@@ -21,6 +21,7 @@ import type { EditorCommandContext } from "../../commands/editingCommands";
 import { handleEditorKeyDown } from "../../commands/editorKeymap";
 import { cursorFromHit } from "../../engine/editing/hitTest";
 import {
+  applyStandardInput,
   canTieFromPrevious,
   changeDurationAtCursor,
   cloneCurrentBar,
@@ -31,12 +32,12 @@ import {
   deleteBeatAtCursor,
   deleteNoteAtCursor,
   inputFret,
-  inputStandardString,
   insertBarAtCursor,
   insertBeatAtCursor,
   moveCursor,
   moveNoteString,
   moveRightWithScoreMutation,
+  moveStandardCursor,
   normaliseCursor,
   replaceTrackBars,
   setAccidentalAtCursor,
@@ -44,6 +45,7 @@ import {
   setDurationAtCursor,
   setDotsAtCursor,
   shouldMutateOnMoveRight,
+  standardInputPlacement,
   tieCurrentNoteFromPrevious,
   toggleBarSymbolAtCursor,
   toggleBeatEffectAtCursor,
@@ -323,6 +325,17 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     });
   }
 
+  function inputStandardString(stringNumber?: number): void {
+    const score = useDocumentStore.getState().score;
+    const cursor = useViewStore.getState().cursor;
+    const placement = standardInputPlacement(score, cursor, stringNumber === 0 ? undefined : stringNumber);
+    if (!placement) {
+      setEditNotice("이 음은 지금 튜닝으로 칠 수 없습니다");
+      return;
+    }
+    editWithCursor("Input standard note", (draft, current) => applyStandardInput(draft, current, placement));
+  }
+
   const editorContext: EditorCommandContext = {
     get staffKind() { return useViewStore.getState().cursor.staffKind; },
     get playbackStatus() { return usePlaybackStore.getState().status; },
@@ -351,18 +364,16 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
       endFretInput();
       const current = useViewStore.getState().cursor;
       setSelection(null);
-      setCursor({
+      const score = useDocumentStore.getState().score;
+      setCursor(normaliseCursor(score, {
         ...current,
+        writtenMidi: undefined,
         staffKind: current.staffKind === "tab" ? "standard" : "tab"
-      });
+      }));
     },
     inputFretDigit,
     endFretInput,
-    inputStandardString: (stringNumber) => {
-      editWithCursor("Input standard note", (draft, current) =>
-        inputStandardString(draft, current, stringNumber)
-      );
-    },
+    inputStandardString,
     changeDuration: (direction) => {
       const effective = invertPlusMinus
         ? direction === "longer"
@@ -447,8 +458,15 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     insertBeat: () => editWithCursor("Insert beat", insertBeatAtCursor),
     insertBar: () => editWithCursor("Insert bar", insertBarAtCursor),
     copyPreviousBeat: () => editWithCursor("Copy previous beat", copyPreviousBeat),
-    moveNoteString: (direction) =>
-      editWithCursor("Move note string", (draft, current) => moveNoteString(draft, current, direction)),
+    moveNoteString: (direction) => {
+      const cursor = useViewStore.getState().cursor;
+      if (cursor.staffKind === "standard") {
+        const score = useDocumentStore.getState().score;
+        updateCursorSelection(moveStandardCursor(score, cursor, direction === 1 ? -1 : 1, true), false);
+      } else {
+        editWithCursor("Move note string", (draft, current) => moveNoteString(draft, current, direction));
+      }
+    },
     transposeNote: (semitones) =>
       editWithCursor("Transpose note", (draft, current) => transposeNoteAtCursor(draft, current, semitones)),
     setAccidental: (accidental) =>
@@ -491,14 +509,19 @@ export function useEditorController(params: UseEditorControllerParams): EditorCo
     const kind = target.dataset.hitKind as Parameters<typeof cursorFromHit>[2];
     const currentScore = useDocumentStore.getState().score;
     const current = useViewStore.getState().cursor;
-    const staffKind = target.id.endsWith("-head")
-      ? "standard"
-      : target.id.endsWith("-tab")
-        ? "tab"
-        : current.staffKind;
-    const nextCursor = cursorFromHit(currentScore, current, kind, ref);
+    // Transform the pointer back to page space so zoom and horizontal scrolling
+    // do not change the staff position selected by a click.
+    const transform = target.ownerSVGElement?.getScreenCTM();
+    const pageY = transform && kind === "staffInput"
+      ? new DOMPoint(event.clientX, event.clientY).matrixTransform(transform.inverse()).y
+      : undefined;
+    if (!ref.staffKind && target.id.endsWith("-head")) ref.staffKind = "standard";
+    if (!ref.staffKind && target.id.endsWith("-tab")) ref.staffKind = "tab";
+
+    const nextCursor = cursorFromHit(currentScore, current, kind, ref, pageY);
     setSelection(null);
-    setCursor(normaliseCursor(currentScore, { ...nextCursor, staffKind }));
+    setCursor(nextCursor);
+    if (kind === "staffInput" && pageY !== undefined) inputStandardString(nextCursor.string);
   }
 
   function handleScoreKeyDown(event: React.KeyboardEvent<HTMLElement>) {

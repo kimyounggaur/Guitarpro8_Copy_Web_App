@@ -89,6 +89,7 @@ export const EDITOR_COMMAND_IDS = [
   "note.effect.wah",
   "note.enharmonic",
   "note.flat",
+  "note.inputStandard",
   "note.moveStringDown",
   "note.moveStringUp",
   "note.natural",
