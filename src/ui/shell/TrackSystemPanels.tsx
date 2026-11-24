@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import {
   DRUM_MAPPINGS,
   INSTRUMENT_DEFINITIONS,
-  TUNING_PRESETS,
   instrumentById,
   midiName,
   presetsByCategory,
+  retuneTrack,
   tuningLabel,
-  tuningMatchesPreset,
+  tuningPresetsForTrack,
   type InstrumentCategory,
   type InstrumentDefinition,
   type RetuneMode
@@ -35,7 +35,7 @@ export interface TrackSystemPanelsProps {
   multiVoiceEdit: boolean;
   onClose: () => void;
   onCreateTrack: (options: TrackCreateOptions) => void;
-  onApplyTuning: (trackId: string, tuning: Tuning, mode: RetuneMode) => void;
+  onApplyTuning: (trackId: string, tuning: Tuning, mode: RetuneMode) => number;
   onTrackPatch: (trackId: string, patch: Partial<Pick<Track, "notationTypes" | "staffConfig">>) => void;
   onVoiceSelect: (voiceIndex: number) => void;
   onMoveNoteToVoice: (voiceIndex: number) => void;
@@ -176,11 +176,13 @@ function TuningPanel({
   const [tuning, setTuning] = useState<Tuning>(structuredClone(track.tuning));
   const [mode, setMode] = useState<RetuneMode>("keep-fingering");
   const [confirmReduction, setConfirmReduction] = useState(false);
+  const [unplayable, setUnplayable] = useState(0);
   const reducing = tuning.strings.length < track.tuning.strings.length;
   const removedNotes = reducing ? track.bars.flatMap((bar) => bar.voices)
     .flatMap((voice) => voice.beats)
     .reduce((total, beat) => total + beat.notes.filter((note) => note.string > tuning.strings.length).length, 0) : 0;
-  const matching = tuningMatchesPreset(tuning.strings);
+  const presets = tuningPresetsForTrack(track, tuning.strings.length);
+  const matching = presets.find((preset) => preset.strings.every((midi, index) => midi === tuning.strings[index]));
   const warning = tuning.partialCapo && tuning.partialCapo.fret < tuning.capo;
 
   useEffect(() => {
@@ -191,12 +193,12 @@ function TuningPanel({
     <div className="trackWizardGrid">
       <section className="toolColumn">
         <div className="instrumentList">
-          {TUNING_PRESETS.filter((preset) => preset.strings.length === tuning.strings.length).map((preset) => (
+          {presets.map((preset) => (
             <button
               key={preset.id}
               type="button"
               className={matching?.id === preset.id ? "activeToggle" : ""}
-              onClick={() => setTuning({ ...tuning, strings: preset.strings, label: preset.label })}
+              onClick={() => setTuning({ ...tuning, strings: [...preset.strings], label: preset.label })}
             >
               <span>{preset.name}</span>
               <em>{preset.label}</em>
@@ -248,23 +250,35 @@ function TuningPanel({
         </div>
         <CapoPreview tuning={tuning} />
         <button type="button" onClick={() => {
-          if (reducing && removedNotes > 0) setConfirmReduction(true);
-          else onApplyTuning(track.id, tuning, reducing ? "adjust-fingering" : mode);
+          if (reducing) {
+            const lost = retuneTrack(structuredClone(track), tuning, "adjust-fingering");
+            if (removedNotes > 0 || lost > 0) {
+              setUnplayable(lost);
+              setConfirmReduction(true);
+              return;
+            }
+          }
+          setUnplayable(onApplyTuning(track.id, tuning, reducing ? "adjust-fingering" : mode));
         }}>
           Apply
         </button>
+        {!reducing && unplayable > 0 ? (
+          <p role="status" className="toolWarning">새 튜닝으로 옮길 수 없는 음 {unplayable}개를 발견해 기존 튜닝을 유지했습니다.</p>
+        ) : null}
         {confirmReduction && reducing ? (
           <section role="alertdialog" aria-label="줄 수 변경 확인">
-            <p>없어지는 줄에 음 {removedNotes}개가 있습니다. 옮길 수 없는 음은 삭제됩니다.</p>
+            <p>없어지는 줄에 음 {removedNotes}개가 있습니다. 옮기기를 선택하면 연주할 수 없는 음 {unplayable}개가 삭제됩니다.</p>
             <button type="button" onClick={() => {
               onApplyTuning(track.id, tuning, "adjust-fingering");
               setConfirmReduction(false);
+              setUnplayable(0);
             }}>다른 줄로 옮기기</button>
             <button type="button" onClick={() => {
               onApplyTuning(track.id, tuning, "remove-missing-strings");
               setConfirmReduction(false);
+              setUnplayable(0);
             }}>삭제</button>
-            <button type="button" onClick={() => setConfirmReduction(false)}>취소</button>
+            <button type="button" onClick={() => { setConfirmReduction(false); setUnplayable(0); }}>취소</button>
           </section>
         ) : null}
       </section>
@@ -380,17 +394,25 @@ function DrumKitPanel({ onDrumToggle }: TrackSystemPanelsProps & { track: Track 
   );
 }
 
+const MIN_TUNING_PITCH = 12;
+const MAX_TUNING_PITCH = 96;
+const TUNING_PITCHES = Array.from({ length: MAX_TUNING_PITCH - MIN_TUNING_PITCH + 1 },
+  (_, index) => MIN_TUNING_PITCH + index);
+
 function TuningStringEditor({ tuning, onChange }: { tuning: Tuning; onChange: (tuning: Tuning) => void }) {
   function updateString(index: number, midi: number): void {
+    if (!Number.isInteger(midi) || midi < 0 || midi > 127) return;
     const strings = tuning.strings.map((value, candidateIndex) => (candidateIndex === index ? midi : value));
     onChange({ ...tuning, strings, label: tuningLabel(strings) });
   }
 
   function resize(count: number): void {
-    const strings =
-      count > tuning.strings.length
-        ? [...tuning.strings, ...Array.from({ length: count - tuning.strings.length }, () => tuning.strings[tuning.strings.length - 1] + 5)]
-        : tuning.strings.slice(0, count);
+    const nextCount = Math.max(3, Math.min(10, Math.floor(count)));
+    const lastPitch = tuning.strings.at(-1) ?? 64;
+    const strings = nextCount > tuning.strings.length
+      ? [...tuning.strings, ...Array.from({ length: nextCount - tuning.strings.length }, (_, index) =>
+        Math.min(MAX_TUNING_PITCH, lastPitch + 5 * (index + 1)))]
+      : tuning.strings.slice(0, nextCount);
     onChange({ ...tuning, strings, label: tuningLabel(strings) });
   }
 
@@ -398,15 +420,32 @@ function TuningStringEditor({ tuning, onChange }: { tuning: Tuning; onChange: (t
     <div className="tuningEditor">
       <label>
         <span>Strings</span>
-        <input type="number" min="3" max="10" value={tuning.strings.length} onChange={(event) => resize(Number(event.target.value))} />
+        <input type="number" min="3" max="10" value={tuning.strings.length} onChange={(event) => {
+          if (Number.isFinite(event.currentTarget.valueAsNumber)) resize(event.currentTarget.valueAsNumber);
+        }} />
       </label>
-      {tuning.strings.map((midi, index) => (
-        <label key={index}>
-          <span>{tuning.strings.length - index}</span>
-          <input type="number" min="12" max="96" value={midi} onChange={(event) => updateString(index, Number(event.target.value))} />
-          <em>{midiName(midi)}</em>
-        </label>
-      ))}
+      {tuning.strings.map((midi, index) => {
+        const string = tuning.strings.length - index;
+        const pitches = midi < MIN_TUNING_PITCH ? [midi, ...TUNING_PITCHES]
+          : midi > MAX_TUNING_PITCH ? [...TUNING_PITCHES, midi] : TUNING_PITCHES;
+        return (
+          <div key={string} className="tuningPitchRow">
+            <label>
+              <span>{string}</span>
+              <select aria-label={`String ${string} note`} value={midi}
+                onChange={(event) => updateString(index, Number(event.currentTarget.value))}>
+                {pitches.map((value) => <option key={value} value={value}>{midiName(value)}</option>)}
+              </select>
+            </label>
+            <button type="button" aria-label={`Lower string ${string} by one semitone`}
+              disabled={midi <= MIN_TUNING_PITCH}
+              onClick={() => updateString(index, midi - 1)}>−</button>
+            <button type="button" aria-label={`Raise string ${string} by one semitone`}
+              disabled={midi >= MAX_TUNING_PITCH}
+              onClick={() => updateString(index, midi + 1)}>+</button>
+          </div>
+        );
+      })}
     </div>
   );
 }

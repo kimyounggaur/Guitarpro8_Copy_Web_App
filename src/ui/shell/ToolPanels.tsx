@@ -14,9 +14,13 @@ import {
   type ScaleDefinition
 } from "../../model/scales";
 import {
+  DEFAULT_PITCH_CLARITY,
+  DEFAULT_TUNER_MEDIAN_COUNT,
   detectPitchFromBuffer,
+  medianPitch,
   midiToFrequency,
   nearestTuningTarget,
+  TUNER_SAMPLE_COUNT,
   tuningTargets,
   type PitchDetection
 } from "../../model/tuner";
@@ -35,7 +39,7 @@ export interface ToolPanelsProps {
   onClose: () => void;
   onInsertChordVoicing: (voicing: ChordVoicing, chordName: string) => void;
   onFretboardNoteToggle: (string: number, fret: number, advance: boolean) => void;
-  onTransposeRequest: (options: TransposeOptions) => void;
+  onTransposeRequest: (options: TransposeOptions) => number;
   onCleanupRequest: (request: CleanupRequest) => void;
 }
 
@@ -251,78 +255,142 @@ function InstrumentTool(props: ToolPanelsProps & { track: Track }) {
 
 function TunerTool({ track }: { track: Track }) {
   const [detected, setDetected] = useState<PitchDetection | null>(null);
-  const [target, setTarget] = useState<ReturnType<typeof nearestTuningTarget> | null>(null);
-  const [running, setRunning] = useState(false);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const [status, setStatus] = useState<"idle" | "starting" | "running">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [clarity, setClarity] = useState(DEFAULT_PITCH_CLARITY);
+  const [windowSize, setWindowSize] = useState(DEFAULT_TUNER_MEDIAN_COUNT);
+  const filter = useRef({ clarity, windowSize });
+  const cleanup = useRef<(() => void) | null>(null);
+  const requestId = useRef(0);
+  const target = detected ? nearestTuningTarget(track.tuning, detected.frequency) : null;
 
-  useEffect(() => () => cleanupRef.current?.(), []);
+  useEffect(() => { filter.current = { clarity, windowSize }; }, [clarity, windowSize]);
+  useEffect(() => () => {
+    requestId.current += 1;
+    cleanup.current?.();
+    cleanup.current = null;
+  }, []);
+
+  function stop(): void {
+    requestId.current += 1;
+    cleanup.current?.();
+    cleanup.current = null;
+    setStatus("idle");
+    setDetected(null);
+  }
 
   async function start(): Promise<void> {
-    cleanupRef.current?.();
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const context = new AudioContext();
-    const analyser = context.createAnalyser();
-    const source = context.createMediaStreamSource(stream);
-    const buffer = new Float32Array(2048);
-    let frame = 0;
+    cleanup.current?.();
+    cleanup.current = null;
+    const request = ++requestId.current;
+    setStatus("starting");
+    setDetected(null);
+    setError(null);
+    let capture: MediaStream | undefined;
+    let audio: AudioContext | undefined;
 
-    analyser.fftSize = 2048;
-    source.connect(analyser);
-    setRunning(true);
-
-    const tick = () => {
-      analyser.getFloatTimeDomainData(buffer);
-      const pitch = detectPitchFromBuffer(buffer, context.sampleRate);
-
-      if (pitch) {
-        setDetected(pitch);
-        setTarget(nearestTuningTarget(track.tuning, pitch.frequency));
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new DOMException("Audio capture is unavailable.", "NotFoundError");
+      }
+      capture = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+      if (request !== requestId.current) {
+        capture.getTracks().forEach((mediaTrack) => mediaTrack.stop());
+        return;
       }
 
-      frame = window.requestAnimationFrame(tick);
-    };
+      const stream: MediaStream = capture;
+      const context: AudioContext = new AudioContext();
+      audio = context;
+      await context.resume();
+      if (request !== requestId.current) {
+        stream.getTracks().forEach((mediaTrack) => mediaTrack.stop());
+        void context.close().catch(() => {});
+        return;
+      }
 
-    tick();
-    cleanupRef.current = () => {
-      window.cancelAnimationFrame(frame);
-      source.disconnect();
-      stream.getTracks().forEach((mediaTrack) => mediaTrack.stop());
-      void context.close();
-      setRunning(false);
-    };
+      const analyser = context.createAnalyser();
+      const source = context.createMediaStreamSource(stream);
+      const samples = new Float32Array(TUNER_SAMPLE_COUNT);
+      analyser.fftSize = TUNER_SAMPLE_COUNT;
+      source.connect(analyser);
+      const history: PitchDetection[] = [];
+      let frame = 0;
+      cleanup.current = () => {
+        window.cancelAnimationFrame(frame);
+        source.disconnect();
+        stream.getTracks().forEach((mediaTrack) => mediaTrack.stop());
+        void context.close().catch(() => {});
+      };
+      setStatus("running");
+
+      function measure(): void {
+        analyser.getFloatTimeDomainData(samples);
+        const pitch = detectPitchFromBuffer(samples, context.sampleRate, filter.current.clarity);
+        if (pitch) {
+          history.push(pitch);
+          history.splice(0, Math.max(0, history.length - filter.current.windowSize));
+          setDetected(medianPitch(history));
+        }
+        frame = window.requestAnimationFrame(measure);
+      }
+      frame = window.requestAnimationFrame(measure);
+    } catch (reason) {
+      capture?.getTracks().forEach((track) => track.stop());
+      if (audio) void audio.close().catch(() => {});
+      if (request === requestId.current) {
+        setError(microphoneErrorText(reason));
+        setStatus("idle");
+      }
+    }
   }
 
   function testSine(): void {
-    const sampleRate = 44100;
-    const samples = new Float32Array(2048);
-
-    for (let index = 0; index < samples.length; index += 1) {
-      samples[index] = Math.sin((Math.PI * 2 * 110 * index) / sampleRate) * 0.8;
-    }
-
-    const pitch = detectPitchFromBuffer(samples, sampleRate);
-    setDetected(pitch);
-    setTarget(pitch ? nearestTuningTarget(track.tuning, pitch.frequency) : null);
+    const sampleRate = 48_000;
+    const samples = Float32Array.from({ length: TUNER_SAMPLE_COUNT }, (_, index) =>
+      Math.sin((Math.PI * 2 * 110 * index) / sampleRate) * 0.8);
+    setDetected(detectPitchFromBuffer(samples, sampleRate));
   }
 
   return (
     <div className="toolGrid tunerTool">
       <section className="toolColumn">
         <div className="toolButtonRow">
-          <button type="button" onClick={() => void start()} disabled={running}>
-            Start
+          <button type="button" onClick={() => void start()} disabled={status !== "idle"}>
+            {error ? "Retry" : "Start"}
           </button>
-          <button type="button" onClick={() => cleanupRef.current?.()} disabled={!running}>
+          <button type="button" onClick={stop} disabled={status === "idle"}>
             Stop
           </button>
           <button type="button" onClick={testSine}>
             Test A2
           </button>
         </div>
+        {error ? <p role="alert" className="toolWarning">{error}</p> : null}
         <strong className={target ? centsClass(target.cents) : ""}>
-          {detected ? `${detected.noteName} ${detected.frequency.toFixed(1)}Hz` : "--"}
+          {detected ? `${detected.noteName} ${detected.frequency.toFixed(1)}Hz`
+            : status === "running" ? "Listening…" : status === "starting" ? "Connecting…" : "--"}
         </strong>
         <p className="toolMeta">{target ? `String ${target.string} ${target.noteName} ${target.cents}c` : track.tuning.label}</p>
+        <details>
+          <summary>Detection settings</summary>
+          <label>
+            <span>Minimum clarity</span>
+            <input type="number" min={0.5} max={1} step={0.01} value={clarity}
+              onChange={(event) => {
+                const value = event.currentTarget.valueAsNumber;
+                if (Number.isFinite(value)) setClarity(Math.min(1, Math.max(0.5, value)));
+              }} />
+          </label>
+          <label>
+            <span>Median frames</span>
+            <select value={windowSize} onChange={(event) => setWindowSize(Number(event.currentTarget.value))}>
+              {[1, 3, 5, 7, 9].map((count) => <option key={count} value={count}>{count}</option>)}
+            </select>
+          </label>
+        </details>
       </section>
       <section className="toolColumn tuningBars">
         {tuningTargets(track.tuning).map((item) => (
@@ -337,8 +405,24 @@ function TunerTool({ track }: { track: Track }) {
   );
 }
 
-function TransposeTool({ onApply }: { onApply: (options: TransposeOptions) => void }) {
+function microphoneErrorText(reason: unknown): string {
+  if (reason instanceof Error) {
+    switch (reason.name) {
+      case "NotAllowedError":
+        return "Microphone permission was denied. Allow microphone access in your browser and retry.";
+      case "NotFoundError":
+        return "No microphone was found. Connect a microphone and retry.";
+      case "NotReadableError":
+        return "The microphone is busy or unavailable. Close other apps using it and retry.";
+    }
+  }
+  return "The tuner could not start your microphone. Check your audio device and retry.";
+}
+
+function TransposeTool({ onApply }: { onApply: (options: TransposeOptions) => number }) {
   const [options, setOptions] = useState<TransposeOptions>(DEFAULT_TRANSPOSE);
+  const [unchangedNotes, setUnchangedNotes] = useState(0);
+  const canTransposeKey = options.target === "allTracks" && options.mode !== "diatonic";
 
   return (
     <div className="toolGrid transposeTool">
@@ -364,6 +448,15 @@ function TransposeTool({ onApply }: { onApply: (options: TransposeOptions) => vo
             onChange={(event) => setOptions({ ...options, includeChordNames: event.target.checked })}
           />
           <span>Chords</span>
+        </label>
+        <label className="toolCheck">
+          <input
+            type="checkbox"
+            disabled={!canTransposeKey}
+            checked={canTransposeKey && Boolean(options.includeKeySignatures)}
+            onChange={(event) => setOptions({ ...options, includeKeySignatures: event.target.checked })}
+          />
+          <span>Transpose key signatures</span>
         </label>
       </section>
       <section className="toolColumn">
@@ -404,9 +497,12 @@ function TransposeTool({ onApply }: { onApply: (options: TransposeOptions) => vo
             <input type="number" value={options.diatonicSteps} onChange={(event) => setOptions({ ...options, diatonicSteps: Number(event.target.value) })} />
           </label>
         ) : null}
-        <button type="button" onClick={() => onApply(options)}>
+        <button type="button" onClick={() => setUnchangedNotes(onApply(options))}>
           Apply
         </button>
+        {unchangedNotes > 0 ? (
+          <p role="status" className="toolWarning">Notes outside the playable range kept unchanged: {unchangedNotes}</p>
+        ) : null}
       </section>
     </div>
   );

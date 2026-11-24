@@ -1,3 +1,4 @@
+import { SpecialPasteDialog } from "../ui/overlays/SpecialPasteDialog";
 // Composition root: store subscriptions, controller composition, and the
 // route/shell render. All editing, playback, file I/O, command-palette and
 // tool-window logic now lives in src/app/controllers/* — see
@@ -426,6 +427,11 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
             role="application"
             aria-label="Editable score"
             onClick={editor.handleScoreClick}
+            onPointerDown={editor.handleScorePointerDown}
+            onPointerMove={editor.handleScorePointerMove}
+            onPointerUp={editor.handleScorePointerUp}
+            onPointerCancel={editor.handleScorePointerUp}
+            onPointerLeave={editor.handleScorePointerUp}
             onKeyDown={(event) => {
               if (event.defaultPrevented) editor.editorContext.endFretInput();
               else editor.handleScoreKeyDown(event);
@@ -442,6 +448,9 @@ function EditorApp({ startupReady }: { startupReady: boolean }) {
         }
       />
       {file.unsavedConfirmationOpen && <UnsavedChangesDialog onChoose={file.resolveUnsavedChoice} />}
+      {editor.specialPasteOpen ? (
+        <SpecialPasteDialog onApply={editor.applySpecialPaste} onCancel={editor.closeSpecialPaste} />
+      ) : null}
       <input
         ref={file.fileInputRef}
         type="file"

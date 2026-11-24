@@ -24,6 +24,7 @@ export async function openApp(page: Page, { fixture }: { fixture?: Score } = {})
   await page.waitForFunction(() => document.fonts.ready.then(() => true));
   if (fixture) {
     await page.evaluate((json) => window.__GPW_TEST__!.loadScoreJson(json), JSON.stringify(fixture));
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   }
 }
 

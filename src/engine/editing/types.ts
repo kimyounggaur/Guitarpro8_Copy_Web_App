@@ -1,4 +1,4 @@
-import type { NoteRef } from "../../model/types";
+import type { Bar, MasterBar, NoteRef, TrackKind } from "../../model/types";
 import type { Clef } from "../notation/staffPosition";
 
 export type StaffKind = "tab" | "standard";
@@ -18,12 +18,15 @@ export interface CursorPosition {
 export interface SelectionRange {
   anchor: CursorPosition;
   head: CursorPosition;
+  unit?: "bar" | "beat";
 }
 
 export interface ClipboardPayload {
   mode: "single" | "multitrack";
   source: NoteRef | null;
-  barsJson: string;
+  wholeBars: boolean;
+  masterBars: MasterBar[];
+  tracks: Array<{ kind: TrackKind; bars: Bar[] }>;
 }
 
 export type CursorMove =

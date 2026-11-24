@@ -1,4 +1,3 @@
-import type { MixerEditPhase } from "../../store/playbackStore";
 // Song/Track/Voice/Mixer/Automation/Tools CRUD handlers for
 // useEditorController — split into its own "하위 utility" module per the
 // master prompt's Phase 2 rule ("각 controller도 500줄을 넘으면 하위
@@ -12,10 +11,12 @@ import type { MixerEditPhase } from "../../store/playbackStore";
 // declarations) and returns the same handler set that used to live
 // directly inside App().
 import type { EffectSlotType, TrackMixerState } from "../../engine/audio/mixer";
+import type { MixerEditPhase } from "../../store/playbackStore";
 import { moveRightWithScoreMutation, normaliseCursor } from "../../engine/editing/operations";
 import type { CursorPosition, SelectionRange } from "../../engine/editing/types";
 import { transposeScore, type TransposeOptions } from "../../engine/tools/transpose";
-import { beatDurationTicks, barTheoreticalTicks } from "../../model/derive";
+import { completeVoiceRests, lowerBeatFingerings } from "../../engine/tools/cleanup";
+import { useDocumentStore } from "../../store/documentStore";
 import { createBeat, createNote, createTrack } from "../../model/factory";
 import { DRUM_MAPPINGS, instrumentById, retuneTrack, type RetuneMode } from "../../model/instruments";
 import { applyStylePreset, normalizeStylesheet } from "../../model/stylesheet";
@@ -25,7 +26,6 @@ import {
   type Automation,
   type AutomationScope,
   type AutomationType,
-  type BeatDuration,
   type DisplayMode,
   type Score,
   type SongInfo,
@@ -55,7 +55,7 @@ export interface ScoreCrudHandlers {
   handleSongInfoChange: (field: keyof SongInfo, value: string) => void;
   handleTrackChange: (trackId: string, patch: Partial<Pick<Track, "name" | "shortName" | "color">>) => void;
   handleCreateTrack: (options: TrackCreateOptions) => void;
-  handleApplyTuning: (trackId: string, tuning: Track["tuning"], mode: RetuneMode) => void;
+  handleApplyTuning: (trackId: string, tuning: Track["tuning"], mode: RetuneMode) => number;
   handleTrackSystemPatch: (trackId: string, patch: Partial<Pick<Track, "notationTypes" | "staffConfig">>) => void;
   handleTrackTranspositionChange: (trackId: string, soundingOffset: number) => void;
   handleConcertToneToggle: () => void;
@@ -76,7 +76,7 @@ export interface ScoreCrudHandlers {
   handleAutomationTransitionToggle: (lane: AutomationLaneId, tick: number) => void;
   handleInsertChordVoicing: (voicing: ChordVoicing, chordName: string) => void;
   handleFretboardNoteToggle: (string: number, fret: number, advance: boolean) => void;
-  handleTransposeRequest: (options: TransposeOptions) => void;
+  handleTransposeRequest: (options: TransposeOptions) => number;
   handleCleanupRequest: (request: CleanupRequest) => void;
 }
 
@@ -146,16 +146,23 @@ export function createScoreCrudHandlers(deps: ScoreCrudDeps): ScoreCrudHandlers 
     setActiveTrackPanel(null);
   }
 
-  function handleApplyTuning(trackId: string, tuning: Track["tuning"], mode: RetuneMode) {
+  function handleApplyTuning(trackId: string, tuning: Track["tuning"], mode: RetuneMode): number {
+    const currentTrack = useDocumentStore.getState().score.tracks.find((track) => track.id === trackId);
+    if (!currentTrack) return 0;
+    const prepared = structuredClone(currentTrack);
+    const originalTuning = prepared.tuning;
+    const removed = retuneTrack(prepared, structuredClone(tuning), mode);
+    if (prepared.tuning === originalTuning) return removed;
+
     const nextScore = transact("Apply tuning", (draft) => {
       const track = draft.tracks.find((candidate) => candidate.id === trackId);
-
       if (track) {
-        retuneTrack(track, structuredClone(tuning), mode);
+        track.tuning = prepared.tuning;
+        track.bars = prepared.bars;
       }
     });
-
     setCursor(normaliseCursor(nextScore, cursor));
+    return removed;
   }
 
   function handleTrackSystemPatch(
@@ -489,11 +496,13 @@ export function createScoreCrudHandlers(deps: ScoreCrudDeps): ScoreCrudHandlers 
     setCursor(normaliseCursor(nextScore, nextCursor));
   }
 
-  function handleTransposeRequest(options: TransposeOptions) {
+  function handleTransposeRequest(options: TransposeOptions): number {
+    let unchangedNotes = 0;
     const nextScore = transact("Transpose", (draft) => {
-      transposeScore(draft, cursor, selection, options);
+      unchangedNotes = transposeScore(draft, cursor, selection, options);
     });
     setCursor(normaliseCursor(nextScore, cursor));
+    return unchangedNotes;
   }
 
   function handleCleanupRequest(request: CleanupRequest) {
@@ -505,40 +514,27 @@ export function createScoreCrudHandlers(deps: ScoreCrudDeps): ScoreCrudHandlers 
       }
 
       const { start, end } = selectedBarRange(draft, cursor, selection);
-
+      const previousFrets = [0, 0, 0, 0];
       for (let barIndex = start; barIndex <= end; barIndex += 1) {
         const bar = track.bars[barIndex];
+        const masterBar = draft.masterBars[barIndex];
+        if (!bar || !masterBar) continue;
 
-        if (!bar) {
-          continue;
-        }
-
-        bar.voices.forEach((voice) => {
-          voice.beats.forEach((beat) => {
-            beat.notes.forEach((note) => {
-              if (request === "letRing") {
-                note.letRing = true;
-                note.palmMute = false;
-              }
-
-              if (request === "palmMute") {
-                note.palmMute = true;
-                note.letRing = false;
-              }
-
-              if (request === "fingerPositioning" && note.fret > 12) {
-                note.fret -= 12;
-              }
-            });
-          });
-
+        bar.voices.forEach((voice, voiceIndex) => {
           if (request === "completeRests") {
-            const expected = draft.masterBars[barIndex] ? barTheoreticalTicks(draft.masterBars[barIndex]) : 0;
-            const actual = voice.beats.reduce((sum, beat) => sum + beatDurationTicks(beat), 0);
-            const remaining = expected - actual;
+            if (voiceIndex === 0 || voice.beats.length) completeVoiceRests(voice, masterBar);
+            return;
+          }
 
-            if (remaining > 0) {
-              voice.beats.push(createBeat({ duration: durationForTicks(remaining), rest: true }));
+          for (const beat of voice.beats) {
+            if (request === "fingerPositioning") {
+              previousFrets[voiceIndex] = lowerBeatFingerings(track, beat, previousFrets[voiceIndex]);
+              continue;
+            }
+
+            for (const note of beat.notes) {
+              note.letRing = request === "letRing";
+              note.palmMute = request === "palmMute";
             }
           }
         });
@@ -631,19 +627,4 @@ function nearestAutomationPoint(automation: Automation, tick: number) {
 
 function snapAutomationTick(tick: number): number {
   return Math.max(0, Math.round(tick / TICKS_PER_QUARTER) * TICKS_PER_QUARTER);
-}
-
-function durationForTicks(ticks: number): BeatDuration {
-  const candidates: Array<[BeatDuration, number]> = [
-    [1, TICKS_PER_QUARTER * 4],
-    [2, TICKS_PER_QUARTER * 2],
-    [4, TICKS_PER_QUARTER],
-    [8, TICKS_PER_QUARTER / 2],
-    [16, TICKS_PER_QUARTER / 4],
-    [32, TICKS_PER_QUARTER / 8],
-    [64, TICKS_PER_QUARTER / 16]
-  ];
-  return candidates.reduce((best, candidate) =>
-    Math.abs(candidate[1] - ticks) < Math.abs(best[1] - ticks) ? candidate : best
-  )[0];
 }
