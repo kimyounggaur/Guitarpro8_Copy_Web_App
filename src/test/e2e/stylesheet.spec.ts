@@ -33,9 +33,10 @@ test("[C3] saves the style for new scores across reloads without restyling the d
   await expect(style.getByRole("status")).toHaveText("Default style saved");
 
   await page.keyboard.press("Control+n");
-  const unsaved = page.getByRole("dialog", { name: "Unsaved changes" });
-  await unsaved.getByRole("button", { name: "Discard and continue" }).click();
   await expect.poll(async () => (await state(page)).score.stylesheet.page.paper).toBe("Legal");
+  await page.getByTestId("document-tab").first().click();
+  await page.keyboard.press("Control+w");
+  await page.getByRole("dialog", { name: "Unsaved changes" }).getByRole("button", { name: "Discard and continue" }).click();
 
   await openApp(page);
   expect((await state(page)).score.stylesheet.page.paper).toBe("A4");

@@ -12,7 +12,7 @@ test("[C1] menus list working actions and dispatch through the editor", async ({
   await expect(nav.getByRole("button", { name: /Preferences/ })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(nav.getByRole("button", { name: "File", exact: true })).toBeFocused();
-  await expect(page.getByTestId("tab-add")).toHaveCount(0);
+  await expect(page.getByTestId("tab-add")).toBeEnabled();
 });
 
 test("[C2] command search omits unsupported commands and executes an available one", async ({ page }) => {

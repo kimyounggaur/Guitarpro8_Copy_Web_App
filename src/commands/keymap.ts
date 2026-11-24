@@ -62,6 +62,9 @@ const physicalPunctuation: Readonly<Record<string, string>> = {
 };
 
 export const KEYMAP_ENTRIES: KeymapEntry[] = [
+  entry("file.close", "Close score", "File", "global", ["Ctrl+W"], ["Cmd+W"], true),
+  entry("tabs.next", "Next document", "File", "global", ["Ctrl+Tab"], ["Ctrl+Tab"], true),
+  entry("tabs.previous", "Previous document", "File", "global", ["Ctrl+Shift+Tab"], ["Ctrl+Shift+Tab"], true),
   entry("file.new", "New File", "File", "global", ["Ctrl+N"], ["Cmd+N"], true),
   entry("file.open", "Open File", "File", "global", ["Ctrl+O"], ["Cmd+O"], true),
   entry("file.save", "Save", "File", "global", ["Ctrl+S"], ["Cmd+S"], true),

@@ -118,7 +118,10 @@ export const EDITOR_COMMAND_IDS = [
 ] as const;
 
 export const APPLICATION_SHORTCUT_IDS = [
+  "file.close",
   "file.new",
+  "tabs.next",
+  "tabs.previous",
   "file.open",
   "file.print",
   "file.save",

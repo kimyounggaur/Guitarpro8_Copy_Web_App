@@ -1,3 +1,4 @@
+import { DocumentTabs } from "../ui/shell/DocumentTabs";
 import { StartScreen } from "../ui/shell/StartScreen";
 import { SpecialPasteDialog } from "../ui/overlays/SpecialPasteDialog";
 // Composition root: store subscriptions, controller composition, and the
@@ -5,8 +6,7 @@ import { SpecialPasteDialog } from "../ui/overlays/SpecialPasteDialog";
 // tool-window logic now lives in src/app/controllers/* — see
 // docs/ui-remaster/00-component-map.md for the extraction map this Phase 2
 // refactor followed.
-import { useEffect, useMemo, useRef, useState } from "react";
-import { defaultCursor } from "../engine/editing/operations";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LayoutCache } from "../engine/layout/layoutCache";
 import { layoutScore } from "../engine/layout/layoutScore";
 import { SvgRenderer } from "../engine/render/SvgRenderer";
@@ -43,10 +43,7 @@ function App() {
   function restore(snapshot: RecoverySnapshot) {
     try {
       const loaded = readScoreFile(snapshot.payload, { documentId: snapshot.documentId });
-      useDocumentStore.getState().loadScore(loaded.score, { documentId: loaded.documentId, recovered: true, view: loaded.view });
-      const view = useViewStore.getState();
-      view.setSelection(null);
-      view.setCursor(defaultCursor(loaded.score));
+      useDocumentStore.getState().loadScore(loaded.score, { documentId: loaded.documentId, recovered: true, view: loaded.view, mode: "tab" });
       setRecoveryDismissed(true);
       setEditorKey((key) => key + 1);
       setNotice(loaded.warnings.join(" "));
@@ -115,6 +112,9 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
   const dirty = useDocumentStore((state) => state.dirty);
   const documents = useDocumentStore((state) => state.documents);
   const activeId = useDocumentStore((state) => state.activeId);
+  const [homeOpen, setHomeOpen] = useState(false);
+  const scoreViewportRef = useRef<HTMLDivElement>(null);
+  const documentScroll = useRef(new Map<string, { left: number; top: number }>());
   const undoCount = useDocumentStore((state) => state.undoStack.length);
   const redoCount = useDocumentStore((state) => state.redoStack.length);
   const loadScore = useDocumentStore((state) => state.loadScore);
@@ -193,6 +193,19 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     setActiveTrackPanel: toolWindow.setActiveTrackPanel
   });
 
+  function beforeDocumentSwitch(): void {
+    playback.stopPlayback();
+    const viewport = scoreViewportRef.current;
+    if (viewport) documentScroll.current.set(useDocumentStore.getState().activeId, {
+      left: viewport.scrollLeft, top: viewport.scrollTop
+    });
+  }
+
+  function openHome(): void {
+    beforeDocumentSwitch();
+    setHomeOpen(true);
+  }
+
   const file = useFileController({
     score,
     activeTrackId: cursor.trackId,
@@ -200,7 +213,9 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     setSelection,
     setCursor,
     openFileIoPanel: toolWindow.openFileIoPanel,
-    closeFileIoPanel: toolWindow.closeFileIoPanel
+    closeFileIoPanel: toolWindow.closeFileIoPanel,
+    beforeDocumentSwitch,
+    onDocumentOpened: () => setHomeOpen(false)
   });
 
   const openDemo = file.openDemo;
@@ -242,7 +257,36 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     togglePanel
   });
 
+  function cycleDocument(direction: number): boolean {
+    const tabs = useDocumentStore.getState().documents;
+    if (tabs.length < 2) return false;
+    const current = tabs.findIndex(({ id }) => id === useDocumentStore.getState().activeId);
+    file.handleSelectDocument(tabs[(current + tabs.length + direction) % tabs.length].id);
+    return true;
+  }
+
+  async function closeDocuments(ids: string[]): Promise<void> {
+    let changed = false;
+    for (const id of ids) {
+      if (!await file.handleCloseDocument(id)) break;
+      changed = true;
+      documentScroll.current.delete(id);
+    }
+    if (changed) requestAnimationFrame(() => {
+      const viewport = scoreViewportRef.current;
+      if (viewport && !homeOpen) viewport.focus({ preventScroll: true });
+      else document.querySelector<HTMLButtonElement>(".tabScoreHomeActions button")?.focus();
+    });
+  }
+
   useGlobalShortcuts({
+    "file.close": () => {
+      const id = useDocumentStore.getState().activeId;
+      if (!useDocumentStore.getState().getSession(id)) return false;
+      void closeDocuments([id]);
+    },
+    "tabs.next": () => cycleDocument(1),
+    "tabs.previous": () => cycleDocument(-1),
     "file.new": file.handleNewFile,
     "file.open": file.handleOpenNativeFile,
     "file.save": file.handleSaveNativeFile,
@@ -294,20 +338,27 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
     "tools.expressionText": () => toolWindow.openCommandPalette(">")
   });
 
-  const scoreViewportRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (homeOpen) return;
+    const viewport = scoreViewportRef.current;
+    if (!viewport) return;
+    const position = documentScroll.current.get(activeId);
+    viewport.scrollTo(position?.left ?? 0, position?.top ?? 0);
+  }, [activeId, homeOpen]);
+
   const followingPlayback = playbackStatus === "playing";
   useScoreFollow(
     scoreViewportRef,
     followingPlayback ? `[id^="playback-bar-${playbackBarIndex}-"]` : "#editor-cursor-primary",
     followingPlayback ? String(playbackBarIndex) : `${cursor.trackId}:${cursor.barIndex}:${cursor.voiceIndex}:${cursor.beatIndex}:${cursor.staffLine}`,
     followingPlayback ? playbackBarIndex : cursor.barIndex,
-    startupReady && score.tracks.length > 0
+    startupReady && score.tracks.length > 0 && !homeOpen
   );
   useEffect(() => {
-    if (startupReady && score.tracks.length > 0 && document.activeElement === document.body) {
+    if (startupReady && score.tracks.length > 0 && !homeOpen && document.activeElement === document.body) {
       scoreViewportRef.current?.focus({ preventScroll: true });
     }
-  }, [score.tracks.length, startupReady]);
+  }, [score.tracks.length, startupReady, homeOpen]);
 
   const isolatedTrackId = editor.multiTrackView ? null : cursor.trackId;
   const scoreForLayout = useMemo(() => {
@@ -335,7 +386,11 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
   return (
     <>
       {editor.editNotice && <aside className="autosaveUnavailable" role="status">{editor.editNotice}</aside>}
-      {score.tracks.length > 0 ? <EditorShell
+      {score.tracks.length > 0 && <div className="tabScoreEditorScreen" hidden={homeOpen}><EditorShell
+        onHomeOpen={openHome}
+        documentTabs={<DocumentTabs documents={documents} activeId={activeId}
+          onSelect={file.handleSelectDocument} onNew={() => file.handleNewFile()}
+          onClose={(ids) => void closeDocuments(ids)} onSave={(id) => void file.handleSaveDocument(id)} />}
         score={score}
         cursor={cursor}
         dirty={dirty}
@@ -441,10 +496,15 @@ function EditorApp({ startupReady, onRecentFiles }: { startupReady: boolean; onR
             />
           </div>
         }
-      /> : <>
+      /></div>}
+      {(homeOpen || score.tracks.length === 0) && <>
         <StartScreen onCreate={file.handleNewFile} onOpen={() => void file.handleOpenNativeFile()}
-          onRecent={onRecentFiles} onDemo={() => void file.openDemo(demoScore)} />
-        {file.fileIoStatus && <p role="status">{file.fileIoStatus}</p>}
+          onRecent={onRecentFiles} onDemo={() => void file.openDemo(demoScore)}
+          hasDocuments={documents.length > 0} onReturn={() => setHomeOpen(false)}
+          onOpenRecent={(recent) => void file.handleOpenRecent(recent)}
+          onOpenLocal={(local) => void file.handleOpenLocal(local)}
+          onCreateTemplate={(template) => void file.openDemo(template)} />
+        {file.fileIoStatus && <p className="homeFileStatus" role="status">{file.fileIoStatus}</p>}
       </>}
       {file.midiImportOpen && <MidiImportDialog onChoose={file.resolveMidiImport} />}
       {file.unsavedConfirmationOpen && <UnsavedChangesDialog onChoose={file.resolveUnsavedChoice} />}

@@ -1,4 +1,3 @@
-import { getDocumentView } from "../../store/viewStore";
 import { useEffect, useState } from "react";
 import { CURRENT_SCHEMA_VERSION, writeScoreFile } from "../../io/fileFormat";
 import {
@@ -35,62 +34,53 @@ export function useScoreRecovery() {
     if (!available) return;
 
     let active = true;
-    let timer: number | undefined;
-    let idle: number | undefined;
-    let lastWrite: { documentId: string; revision: number } | undefined;
+    const timers = new Map<string, number>();
+    const lastWrites = new Map<string, number>();
 
-    const cancelPending = () => {
-      window.clearTimeout(timer);
-      if (idle !== undefined) window.cancelIdleCallback(idle);
-      idle = undefined;
-    };
+    function cancel(id: string) {
+      window.clearTimeout(timers.get(id));
+      timers.delete(id);
+    }
     const onFailure = () => {
       if (active) setAvailable(false);
     };
-    const flush = () => {
-      cancelPending();
-      const state = useDocumentStore.getState();
-      if (!state.dirty) return;
-      if (lastWrite?.documentId === state.activeId && lastWrite.revision === state.revision) return;
-
-      lastWrite = { documentId: state.activeId, revision: state.revision };
+    const flushDocument = (id: string) => {
+      cancel(id);
+      const state = useDocumentStore.getState().getSession(id);
+      if (!state || state.revision === state.savedRevision || lastWrites.get(id) === state.revision) return;
+      lastWrites.set(id, state.revision);
       const savedAt = new Date();
       try {
-        // Start the IndexedDB operation now, including for pagehide.
         void saveRecoverySnapshot({
-          documentId: state.activeId,
-          revision: state.revision,
-          title: state.score.meta.title || "Untitled Score",
-          schemaVersion: CURRENT_SCHEMA_VERSION,
-          savedAt: savedAt.toISOString(),
-          payload: writeScoreFile(state.score, state.activeId, savedAt, getDocumentView())
+          documentId: id, revision: state.revision, title: state.score.meta.title || "Untitled Score",
+          schemaVersion: CURRENT_SCHEMA_VERSION, savedAt: savedAt.toISOString(),
+          payload: writeScoreFile(state.score, id, savedAt, { zoom: state.view.zoom, displayMode: state.view.displayMode })
         }).catch(onFailure);
-      } catch {
-        onFailure();
-      }
+      } catch { onFailure(); }
     };
-    const schedule = () => {
-      cancelPending();
-      timer = window.setTimeout(() => {
-        if (typeof window.requestIdleCallback === "function") {
-          idle = window.requestIdleCallback(flush, { timeout: 250 });
-        } else {
-          flush();
-        }
-      }, 2000);
+    const flush = () => {
+      for (const { id, dirty } of useDocumentStore.getState().documents) if (dirty) flushDocument(id);
     };
     const onHidden = () => {
       if (document.visibilityState === "hidden") flush();
     };
     const unsubscribe = useDocumentStore.subscribe((state, previous) => {
-      if (state.activeId === previous.activeId && state.revision === previous.revision) return;
-      cancelPending();
-      lastWrite = undefined;
-      if (state.dirty) {
-        schedule();
-      } else if (previous.dirty && state.activeId === previous.activeId) {
-        const through = new Date().toISOString();
-        void discardRecoverySnapshot(state.activeId, through).catch(onFailure);
+      for (const tab of state.documents) {
+        const lastTab = previous.documents.find(({ id }) => id === tab.id);
+        if (tab.dirty && tab.id === state.activeId && (state.activeId !== previous.activeId || state.revision !== previous.revision)) {
+          cancel(tab.id);
+          timers.set(tab.id, window.setTimeout(() => flushDocument(tab.id), 2000));
+        } else if (!tab.dirty && lastTab?.dirty) {
+          cancel(tab.id);
+          lastWrites.delete(tab.id);
+          void discardRecoverySnapshot(tab.id, new Date().toISOString()).catch(onFailure);
+        }
+      }
+      for (const { id } of previous.documents) {
+        if (!state.documents.some((tab) => tab.id === id)) {
+          cancel(id);
+          lastWrites.delete(id);
+        }
       }
     });
     document.addEventListener("visibilitychange", onHidden);
@@ -100,7 +90,7 @@ export function useScoreRecovery() {
       unsubscribe();
       document.removeEventListener("visibilitychange", onHidden);
       window.removeEventListener("pagehide", flush);
-      cancelPending();
+      for (const id of timers.keys()) cancel(id);
     };
   }, [available]);
 
@@ -116,9 +106,10 @@ export function useScoreRecovery() {
         window.removeEventListener("beforeunload", beforeUnload);
       }
     };
-    listenWhenDirty(useDocumentStore.getState().dirty);
+    listenWhenDirty(useDocumentStore.getState().documents.some(({ dirty }) => dirty));
     const unsubscribe = useDocumentStore.subscribe((state, previous) => {
-      if (state.dirty !== previous.dirty) listenWhenDirty(state.dirty);
+      const dirty = state.documents.some((tab) => tab.dirty);
+      if (dirty !== previous.documents.some((tab) => tab.dirty)) listenWhenDirty(dirty);
     });
     return () => {
       unsubscribe();
