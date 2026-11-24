@@ -195,7 +195,7 @@ export function EditionPalette(props: PaletteProps) {
       }}>
       <PaletteSection id="voices" label={t("editor.voices")}>
         {[1, 2, 3, 4].map((voice) => (
-          <button key={voice} type="button" aria-label={`Voice ${voice} (V${voice})`} aria-pressed={cursor.voiceIndex === voice - 1}
+          <button key={voice} type="button" aria-label={`V${voice} Voice ${voice}`} aria-pressed={cursor.voiceIndex === voice - 1}
             onClick={() => props.onVoiceSelect(voice - 1)}><span aria-hidden="true">V{voice}</span></button>
         ))}
       </PaletteSection>
@@ -263,5 +263,5 @@ function moveInGrid(event: KeyboardEvent<HTMLDivElement>, columns: number) {
 
 function glyphLabel(label: string, glyph: string): string {
   return /[a-z0-9]/i.test(glyph) && !label.toLowerCase().includes(glyph.toLowerCase())
-    ? `${label} (${glyph})` : label;
+    ? `${glyph} · ${label}` : label;
 }
